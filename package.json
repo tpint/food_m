@@ -1,0 +1,27 @@
+{
+  "name": "arcane-merge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:android": "npx cap add android",
+    "cap:ios": "npx cap add ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.2",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.2.2"
+  }
+}

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#3b2a55" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
+  <title>Arcane Merge</title>
+</head>
+<body>
+  <div id="app">
+    <header id="hud">
+      <div class="badge level" id="hud-level"><img data-icon="star" alt="" /><span>1</span></div>
+      <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val">100</span><small class="timer"></small></div>
+      <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val">0</span></div>
+      <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val">0</span></div>
+      <button class="round" id="btn-sound" aria-label="Toggle sound">🔊</button>
+    </header>
+
+    <div id="xpbar"><div id="xpfill"></div><span id="xptext"></span></div>
+
+    <section id="monsters" aria-label="Monsters"></section>
+
+    <main id="board-wrap">
+      <div id="board"></div>
+    </main>
+
+    <footer id="info">
+      <img id="info-img" alt="" />
+      <div id="info-text">
+        <b id="info-title">Welcome, apprentice!</b>
+        <span id="info-desc">Tap a generator to conjure items. Merge two of a kind!</span>
+      </div>
+      <button id="info-action" class="btn hidden"></button>
+    </footer>
+  </div>
+
+  <canvas id="fx"></canvas>
+  <div id="toast"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

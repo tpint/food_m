@@ -1,0 +1,528 @@
+import './style.css';
+import { CHAINS, GENERATORS, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
+import {
+  GameState, Monster, Piece, cast, collect, findSpell, isWanted, load, movePiece, msToNextEnergy,
+  newGame, save, sell, sellValue, spawnFrom, tickEnergy,
+} from './game/state';
+import { iconArt, itemArt, monsterImg, pieceArt } from './render/art';
+import { burst, puff, shower, trail } from './render/fx';
+import { sfx } from './render/sfx';
+
+const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
+
+let state: GameState = load() ?? newGame();
+tickEnergy(state);
+
+// ------------------------------------------------------------------ helpers
+
+const pieceColor = (p: Piece) => CHAINS[p.kind === 'gen' ? GENERATORS[p.gen].chain : p.chain].color;
+const pieceName = (p: Piece) => (p.kind === 'gen' ? GENERATORS[p.gen].name : CHAINS[p.chain].levels[p.level - 1]);
+const center = (el: Element) => {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
+
+let saveTimer = 0;
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => save(state), 250);
+}
+
+let toastTimer = 0;
+function toast(msg: string, big = false, ms = 1400) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.toggle('big', big);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function floater(text: string, x: number, y: number) {
+  const f = document.createElement('div');
+  f.className = 'floater';
+  f.textContent = text;
+  f.style.left = `${x}px`;
+  f.style.top = `${y}px`;
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 1000);
+}
+
+function restartAnim(el: Element, cls: string) {
+  el.classList.remove(cls);
+  void (el as HTMLElement).offsetWidth;
+  el.classList.add(cls);
+}
+
+/** Fly an image along an arc from one point to another with a sparkle trail. */
+function fly(src: string, from: { x: number; y: number }, to: { x: number; y: number }, opts: { ms?: number; color?: string; size?: number; delay?: number } = {}) {
+  const { ms = 550, color = '#fff', size, delay = 0 } = opts;
+  return new Promise<void>((resolve) => {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'flyer';
+      if (size) Object.assign(el.style, { width: `${size}px`, height: `${size}px`, margin: `${-size / 2}px 0 0 ${-size / 2}px` });
+      el.innerHTML = `<img src="${src}" alt="">`;
+      document.body.appendChild(el);
+      const start = performance.now();
+      const lift = Math.min(120, Math.abs(to.y - from.y) * 0.35 + 40);
+      const step = (now: number) => {
+        const t = Math.min(1, (now - start) / ms);
+        const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const x = from.x + (to.x - from.x) * e;
+        const y = from.y + (to.y - from.y) * e - Math.sin(Math.PI * t) * lift;
+        el.style.transform = `translate(${x}px, ${y}px) scale(${1 - t * 0.35}) rotate(${t * 20}deg)`;
+        el.style.left = '0';
+        el.style.top = '0';
+        trail(x, y, color);
+        if (t < 1) requestAnimationFrame(step);
+        else { el.remove(); resolve(); }
+      };
+      requestAnimationFrame(step);
+    }, delay);
+  });
+}
+
+// ------------------------------------------------------------------ layout
+
+const boardEl = $('#board');
+const cells: HTMLDivElement[] = [];
+const cellKeys: string[] = [];
+
+function layout() {
+  const app = $('#app');
+  const wrap = $('#board-wrap');
+  const gap = 3, pad = 16;
+  const availW = app.clientWidth - 20 - pad;
+  // Height left for the board once everything else is laid out.
+  const others = [...app.children].filter((c) => c !== wrap).reduce((h, c) => h + (c as HTMLElement).offsetHeight, 0);
+  const availH = app.clientHeight - others - 8 * (app.children.length) - pad - 20;
+  const size = Math.floor(Math.min((availW - gap * (state.cols - 1)) / state.cols, (availH - gap * (state.rows - 1)) / state.rows, 72));
+  document.documentElement.style.setProperty('--cell', `${Math.max(34, size)}px`);
+  // Monster cards scale with --cell, so settle once more.
+  requestAnimationFrame(() => {
+    const others2 = [...app.children].filter((c) => c !== wrap).reduce((h, c) => h + (c as HTMLElement).offsetHeight, 0);
+    const h2 = app.clientHeight - others2 - 8 * app.children.length - pad - 20;
+    const s2 = Math.floor(Math.min((availW - gap * (state.cols - 1)) / state.cols, (h2 - gap * (state.rows - 1)) / state.rows, 72));
+    document.documentElement.style.setProperty('--cell', `${Math.max(34, s2)}px`);
+  });
+}
+
+function buildBoard() {
+  boardEl.style.setProperty('--cols', String(state.cols));
+  boardEl.innerHTML = '';
+  cells.length = 0;
+  for (let i = 0; i < state.board.length; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell';
+    c.dataset.i = String(i);
+    boardEl.appendChild(c);
+    cells.push(c);
+    cellKeys[i] = '';
+  }
+}
+
+function renderCell(i: number, anim?: 'pop' | 'merge' | 'squish') {
+  const c = state.board[i];
+  const el = cells[i];
+  el.classList.toggle('veiled', c.lock === 1);
+  el.classList.toggle('sealed', c.lock === 2);
+  const p = c.piece;
+  const key = p ? (p.kind === 'gen' ? `g${p.gen}` : `${p.chain}${p.level}`) : '';
+  if (key !== cellKeys[i]) {
+    cellKeys[i] = key;
+    el.innerHTML = p ? `<div class="piece ${p.kind === 'gen' ? 'gen' : ''}"><img src="${pieceArt(p)}" alt=""></div>` : '';
+  }
+  const pe = el.firstElementChild;
+  if (pe) {
+    pe.classList.toggle('want', !c.lock && isWanted(state, p));
+    if (anim) restartAnim(pe, anim);
+  }
+}
+
+function renderBoard() {
+  for (let i = 0; i < state.board.length; i++) renderCell(i);
+}
+
+// ------------------------------------------------------------------ HUD
+
+const shown = { coins: state.coins, gems: state.gems, energy: state.energy };
+
+function renderHud() {
+  $('#hud-level span').textContent = String(state.level);
+  $('#hud-energy .val').textContent = String(state.energy);
+  $('#hud-coins .val').textContent = String(state.coins);
+  $('#hud-gems .val').textContent = String(state.gems);
+  for (const k of ['coins', 'gems', 'energy'] as const) {
+    if (shown[k] !== state[k]) {
+      if (state[k] > shown[k]) restartAnim($(`#hud-${k}`), 'bump');
+      shown[k] = state[k];
+    }
+  }
+  const need = xpForLevel(state.level);
+  $('#xpfill').style.width = `${(state.xp / need) * 100}%`;
+  $('#xptext').textContent = `${state.xp} / ${need} XP`;
+  updateTimer();
+}
+
+function updateTimer() {
+  const ms = msToNextEnergy(state);
+  const t = $('#hud-energy .timer');
+  if (state.energy >= MAX_ENERGY || !ms) t.textContent = '';
+  else t.textContent = `+1 in ${Math.ceil(ms / 1000)}s`;
+}
+
+document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
+  img.src = iconArt[img.dataset.icon as keyof typeof iconArt]();
+});
+
+// ------------------------------------------------------------------ monsters
+
+const monsterEls = new Map<number, HTMLElement>();
+const dyingIds = new Set<number>();
+
+function monsterCard(m: Monster): HTMLElement {
+  const el = document.createElement('div');
+  el.className = `monster enter${m.boss ? ' boss' : ''}`;
+  el.dataset.id = String(m.id);
+  el.innerHTML = `
+    <button class="cast">Cast!</button>
+    <div class="portrait"><img src="${monsterImg(m.kind)}" alt=""></div>
+    <div class="name">${m.boss ? '👑 ' : ''}${m.name}</div>
+    <div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""></div>`).join('')}</div>
+    <div class="reward"><img src="${iconArt.coin()}" alt="">${m.coins}${m.gems ? ` <img src="${iconArt.gem()}" alt="">${m.gems}` : ''} · ${m.xp}xp</div>`;
+  el.querySelector('.cast')!.addEventListener('click', (e) => { e.stopPropagation(); doCast(m.id); });
+  el.querySelector('.portrait')!.addEventListener('click', () => showMonsterInfo(m));
+  setTimeout(() => el.classList.remove('enter'), 600);
+  return el;
+}
+
+function renderMonsters() {
+  const wrap = $('#monsters');
+  const ids = new Set(state.monsters.map((m) => m.id));
+  for (const [id, el] of monsterEls) {
+    if (!ids.has(id) && !dyingIds.has(id)) { el.remove(); monsterEls.delete(id); }
+  }
+  state.monsters.forEach((m, i) => {
+    let el = monsterEls.get(m.id);
+    if (!el) {
+      el = monsterCard(m);
+      monsterEls.set(m.id, el);
+    }
+    if (wrap.children[i] !== el && !dyingIds.size) wrap.insertBefore(el, wrap.children[i] ?? null);
+    // Mark which needs are on the board.
+    const used = new Set<number>();
+    el.querySelectorAll<HTMLElement>('.need').forEach((n) => {
+      const chain = n.dataset.chain, level = Number(n.dataset.level);
+      const at = state.board.findIndex((c, j) => !used.has(j) && !c.lock && c.piece?.kind === 'item' && c.piece.chain === chain && c.piece.level === level);
+      if (at >= 0) used.add(at);
+      n.classList.toggle('have', at >= 0);
+    });
+    el.classList.toggle('ready', !!findSpell(state, m));
+  });
+}
+
+function showMonsterInfo(m: Monster) {
+  setInfo(monsterImg(m.kind), m.name, `Weak to: ${m.needs.map((n) => CHAINS[n.chain].levels[n.level - 1]).join(' + ')}. Gather them on the board, then Cast!`);
+}
+
+async function doCast(id: number) {
+  const m = state.monsters.find((x) => x.id === id);
+  const el = monsterEls.get(id);
+  if (!m || !el) return;
+  const cellsUsed = findSpell(state, m);
+  if (!cellsUsed) return;
+
+  // Capture art + positions before the state changes.
+  const flights = cellsUsed.map((i) => ({ src: pieceArt(state.board[i].piece!), from: center(cells[i]), color: pieceColor(state.board[i].piece!) }));
+  const res = cast(state, id);
+  if (!res) return;
+  dyingIds.add(id);
+  select(-1);
+  cellsUsed.forEach((i) => renderCell(i));
+  sfx.cast();
+
+  const target = center(el.querySelector('.portrait')!);
+  await Promise.all(flights.map((f, k) => fly(f.src, f.from, target, { ms: 520, color: f.color, delay: k * 90 }).then(() => {
+    burst(target.x, target.y, f.color, 0.7);
+    restartAnim(el, 'hit');
+  })));
+
+  sfx.defeat();
+  el.classList.add('dying');
+  shower(target.x, target.y, m.boss ? ['#ffcf4a', '#ff8a3c', '#fff'] : ['#ffd147', '#b98cff', '#fff']);
+  floater(`+${res.monster.coins}`, target.x, target.y - 20);
+
+  // Coins fly to the HUD.
+  const hudCoin = center($('#hud-coins img'));
+  const n = Math.min(8, 3 + Math.floor(res.monster.coins / 10));
+  for (let k = 0; k < n; k++) {
+    fly(iconArt.coin(), { x: target.x + (Math.random() - 0.5) * 40, y: target.y }, hudCoin, { ms: 600, delay: 150 + k * 60, color: '#ffd147', size: 26 })
+      .then(() => { if (k % 2 === 0) sfx.coin(); });
+  }
+  setTimeout(() => {
+    renderHud();
+    dyingIds.delete(id);
+    el.remove();
+    monsterEls.delete(id);
+    renderMonsters();
+    renderBoard();
+    if (res.levelUp) {
+      sfx.levelUp();
+      toast(`✨ Level ${state.level}! ✨\nMana refilled, +3 gems`, true, 2200);
+      const lv = center($('#hud-level'));
+      shower(lv.x, lv.y, ['#7fd0ff', '#b98cff', '#fff']);
+    }
+  }, 750);
+  persist();
+}
+
+// ------------------------------------------------------------------ info bar
+
+let selected = -1;
+
+function setInfo(img: string | null, title: string, desc: string, action?: { label: string; fn: () => void }) {
+  const im = $<HTMLImageElement>('#info-img');
+  if (img) im.src = img; else im.removeAttribute('src');
+  $('#info-title').textContent = title;
+  $('#info-desc').textContent = desc;
+  const btn = $<HTMLButtonElement>('#info-action');
+  btn.classList.toggle('hidden', !action);
+  btn.onclick = action ? (e) => { e.stopPropagation(); action.fn(); } : null;
+  if (action) btn.textContent = action.label;
+}
+
+function select(i: number) {
+  if (selected >= 0) cells[selected]?.classList.remove('selected');
+  selected = i;
+  if (i < 0) {
+    setInfo(null, 'Defeat the monsters!', 'Merge items to brew the magic each monster is weak to.');
+    return;
+  }
+  cells[i].classList.add('selected');
+  const c = state.board[i];
+  const p = c.piece;
+  if (!p) return;
+  const name = pieceName(p);
+
+  if (c.lock === 2) return setInfo(null, 'Sealed by shadow', 'Merge items next to it to lift the seal.');
+  if (c.lock === 1) return setInfo(pieceArt(p), `${name} (veiled)`, 'Drag a matching item onto it to free it!');
+
+  if (p.kind === 'gen') {
+    const def = GENERATORS[p.gen];
+    return setInfo(pieceArt(p), def.name, `Tap to conjure ${CHAINS[def.chain].name} items. Costs ${SPAWN_COST} ⚡.`, { label: `Conjure ⚡${SPAWN_COST}`, fn: () => doSpawn(i) });
+  }
+
+  const def = CHAINS[p.chain];
+  const max = maxLevel(p.chain);
+  const next = p.level < max ? `Merge 2 → ${def.levels[p.level]}` : 'Max level!';
+  const title = `${name} · Lv ${p.level}`;
+  if (def.collect) {
+    const amt = def.collect.amounts[p.level - 1];
+    const what = def.collect.resource === 'coins' ? `${amt} coins` : `${amt} mana`;
+    return setInfo(pieceArt(p), title, `${next}. Tap again to collect ${what}.`, { label: 'Collect', fn: () => doCollect(i) });
+  }
+  const v = sellValue(p);
+  setInfo(pieceArt(p), title, `${next}.${isWanted(state, p) ? ' A monster is weak to this!' : ''}`, v ? { label: `Sell +${v}`, fn: () => doSell(i) } : undefined);
+}
+
+// ------------------------------------------------------------------ actions
+
+function doSpawn(i: number) {
+  const r = spawnFrom(state, i);
+  if (!r.ok) {
+    sfx.error();
+    restartAnim(cells[i].firstElementChild!, 'squish');
+    toast(r.reason === 'energy' ? 'Out of mana! Wait or collect Mana items.' : 'The board is full! Merge or sell items.');
+    return;
+  }
+  sfx.spawn();
+  restartAnim(cells[i].firstElementChild!, 'squish');
+  const from = center(cells[i]);
+  const to = center(cells[r.at]);
+  const p = r.piece;
+  cellKeys[r.at] = '__pending';
+  fly(pieceArt(p), from, to, { ms: 260, color: pieceColor(p) }).then(() => {
+    cellKeys[r.at] = '';
+    renderCell(r.at, 'pop');
+    puff(to.x, to.y, pieceColor(p));
+    renderMonsters();
+  });
+  renderHud();
+  persist();
+}
+
+function doCollect(i: number) {
+  const p = state.board[i].piece;
+  const from = center(cells[i]);
+  const r = collect(state, i);
+  if (!r || !p) return;
+  sfx.coin();
+  select(-1);
+  renderCell(i);
+  const hud = r.resource === 'coins' ? $('#hud-coins img') : $('#hud-energy img');
+  fly(pieceArt(p), from, center(hud), { ms: 500, color: pieceColor(p) }).then(() => renderHud());
+  floater(`+${r.amount}`, from.x, from.y);
+  persist();
+}
+
+function doSell(i: number) {
+  const from = center(cells[i]);
+  const v = sell(state, i);
+  if (!v) return;
+  sfx.coin();
+  puff(from.x, from.y, '#ffd147');
+  floater(`+${v}`, from.x, from.y);
+  select(-1);
+  renderCell(i);
+  renderHud();
+  renderMonsters();
+  persist();
+}
+
+function onTap(i: number) {
+  const c = state.board[i];
+  if (!c.piece) { select(-1); return; }
+  if (!c.lock && c.piece.kind === 'gen') { select(i); doSpawn(i); return; }
+  if (!c.lock && c.piece.kind === 'item' && CHAINS[c.piece.chain].collect && selected === i) { doCollect(i); return; }
+  sfx.pick();
+  if (!c.lock) restartAnim(cells[i].firstElementChild!, 'squish');
+  select(i);
+}
+
+function onDrop(from: number, to: number) {
+  const fromPiece = state.board[from].piece!;
+  const r = movePiece(state, from, to);
+  if (r.type === 'none') {
+    sfx.error();
+    renderCell(from, 'squish');
+    return;
+  }
+  if (r.type === 'merge') {
+    renderCell(from);
+    renderCell(to, 'merge');
+    const pt = center(cells[to]);
+    const lvl = (r.result as Extract<Piece, { kind: 'item' }>).level;
+    burst(pt.x, pt.y, pieceColor(fromPiece), 0.8 + lvl * 0.12);
+    if (lvl === maxLevel((r.result as Extract<Piece, { kind: 'item' }>).chain)) shower(pt.x, pt.y, [pieceColor(fromPiece), '#fff', '#ffe680']);
+    sfx.merge(lvl);
+    for (const u of r.unveiled) {
+      renderCell(u, 'squish');
+      const up = center(cells[u]);
+      puff(up.x, up.y, '#b8d8ff');
+    }
+    select(to);
+  } else {
+    sfx.drop();
+    renderCell(from, r.type === 'swap' ? 'squish' : undefined);
+    renderCell(to, 'squish');
+    select(to);
+  }
+  renderMonsters();
+  renderBoard();
+  persist();
+}
+
+// ------------------------------------------------------------------ input
+
+interface Drag { from: number; x0: number; y0: number; active: boolean; ghost?: HTMLElement; over: number; pointer: number }
+let drag: Drag | null = null;
+
+function cellAt(x: number, y: number): number {
+  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('.cell');
+  return el ? Number(el.dataset.i) : -1;
+}
+
+function clearHints() {
+  cells.forEach((c) => c.classList.remove('hint', 'drop'));
+}
+
+boardEl.addEventListener('pointerdown', (e) => {
+  const el = (e.target as HTMLElement).closest<HTMLElement>('.cell');
+  if (!el || drag) return;
+  const i = Number(el.dataset.i);
+  drag = { from: i, x0: e.clientX, y0: e.clientY, active: false, over: -1, pointer: e.pointerId };
+});
+
+addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.pointer) return;
+  const c = state.board[drag.from];
+  if (!drag.active) {
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8) return;
+    if (!c.piece || c.lock) return;
+    drag.active = true;
+    sfx.pick();
+    const g = document.createElement('div');
+    g.id = 'drag-ghost';
+    g.innerHTML = `<img src="${pieceArt(c.piece)}" alt="">`;
+    document.body.appendChild(g);
+    drag.ghost = g;
+    cells[drag.from].firstElementChild?.classList.add('dragging-src');
+    // Highlight every merge partner, like the blue glow in Love & Pies.
+    state.board.forEach((o, j) => {
+      if (j !== drag!.from && o.lock !== 2 && o.piece?.kind === 'item' && c.piece?.kind === 'item'
+        && o.piece.chain === c.piece.chain && o.piece.level === c.piece.level && c.piece.level < maxLevel(c.piece.chain)) {
+        cells[j].classList.add('hint');
+      }
+    });
+  }
+  drag.ghost!.style.left = `${e.clientX}px`;
+  drag.ghost!.style.top = `${e.clientY}px`;
+  const over = cellAt(e.clientX, e.clientY);
+  if (over !== drag.over) {
+    if (drag.over >= 0) cells[drag.over].classList.remove('drop');
+    if (over >= 0 && over !== drag.from) cells[over].classList.add('drop');
+    drag.over = over;
+  }
+});
+
+function endDrag(e: PointerEvent) {
+  if (!drag || e.pointerId !== drag.pointer) return;
+  const d = drag;
+  drag = null;
+  if (!d.active) { onTap(d.from); return; }
+  d.ghost?.remove();
+  cells[d.from].firstElementChild?.classList.remove('dragging-src');
+  clearHints();
+  const to = cellAt(e.clientX, e.clientY);
+  if (to >= 0 && to !== d.from) onDrop(d.from, to);
+  else renderCell(d.from, 'squish');
+}
+addEventListener('pointerup', endDrag);
+addEventListener('pointercancel', (e) => {
+  if (!drag || e.pointerId !== drag.pointer) return;
+  drag.ghost?.remove();
+  cells[drag.from].firstElementChild?.classList.remove('dragging-src');
+  clearHints();
+  drag = null;
+});
+
+$('#btn-sound').addEventListener('click', () => {
+  $('#btn-sound').textContent = sfx.toggle() ? '🔇' : '🔊';
+});
+$('#btn-sound').textContent = sfx.muted ? '🔇' : '🔊';
+
+// Debug helpers for playtesting from the console.
+Object.assign(window, {
+  arcane: {
+    reset() { state = newGame(); save(state); location.reload(); },
+    energy(n = 100) { state.energy += n; renderHud(); persist(); },
+    get state() { return state; },
+  },
+});
+
+// ------------------------------------------------------------------ boot
+
+buildBoard();
+renderBoard();
+renderHud();
+renderMonsters();
+select(-1);
+layout();
+addEventListener('resize', layout);
+document.fonts?.ready.then(layout);
+
+setInterval(() => {
+  if (tickEnergy(state)) { renderHud(); persist(); } else updateTimer();
+}, 1000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(state); });
