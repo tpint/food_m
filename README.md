@@ -37,6 +37,9 @@ npm run build      # production build in dist/
 - **Monsters**: each card shows the items the monster is weak to. Items that match get a ✓.
   When you have them all, press **Cast!** to defeat it and collect coins, XP and gems.
   Every 6th monster is a boss.
+- **New monsters**: don't like the current lineup? The ⟳ button above the monster cards swaps all three for new ones.
+  It costs 10 coins, and the price doubles with every refresh until you defeat a monster, which resets it to 10.
+  A boss stays a boss when you refresh. Tuning lives in `REFRESH_BASE_COST` / `REFRESH_COST_GROWTH`.
 - **Tower restoration**: monsters also drop **Stars** (bosses drop 3). Tap the tower button (top right) to open the
   Tower screen and spend Stars on restoration tasks, in order. Each task visibly repairs the room and Professor Hoot,
   the Archmage's owl, tells a bit more of the story. Five chapters, one room each:

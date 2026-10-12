@@ -4,7 +4,8 @@
 import { CHAPTERS, ChapterDef, TaskDef } from './story';
 import {
   ACTIVE_MONSTERS, BOARD_COLS, BOARD_ROWS, BOSS, BOSS_EVERY, CHAINS, ChainId, ENERGY_REGEN_MS,
-  GEN_LEVELS, GENERATORS, GenId, MAGIC_CHAINS, MAX_ENERGY, MONSTERS, MonsterKind, SPAWN_COST, maxLevel, xpForLevel,
+  GEN_LEVELS, GENERATORS, GenId, MAGIC_CHAINS, MAX_ENERGY, MONSTERS, MonsterKind, REFRESH_BASE_COST,
+  REFRESH_COST_GROWTH, SPAWN_COST, maxLevel, xpForLevel,
 } from './config';
 
 export type Piece =
@@ -57,6 +58,8 @@ export interface GameState {
   storySeen: string[];
   /** Extra Stars every monster drops (a chapter reward). */
   starBonus?: number;
+  /** Monster rerolls since the last defeat; each one makes the next cost more. */
+  refreshes?: number;
   /** When the player last changed something (ms); the newest of local and cloud wins. */
   savedAt?: number;
 }
@@ -359,8 +362,9 @@ export function sell(s: GameState, i: number): number {
 
 // ---------------------------------------------------------------- monsters
 
-export function makeMonster(s: GameState, rng: Rng = Math.random): Monster {
-  const boss = (s.nextMonsterId % BOSS_EVERY) === 0;
+/** A new monster. Pass `keep` to replace one in place (same id, boss or not). */
+export function makeMonster(s: GameState, rng: Rng = Math.random, keep?: Monster): Monster {
+  const boss = keep ? keep.boss : (s.nextMonsterId % BOSS_EVERY) === 0;
   const unlocked = MONSTERS.filter((m) => m.minLevel <= s.level);
   const fresh = unlocked.filter((m) => !s.monsters.some((x) => x.kind === m.kind));
   const def = boss ? BOSS : pick(rng, fresh.length ? fresh : unlocked);
@@ -377,7 +381,7 @@ export function makeMonster(s: GameState, rng: Rng = Math.random): Monster {
 
   const power = needs.reduce((t, n) => t + Math.pow(3, n.level - 1), 0);
   return {
-    id: s.nextMonsterId++,
+    id: keep ? keep.id : s.nextMonsterId++,
     kind: def.kind,
     name: def.name,
     needs,
@@ -425,9 +429,33 @@ export function cast(s: GameState, monsterId: number, rng: Rng = Math.random): C
   s.gems += m.gems;
   s.stars += (m.stars ?? 1) + (s.starBonus ?? 0);
   s.defeated++;
+  s.refreshes = 0;
   const levelUp = addXp(s, m.xp);
   s.monsters.splice(mi, 1, makeMonster(s, rng));
   return { cells, monster: m, levelUp };
+}
+
+export const refreshCost = (s: GameState) =>
+  REFRESH_BASE_COST * Math.pow(REFRESH_COST_GROWTH, s.refreshes ?? 0);
+
+export type RefreshResult =
+  | { ok: true; cost: number; old: Monster[] }
+  | { ok: false; reason: 'coins'; cost: number };
+
+/**
+ * Pay coins to swap every monster for a new one. Each keeps its id and boss
+ * status, so rerolling can't skip or summon a boss.
+ */
+export function refreshMonsters(s: GameState, rng: Rng = Math.random): RefreshResult {
+  const cost = refreshCost(s);
+  if (s.coins < cost) return { ok: false, reason: 'coins', cost };
+  s.coins -= cost;
+  s.refreshes = (s.refreshes ?? 0) + 1;
+  const old = s.monsters;
+  s.monsters = [];
+  // Built one by one so the new monsters differ from each other where possible.
+  for (const m of old) s.monsters.push(makeMonster(s, rng, m));
+  return { ok: true, cost, old };
 }
 
 export function addXp(s: GameState, xp: number): boolean {

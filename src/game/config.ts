@@ -118,6 +118,9 @@ export const ENERGY_REGEN_MS = 20_000;
 export const SPAWN_COST = 1;
 export const ACTIVE_MONSTERS = 3;
 export const BOSS_EVERY = 6;
+/** Rerolling the monsters costs this many coins, doubling with each reroll until one is defeated. */
+export const REFRESH_BASE_COST = 10;
+export const REFRESH_COST_GROWTH = 2;
 
 export const xpForLevel = (level: number) => 10 + (level - 1) * 12;
 export const maxLevel = (chain: ChainId) => CHAINS[chain].levels.length;

@@ -2,7 +2,7 @@ import './style.css';
 import { CHAINS, ElementId, GEN_LEVELS, GENERATORS, isElement, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
   GameState, MERGE_COUNT, Monster, Piece, canUpgrade, currentTask, restore, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
-  newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
+  newGame, refreshCost, refreshMonsters, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
 } from './game/state';
 import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
 import { burst, elementCharge, elementHit, puff, shower, trail } from './render/fx';
@@ -224,6 +224,7 @@ function renderHud() {
   $('#xptext').textContent = `${state.xp} / ${need} XP`;
   updateTimer();
   updateTowerBadge();
+  updateRefresh();
   // Keep the Upgrade button in sync with coins / level.
   if (selected >= 0 && state.board[selected]?.piece?.kind === 'gen') select(selected);
 }
@@ -284,6 +285,43 @@ function renderMonsters() {
     if (starN) starN.textContent = String((m.stars ?? 1) + (state.starBonus ?? 0));
   });
 }
+
+function updateRefresh() {
+  const cost = refreshCost(state);
+  const btn = $('#btn-refresh');
+  btn.querySelector('.val')!.textContent = String(cost);
+  btn.classList.toggle('off', state.coins < cost);
+  btn.setAttribute('aria-label', `New monsters for ${cost} coins`);
+}
+
+/** Pay coins to swap all the monsters for new ones. */
+function doRefresh() {
+  if (dyingIds.size) return; // let a cast finish first
+  const r = refreshMonsters(state);
+  if (!r.ok) {
+    sfx.error();
+    toast(`Need ${r.cost} coins for new monsters. Defeat one and the price resets!`);
+    return;
+  }
+  sfx.coin();
+  const btn = $('#btn-refresh');
+  restartAnim(btn, 'go');
+  const at = center(btn);
+  floater(`-${r.cost}`, at.x, at.y + 20);
+  // The old cards poof, then the new ones bounce in.
+  const old = [...monsterEls.values()];
+  monsterEls.clear();
+  old.forEach((el) => el.classList.add('dying'));
+  setTimeout(() => {
+    old.forEach((el) => el.remove());
+    renderMonsters();
+    renderBoard();
+  }, 450);
+  toast(`New monsters! The next refresh costs ${refreshCost(state)} coins.`);
+  renderHud();
+  persist();
+}
+$('#btn-refresh').addEventListener('click', (e) => { e.stopPropagation(); doRefresh(); });
 
 function showMonsterInfo(m: Monster) {
   setInfo(monsterImg(m.kind), m.name, `Weak to: ${m.needs.map((n) => CHAINS[n.chain].levels[n.level - 1]).join(' + ')}. Gather them on the board, then Cast!`);

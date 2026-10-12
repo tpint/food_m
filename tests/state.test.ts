@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   canUpgrade, cast, collect, mergeYield, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
-  upgradeGen, GameState, currentTask, restore, load, save,
+  upgradeGen, GameState, currentTask, restore, load, save, refreshCost, refreshMonsters,
 } from '../src/game/state';
-import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY } from '../src/game/config';
+import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
 import { untilReset } from '../src/online';
 
@@ -175,6 +175,54 @@ describe('monsters', () => {
     m.needs = [{ chain: 'water', level: 2 }];
     s.board[0] = { piece: item('water', 2), lock: 1 };
     expect(findSpell(s, m)).toBeNull();
+  });
+});
+
+describe('monster refresh', () => {
+  it('costs coins, rerolls every monster and gets pricier each time', () => {
+    const s = empty();
+    s.coins = 1000;
+    const before = s.monsters.map((m) => ({ ...m }));
+    const next = s.nextMonsterId;
+    const r = refreshMonsters(s, seeded(7));
+    expect(r).toEqual({ ok: true, cost: REFRESH_BASE_COST, old: before });
+    expect(s.coins).toBe(1000 - REFRESH_BASE_COST);
+    expect(s.monsters).toHaveLength(3);
+    expect(s.monsters.map((m) => m.id)).toEqual(before.map((m) => m.id));
+    expect(s.monsters).not.toEqual(before);
+    expect(s.nextMonsterId).toBe(next);
+    expect(refreshCost(s)).toBe(REFRESH_BASE_COST * REFRESH_COST_GROWTH);
+    refreshMonsters(s, seeded(8));
+    expect(refreshCost(s)).toBe(REFRESH_BASE_COST * REFRESH_COST_GROWTH ** 2);
+  });
+
+  it('keeps a boss a boss', () => {
+    const s = empty();
+    s.coins = 1000;
+    s.monsters[1].boss = true;
+    refreshMonsters(s, seeded(2));
+    expect(s.monsters.map((m) => m.boss)).toEqual([false, true, false]);
+  });
+
+  it('refuses without enough coins', () => {
+    const s = empty();
+    s.coins = REFRESH_BASE_COST - 1;
+    const before = s.monsters;
+    expect(refreshMonsters(s)).toEqual({ ok: false, reason: 'coins', cost: REFRESH_BASE_COST });
+    expect(s.monsters).toBe(before);
+    expect(s.coins).toBe(REFRESH_BASE_COST - 1);
+  });
+
+  it('resets the cost when a monster is defeated', () => {
+    const s = empty();
+    s.coins = 1000;
+    refreshMonsters(s, seeded(4));
+    refreshMonsters(s, seeded(5));
+    expect(refreshCost(s)).toBeGreaterThan(REFRESH_BASE_COST);
+    const m = s.monsters[0];
+    m.needs.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
+    cast(s, m.id, seeded(3));
+    expect(refreshCost(s)).toBe(REFRESH_BASE_COST);
   });
 });
 
