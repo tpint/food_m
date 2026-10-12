@@ -67,14 +67,6 @@ npm run build      # production build in dist/
   you leave). Tap the level star to open your profile: create a recovery code (like `ABCD-EFGH-JKLM-NPQR`) and type it
   on another device, or after clearing the browser, to restore your progress, name and leaderboard scores. When a
   device opens with older progress than the cloud copy, it loads the newer one. Codes are stored hashed on the server.
-- **Themes**: the profile screen has a Theme picker: *Sunny Study* (bright daytime, the default), *Fairy Garden*
-  (mint walls, flowers and a pink sky) and *Moonlit Night* (the original dusky look). The choice is kept per device.
-  Palettes live in `THEMES` (`src/render/scene.ts`) and the `data-theme` blocks at the top of `src/style.css`.
-  Each theme restyles every drawn asset too, while keeping each item's own colours and shape so items stay easy to tell
-  apart. It sets the outline ink, a rim of theme light, a light wash, the glow tint and the shape of sparkles (suns,
-  blossoms or stars), and adds a small signature on items from level 3, grimoires and monsters (a sun glint, a leaf and
-  blossom sprig, or a crescent moon). The board, frames and parchment, and the tower rooms, change with it.
-  See `ART_STYLES` in `src/render/art.ts`. Preview every asset in a theme at `/gallery.html?theme=garden`.
 - **Start over**: the About panel on the profile screen has a button to reset your account. After a confirmation it
   wipes this device's game and starts a new one as a new apprentice. The old player's cloud save and leaderboard
   entry are kept, so a recovery code made beforehand still brings the old game back.
@@ -141,8 +133,7 @@ Straight top-down grid with soft 2D art, following the four merge-art rules:
 
 The SVG art is a stand-in. Items are auto-framed to fill their tile and get a sticker outline and drop shadow, so the set stays consistent.
 To replace any item with painted art, drop a PNG into `public/art/` and list its key in `public/art/manifest.json`
-(see `public/art/README.md` for the key names). Anything not listed keeps its SVG. For a theme-specific version, use
-`public/art/<theme>/<key>.png` and list it as `<theme>/<key>` (e.g. `night/fire-3`); it wins over the shared PNG in that theme.
+(see `public/art/README.md` for the key names). Anything not listed keeps its SVG.
 
 ## iOS / Android (next step)
 

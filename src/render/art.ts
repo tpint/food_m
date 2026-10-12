@@ -4,72 +4,9 @@
 //
 // Each merge chain sticks to one palette and each level changes silhouette:
 // small round -> tall -> wide -> ornate.
-//
-// The theme restyles everything drawn here without touching an item's own
-// colours or shape (players match items by those): outline and shadow ink,
-// a rim of theme light, the glow behind, the shape of sparkles, and a small
-// theme decoration on items from level 3, grimoires and monsters.
 
 import { ChainId, GEN_LEVELS, GenId, MonsterKind } from '../game/config';
 import type { Piece } from '../game/state';
-import type { ThemeId } from './scene';
-
-interface ArtStyle {
-  /** Sticker outline and drop shadow ink. */
-  outline: string;
-  outlineOpacity: number;
-  shadow: string;
-  /** Rim of theme light along one edge: colour, opacity and which way the light comes from. */
-  rim: string;
-  rimOpacity: number;
-  rimFrom: [number, number];
-  /** Glow behind objects is blended this far toward `haloTint`. */
-  haloTint: string;
-  haloMix: number;
-  haloStrength: number;
-  sparkle: 'sun' | 'flower' | 'star';
-  /** Colour boost applied to the whole image. */
-  saturate: number;
-  /** Theme light washed over the object: gradient stops [offset, colour, opacity], its direction and blend mode. */
-  wash: [number, string, number][];
-  washDir: [number, number, number, number];
-  washBlend: string;
-}
-
-const ART_STYLES: Record<ThemeId, ArtStyle> = {
-  sunny: {
-    outline: '#4a240e', outlineOpacity: 1, shadow: '#7a3a10', rim: '#fff0b8', rimOpacity: 0.75, rimFrom: [-1, -1],
-    haloTint: '#ffe08a', haloMix: 0.45, haloStrength: 0.9, sparkle: 'sun', saturate: 1.12,
-    wash: [[0, '#fff0a0', 0.5], [0.55, '#ffd070', 0.1], [1, '#ff9a50', 0.2]], washDir: [0, 0, 1, 1], washBlend: 'soft-light',
-  },
-  garden: {
-    outline: '#16402a', outlineOpacity: 1, shadow: '#1e5a3a', rim: '#e4fff0', rimOpacity: 0.7, rimFrom: [0, -1],
-    haloTint: '#ffc4e6', haloMix: 0.5, haloStrength: 0.85, sparkle: 'flower', saturate: 1.06,
-    wash: [[0, '#ffd6f0', 0.4], [0.5, '#ffffff', 0], [1, '#5ad08a', 0.3]], washDir: [0, 0, 0, 1], washBlend: 'soft-light',
-  },
-  night: {
-    outline: '#24133c', outlineOpacity: 1, shadow: '#120826', rim: '#a8d8ff', rimOpacity: 0.8, rimFrom: [1, -1],
-    haloTint: '#b8a8ff', haloMix: 0.3, haloStrength: 1, sparkle: 'star', saturate: 1,
-    wash: [[0, '#d8ecff', 0.35], [0.45, '#8a8aff', 0.05], [1, '#2a1a6a', 0.35]], washDir: [1, 0, 0, 1], washBlend: 'soft-light',
-  },
-};
-
-let theme: ThemeId = 'sunny';
-let style = ART_STYLES[theme];
-
-/** Redraw all art in a theme (cached images are kept per theme). */
-export function setArtTheme(id: ThemeId) {
-  theme = id;
-  style = ART_STYLES[id];
-}
-
-/** Blend two #rrggbb colours. */
-function mix(a: string, b: string, t: number): string {
-  const n = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
-  return '#' + [0, 1, 2].map((i) => Math.round(n(a, i) * (1 - t) + n(b, i) * t).toString(16).padStart(2, '0')).join('');
-}
-
-const isWhite = (c: string) => /^#f[a-f0-9]f[a-f0-9]f/i.test(c) || c === '#fff';
 
 interface Pal { hi: string; mid: string; lo: string; ink: string }
 
@@ -138,29 +75,21 @@ class Svg {
   /** Ground shadow under the object; placed when the image is framed. */
   shadow(rx = 26, _cy?: number) { this.shadowRx = rx; return this; }
 
-  /** A sparkle in the theme's shape: a twinkle star at night, a little sun by day, a blossom in the garden. */
   sparkle(x: number, y: number, r: number, color = '#fff') {
-    this.fx.push(sparkleShape(style.sparkle, x, y, r, color));
+    const q = r * 0.28;
+    this.fx.push(`<path d="M${x} ${y - r}Q${x + q} ${y - q} ${x + r} ${y}Q${x + q} ${y + q} ${x} ${y + r}Q${x - q} ${y + q} ${x - r} ${y}Q${x - q} ${y - q} ${x} ${y - r}Z" fill="${color}" stroke="rgba(90,60,120,.35)" stroke-width=".8"/>`);
     return this;
   }
 
-  /** Theme decoration (leaf and blossom, crescent moon, sun glint); set for bigger art. */
-  decor = false;
-
   inner() {
-    const [rx, ry] = style.rimFrom;
-    // Kept crisp: a solid outline, a tight offset shadow, a thin unblurred rim of theme
-    // light and a little extra contrast, so objects read sharply on the board.
+    // Kept crisp: a solid outline, a tight offset shadow and a little extra contrast.
     const outline = `<filter id="o${uid}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
 <feMorphology in="SourceAlpha" operator="dilate" radius="1.8" result="d"/>
-<feFlood flood-color="${style.outline}" flood-opacity="${style.outlineOpacity}"/><feComposite in2="d" operator="in" result="ol"/>
+<feFlood flood-color="#3a2350"/><feComposite in2="d" operator="in" result="ol"/>
 <feGaussianBlur in="d" stdDeviation=".5"/><feOffset dy="2.2" result="b"/>
-<feFlood flood-color="${style.shadow}" flood-opacity=".32"/><feComposite in2="b" operator="in" result="sh"/>
-<feOffset in="SourceAlpha" dx="${-rx * 1.5}" dy="${-ry * 1.5}" result="off"/><feComposite in="SourceAlpha" in2="off" operator="out" result="edge"/>
-<feFlood flood-color="${style.rim}" flood-opacity="${style.rimOpacity}"/><feComposite in2="edge" operator="in" result="rim"/>
-<feColorMatrix in="SourceGraphic" type="saturate" values="${style.saturate}" result="sat"/>
-<feComponentTransfer in="sat" result="g"><feFuncR type="linear" slope="1.08" intercept="-.03"/><feFuncG type="linear" slope="1.08" intercept="-.03"/><feFuncB type="linear" slope="1.08" intercept="-.03"/></feComponentTransfer>
-<feMerge><feMergeNode in="sh"/><feMergeNode in="ol"/><feMergeNode in="g"/><feMergeNode in="rim"/></feMerge></filter>`;
+<feFlood flood-color="#2a1640" flood-opacity=".3"/><feComposite in2="b" operator="in" result="sh"/>
+<feComponentTransfer in="SourceGraphic" result="g"><feFuncR type="linear" slope="1.08" intercept="-.03"/><feFuncG type="linear" slope="1.08" intercept="-.03"/><feFuncB type="linear" slope="1.08" intercept="-.03"/></feComponentTransfer>
+<feMerge><feMergeNode in="sh"/><feMergeNode in="ol"/><feMergeNode in="g"/></feMerge></filter>`;
     return { defs: this.defs.join('') + outline, filter: `o${uid++}` };
   }
 
@@ -180,77 +109,19 @@ class Svg {
     const back: string[] = [];
     if (this.haloColor) {
       const hid = `h${uid++}`;
-      const hc = this.haloColor.length === 7 ? mix(this.haloColor, style.haloTint, style.haloMix) : this.haloColor;
-      const k = style.haloStrength;
-      back.push(`<radialGradient id="${hid}"><stop offset="0" stop-color="${hc}" stop-opacity="${0.8 * k}"/><stop offset=".6" stop-color="${hc}" stop-opacity="${0.35 * k}"/><stop offset="1" stop-color="${hc}" stop-opacity="0"/></radialGradient>`);
+      back.push(`<radialGradient id="${hid}"><stop offset="0" stop-color="${this.haloColor}" stop-opacity=".8"/><stop offset=".6" stop-color="${this.haloColor}" stop-opacity=".35"/><stop offset="1" stop-color="${this.haloColor}" stop-opacity="0"/></radialGradient>`);
       back.push(`<circle cx="${cx}" cy="${vy + size / 2}" r="${size / 2}" fill="url(#${hid})"/>`);
     }
     if (this.shadowRx) {
       const rx = Math.min(box.width * 0.42, size * 0.42);
-      back.push(`<ellipse cx="${cx}" cy="${bottom - 3}" rx="${rx}" ry="${rx * 0.2}" fill="${style.shadow}" opacity=".22"/>`);
+      back.push(`<ellipse cx="${cx}" cy="${bottom - 3}" rx="${rx}" ry="${rx * 0.2}" fill="#3a2350" opacity=".22"/>`);
     }
-    const decor = this.decor ? themeDecor(box) : '';
     const f = (n: number) => n.toFixed(2);
-    // Theme light over the object only: the body, turned solid white, masks a gradient.
-    const w = uid++;
-    const [x1, y1, x2, y2] = style.washDir;
-    const wash = `<linearGradient id="wg${w}" gradientUnits="userSpaceOnUse" x1="${f(box.x + box.width * x1)}" y1="${f(box.y + box.height * y1)}" x2="${f(box.x + box.width * x2)}" y2="${f(box.y + box.height * y2)}">`
-      + style.wash.map(([o, c, a]) => `<stop offset="${o}" stop-color="${c}" stop-opacity="${a}"/>`).join('') + '</linearGradient>'
-      + `<filter id="ww${w}"><feFlood flood-color="#fff"/><feComposite in2="SourceAlpha" operator="in"/></filter>`
-      + `<mask id="wm${w}" maskUnits="userSpaceOnUse" x="${f(vx)}" y="${f(vy)}" width="${f(size)}" height="${f(size)}"><g filter="url(#ww${w})">${this.body.join('')}</g></mask>`;
-    const washRect = `<rect x="${f(vx)}" y="${f(vy)}" width="${f(size)}" height="${f(size)}" fill="url(#wg${w})" mask="url(#wm${w})" style="mix-blend-mode:${style.washBlend}"/>`;
     // A large intrinsic size: WebKit (every iPhone browser) renders the filters above
     // at an SVG image's own size and then scales the result, so a small or default
     // size leaves outlines blurry on high-density screens. CSS sets the shown size.
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${RASTER}" height="${RASTER}" viewBox="${f(vx)} ${f(vy)} ${f(size)} ${f(size)}"><defs>${defs}${wash}</defs>${back.join('')}${this.behind.join('')}${body}${washRect}${this.fx.join('')}${decor}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${RASTER}" height="${RASTER}" viewBox="${f(vx)} ${f(vy)} ${f(size)} ${f(size)}"><defs>${defs}</defs>${back.join('')}${this.behind.join('')}${body}${this.fx.join('')}</svg>`;
   }
-}
-
-function sparkleShape(kind: ArtStyle['sparkle'], x: number, y: number, r: number, color: string): string {
-  const ink = 'stroke="rgba(90,60,120,.35)" stroke-width=".8"';
-  if (kind === 'sun') {
-    const c = isWhite(color) ? '#fff2a0' : color;
-    const rays = Array.from({ length: 8 }, (_, k) => {
-      const a = (k / 8) * Math.PI * 2, r1 = r * 0.55, r2 = k % 2 ? r * 0.85 : r * 1.1;
-      return `M${(x + Math.cos(a) * r1).toFixed(1)} ${(y + Math.sin(a) * r1).toFixed(1)}L${(x + Math.cos(a) * r2).toFixed(1)} ${(y + Math.sin(a) * r2).toFixed(1)}`;
-    }).join('');
-    return `<path d="${rays}" stroke="${mix(c.length === 7 ? c : '#fff2a0', '#ffb020', 0.35)}" stroke-width="${(r * 0.22).toFixed(2)}" stroke-linecap="round"/>`
-      + `<circle cx="${x}" cy="${y}" r="${(r * 0.45).toFixed(2)}" fill="${c}" ${ink}/>`;
-  }
-  if (kind === 'flower') {
-    const c = isWhite(color) ? '#ffc8e8' : color;
-    const petals = [0, 72, 144, 216, 288].map((d) => {
-      const a = ((d - 90) * Math.PI) / 180;
-      return `<circle cx="${(x + Math.cos(a) * r * 0.5).toFixed(1)}" cy="${(y + Math.sin(a) * r * 0.5).toFixed(1)}" r="${(r * 0.42).toFixed(2)}"/>`;
-    }).join('');
-    return `<g fill="${c}" ${ink}>${petals}</g><circle cx="${x}" cy="${y}" r="${(r * 0.3).toFixed(2)}" fill="#ffd84a"/>`;
-  }
-  // A five-pointed twinkle star.
-  const pts = Array.from({ length: 10 }, (_, k) => {
-    const a = ((k * 36 - 90) * Math.PI) / 180, rr = k % 2 ? r * 0.42 : r;
-    return `${(x + Math.cos(a) * rr).toFixed(1)} ${(y + Math.sin(a) * rr).toFixed(1)}`;
-  });
-  return `<path d="M${pts.join('L')}Z" fill="${color}" ${ink}/>`;
-}
-
-/** The theme's little signature on bigger art, tucked into a corner of the object. */
-function themeDecor(box: { x: number; y: number; width: number; height: number }): string {
-  const left = box.x + 5, right = box.x + box.width - 5, top = box.y + 6, bottom = box.y + box.height - 5;
-  if (theme === 'garden') {
-    // A sprig of two leaves and a blossom at the bottom-left.
-    const x = left + 3, y = bottom - 1;
-    return `<path d="M${x} ${y}Q${x - 14} ${y - 5} ${x - 16} ${y - 19}Q${x - 3} ${y - 16} ${x} ${y}Z" fill="#6ccf6a" stroke="#1e5a2a" stroke-width="1.8"/>`
-      + `<path d="M${x} ${y}Q${x + 5} ${y - 16} ${x + 19} ${y - 19}Q${x + 16} ${y - 5} ${x} ${y}Z" fill="#8ade72" stroke="#1e5a2a" stroke-width="1.8"/>`
-      + sparkleShape('flower', x + 1, y - 17, 9, '#ff9ad0') + sparkleShape('flower', right - 4, top + 2, 5, '#fff4fa');
-  }
-  if (theme === 'night') {
-    // A small crescent moon and a twinkle at the top-right.
-    const x = right - 6, y = top + 4;
-    return `<path d="M${x} ${y - 11}A11 11 0 1 0 ${x + 9} ${y + 6}A8.5 8.5 0 1 1 ${x} ${y - 11}Z" fill="#fff2b0" stroke="#5a4a20" stroke-width="1.6"/>`
-      + sparkleShape('star', x - 15, y + 13, 4.5, '#dff0ff') + sparkleShape('star', left + 4, bottom - 8, 3.5, '#dff0ff');
-  }
-  // A bright sun glint at the top-right and a warm sparkle low on the left.
-  return sparkleShape('sun', right - 4, top + 2, 11, '#ffe066') + sparkleShape('sun', left + 3, bottom - 8, 5, '#fff2a0');
 }
 
 let measurer: SVGSVGElement | null = null;
@@ -1007,31 +878,27 @@ export async function loadArtOverrides(): Promise<void> {
   } catch { /* no overrides (e.g. single-file build) */ }
 }
 
-/** A painted `art/<theme>/<key>.png` wins over `art/<key>.png`, which wins over the drawn SVG. */
-function toUrl(key: string, draw: (s: Svg) => void, fill = 0.86, decor = false): string {
-  if (overrides.has(`${theme}/${key}`)) return `art/${theme}/${key}.png`;
+function toUrl(key: string, draw: (s: Svg) => void, fill = 0.86): string {
   if (overrides.has(key)) return `art/${key}.png`;
-  const ck = `${theme}:${key}`;
-  let url = cache.get(ck);
+  let url = cache.get(key);
   if (!url) {
     const s = new Svg();
-    s.decor = decor;
     draw(s);
     url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s.toString(fill))}`;
-    cache.set(ck, url);
+    cache.set(key, url);
   }
   return url;
 }
 
 // Higher levels fill a little more of the tile, so size grows with the chain too.
 export const itemArt = (chain: ChainId, level: number) =>
-  toUrl(`${chain}-${level}`, chainArt[chain][level - 1], Math.min(0.95, 0.68 + level * 0.04), level >= 3);
+  toUrl(`${chain}-${level}`, chainArt[chain][level - 1], Math.min(0.95, 0.68 + level * 0.04));
 /** Level 1 uses the plain key; a painted `gen-x` override covers every level unless `gen-x-N` exists. */
 export const generatorArt = (g: GenId, lv = 1) =>
   lv > 1 && !overrides.has(`gen-${g}-${lv}`) && overrides.has(`gen-${g}`)
-    ? toUrl(`gen-${g}`, (s) => genArt[g](s, 1), 0.9, true)
-    : toUrl(lv > 1 ? `gen-${g}-${lv}` : `gen-${g}`, (s) => genArt[g](s, lv), 0.9, true);
-export const monsterImg = (k: MonsterKind) => toUrl(`mon-${k}`, monsterArt[k], 0.94, true);
+    ? toUrl(`gen-${g}`, (s) => genArt[g](s, 1), 0.9)
+    : toUrl(lv > 1 ? `gen-${g}-${lv}` : `gen-${g}`, (s) => genArt[g](s, lv), 0.9);
+export const monsterImg = (k: MonsterKind) => toUrl(`mon-${k}`, monsterArt[k], 0.94);
 export const pieceArt = (p: Piece) => (p.kind === 'gen' ? generatorArt(p.gen, p.level ?? 1) : itemArt(p.chain, p.level));
 
 export const iconArt = {
