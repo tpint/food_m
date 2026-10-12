@@ -1,6 +1,7 @@
-// Online leaderboard (Supabase). Each device gets a random secret token the
-// first time it reports a score; the server stores only its hash. All calls
-// go to three database functions, which validate names and cap how fast a
+// Online features (Supabase): leaderboard, cloud save and recovery codes.
+// Each device has a random secret token; the server stores only its hash.
+// A player can link more devices with a recovery code. All calls go to
+// database functions, which validate input and cap how fast a leaderboard
 // score can grow, so an edited save cannot jump to the top.
 
 const API = 'https://hdeywsbduhzvuthcvakk.supabase.co/rest/v1/rpc/';
@@ -18,7 +19,7 @@ export interface Board {
   me: { rank: number | null; score: number; name: string } | null;
 }
 
-interface Player { token: string; name: string; registered: boolean }
+interface Player { token: string; name: string; registered: boolean; code?: string }
 
 function loadPlayer(): Player {
   try {
@@ -37,11 +38,12 @@ function storePlayer() {
   try { localStorage.setItem(STORE, JSON.stringify(player)); } catch { /* storage unavailable */ }
 }
 
-async function rpc<T>(fn: string, body: Record<string, unknown>): Promise<T> {
+async function rpc<T>(fn: string, body: Record<string, unknown>, keepalive = false): Promise<T> {
   const res = await fetch(API + fn, {
     method: 'POST',
     headers: { apikey: KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    keepalive,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as { message?: string };
@@ -57,8 +59,70 @@ async function ensureRegistered() {
   storePlayer();
 }
 
+export interface CloudStatus { savedAt: number | null; error: boolean }
+const cloud: CloudStatus = { savedAt: null, error: false };
+let onCloud: (s: CloudStatus) => void = () => {};
+
 export const online = {
   get name() { return player.name; },
+  get registered() { return player.registered; },
+  /** The recovery code made on this device, if any (the server only keeps its hash). */
+  get code() { return player.code ?? null; },
+  get cloud(): CloudStatus { return { ...cloud }; },
+  set onCloudChange(fn: (s: CloudStatus) => void) { onCloud = fn; },
+
+  /** Upload the save a few seconds after the last change (or right away with `now`). */
+  cloudSave: (() => {
+    let timer = 0;
+    let latest: { json: unknown; at: number } | null = null;
+    const flush = async (keepalive = false) => {
+      if (!latest) return;
+      const { json, at } = latest;
+      try {
+        await ensureRegistered();
+        await rpc('arcane_cloud_save', { p_token: player.token, p_save: json, p_save_at: at }, keepalive);
+        cloud.savedAt = Date.now();
+        cloud.error = false;
+        if (latest?.at === at) latest = null;
+      } catch {
+        cloud.error = true;
+      }
+      onCloud({ ...cloud });
+    };
+    return (save: { savedAt?: number }, now = false) => {
+      latest = { json: save, at: save.savedAt ?? Date.now() };
+      clearTimeout(timer);
+      if (now) flush(true);
+      else timer = window.setTimeout(() => flush(), 6000);
+    };
+  })(),
+
+  /** The cloud copy of this player's save, if there is one. */
+  async cloudLoad(): Promise<{ save: unknown; save_at: number | null } | null> {
+    if (!player.registered) return null;
+    return rpc('arcane_cloud_load', { p_token: player.token });
+  },
+
+  /** Make a new recovery code (the old one stops working). */
+  async newCode(): Promise<string> {
+    await ensureRegistered();
+    const res = await rpc<{ code: string }>('arcane_new_code', { p_token: player.token });
+    player.code = res.code;
+    storePlayer();
+    return res.code;
+  },
+
+  /** Link this device to the player that owns `code`; returns their cloud save. */
+  async recover(code: string): Promise<{ save: unknown; save_at: number | null }> {
+    const res = await rpc<{ name: string; save: unknown; save_at: number | null }>('arcane_recover', { p_code: code, p_token: player.token });
+    player.name = res.name;
+    player.registered = true;
+    const raw = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    player.code = raw.length === 16 ? raw.match(/.{4}/g)!.join('-') : undefined;
+    storePlayer();
+    return res;
+  },
+
 
   /** Change the display name (1-16 characters). Throws with a readable message if refused. */
   async rename(name: string) {

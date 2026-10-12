@@ -38,6 +38,10 @@ npm run build      # production build in dist/
   all time, plus your own rank. Each device gets a hidden player ID and an "Apprentice ####" name you can change.
   Scores are stored in Supabase (`src/online.ts`); the database only accepts score increases at a realistic rate,
   so an edited save cannot jump to the top. The leaderboard works on the public website only.
+- **Cloud save & recovery code**: progress uploads to the cloud automatically (a few seconds after changes and when
+  you leave). Tap the level star to open your profile: create a recovery code (like `ABCD-EFGH-JKLM-NPQR`) and type it
+  on another device, or after clearing the browser, to restore your progress, name and leaderboard scores. When a
+  device opens with older progress than the cloud copy, it loads the newer one. Codes are stored hashed on the server.
 - **Locked area**: veiled (bubble) items are freed when you merge a matching item onto them. Merging next to
   sealed (shadow) cells turns them into veiled ones.
 - **Coins / Mana items**: tap one twice (or press Collect) to cash it in. Other items can be sold for coins.
@@ -61,7 +65,7 @@ Every push to `main` deploys to GitHub Pages: https://tpint.github.io/magic_m/
 | `src/render/scene.ts` | Blurred wizard's-study backdrop and the cobweb on sealed tiles |
 | `src/game/story.ts` | Tower chapters, restoration tasks and story text |
 | `src/render/room.ts` | The tower room scene with a broken and a fixed layer per task |
-| `src/online.ts` | Leaderboard client (Supabase database functions `arcane_register`, `arcane_submit`, `arcane_board`) |
+| `src/online.ts` | Online features: leaderboard, cloud save and recovery codes (Supabase database functions `arcane_*`) |
 | `src/render/circle.ts` | Arcane casting circle shown while a spell charges |
 | `src/render/fx.ts` | Canvas particles (merge bursts, rings, sparkle trails) |
 | `src/render/sfx.ts` | Sound effects synthesised with WebAudio (no audio files) |

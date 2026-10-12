@@ -55,6 +55,8 @@ export interface GameState {
   chapter: number;
   tasksDone: string[];
   storySeen: string[];
+  /** When the player last changed something (ms); the newest of local and cloud wins. */
+  savedAt?: number;
 }
 
 export type Rng = () => number;
@@ -494,18 +496,24 @@ export function save(s: GameState, storage: Pick<Storage, 'setItem'> = localStor
   try { storage.setItem(SAVE_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
 }
 
+/** Check a parsed save (local or cloud) and fill in fields added after v2 shipped. */
+export function validateSave(data: unknown): GameState | null {
+  const s = data as GameState | null;
+  if (!s || typeof s !== 'object' || s.v !== 2 || !Array.isArray(s.board) || s.board.length !== s.cols * s.rows) return null;
+  if (!Array.isArray(s.monsters)) return null;
+  // Saves from before the tower existed start at the first chapter.
+  s.stars ??= 0;
+  s.chapter ??= 0;
+  s.tasksDone ??= [];
+  s.storySeen ??= [];
+  return s;
+}
+
 export function load(storage: Pick<Storage, 'getItem'> = localStorage): GameState | null {
   try {
     const raw = storage.getItem(SAVE_KEY);
     if (!raw) return null;
-    const s = JSON.parse(raw) as GameState;
-    if (s.v !== 2 || s.board?.length !== s.cols * s.rows) return null;
-    // Saves from before the tower existed start at the first chapter.
-    s.stars ??= 0;
-    s.chapter ??= 0;
-    s.tasksDone ??= [];
-    s.storySeen ??= [];
-    return s;
+    return validateSave(JSON.parse(raw));
   } catch {
     return null;
   }

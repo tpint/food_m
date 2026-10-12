@@ -2,7 +2,7 @@ import './style.css';
 import { CHAINS, ElementId, GEN_LEVELS, GENERATORS, isElement, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
   GameState, MERGE_COUNT, Monster, Piece, canUpgrade, currentTask, restore, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
-  newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen,
+  newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
 } from './game/state';
 import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
 import { burst, elementHit, elementTrail, puff, shower, trail } from './render/fx';
@@ -28,9 +28,17 @@ const center = (el: Element) => {
 };
 
 let saveTimer = 0;
-function persist() {
+/**
+ * Save after the player changed something. Only real changes move `savedAt`,
+ * so a device that was merely opened never looks newer than the cloud copy.
+ */
+function persist(changed = true) {
+  if (changed) state.savedAt = Date.now();
   clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => save(state), 250);
+  saveTimer = window.setTimeout(() => {
+    save(state);
+    online.cloudSave(state);
+  }, 250);
 }
 
 let toastTimer = 0;
@@ -728,6 +736,9 @@ function doRestore() {
       // Move to the next room once the chapter's story is over.
       then: () => renderTower(),
     });
+    if (!online.code) {
+      lines.push({ text: 'Hoo, one more thing! Tap your level star to make a recovery code. Then your progress is safe even if you switch devices.' });
+    }
     if (next) {
       state.storySeen.push(`${next.id}-intro`);
       for (const t of next.intro) lines.push({ text: t });
@@ -835,6 +846,142 @@ $('#rename-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ------------------------------------------------------------------ profile & cloud save
+
+const profileEl = $('#profile');
+
+/** Swap in a different save (cloud or recovered) and redraw everything. */
+function replaceState(next: GameState) {
+  state = next;
+  tickEnergy(state);
+  save(state);
+  monsterEls.forEach((el) => el.remove());
+  monsterEls.clear();
+  buildBoard();
+  renderBoard();
+  renderMonsters();
+  renderHud();
+  select(-1);
+  layout();
+  roomFor = '';
+}
+
+function ago(ms: number) {
+  const s = Math.round((Date.now() - ms) / 1000);
+  if (s < 10) return 'just now';
+  if (s < 60) return `${s} seconds ago`;
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m} minute${m === 1 ? '' : 's'} ago` : `${Math.round(m / 60)} hour(s) ago`;
+}
+
+function renderCloudStatus() {
+  const c = online.cloud;
+  $('#cloud-status').textContent = c.error
+    ? "Couldn't reach the cloud. Your progress is safe on this device and will upload when you're back online. (Cloud save only works on the game's website.)"
+    : c.savedAt ? `Saved to the cloud ${ago(c.savedAt)}.` : 'Your progress uploads to the cloud automatically as you play.';
+}
+online.onCloudChange = () => { if (!profileEl.classList.contains('hidden')) renderCloudStatus(); };
+
+function renderProfile() {
+  $('#profile-name').textContent = online.name;
+  renderCloudStatus();
+  const code = online.code;
+  $('#code-box').classList.toggle('hidden', !code);
+  $('#code-text').textContent = code ?? '';
+  $('#btn-new-code').textContent = code ? 'Make a new code' : 'Create my recovery code';
+  $('#code-confirm').classList.add('hidden');
+  $('#restore-confirm').classList.add('hidden');
+}
+
+function openProfile() {
+  sfx.pick();
+  profileEl.classList.remove('hidden');
+  renderProfile();
+}
+
+async function makeCode() {
+  try {
+    const code = await online.newCode();
+    sfx.levelUp();
+    renderProfile();
+    toast(`Your recovery code: ${code}`, false, 2200);
+  } catch {
+    sfx.error();
+    toast("Couldn't create a code. Check your connection; this works on the game's website.");
+  }
+}
+
+$('#hud-level').addEventListener('click', openProfile);
+$('#btn-profile-from-board').addEventListener('click', () => { leadersEl.classList.add('hidden'); openProfile(); });
+$('#btn-profile-back').addEventListener('click', () => profileEl.classList.add('hidden'));
+$('#btn-save-now').addEventListener('click', () => {
+  state.savedAt = Date.now();
+  save(state);
+  online.cloudSave(state, true);
+  $('#cloud-status').textContent = 'Saving...';
+});
+$('#btn-new-code').addEventListener('click', () => {
+  if (online.code) $('#code-confirm').classList.remove('hidden');
+  else makeCode();
+});
+$('#btn-new-code-yes').addEventListener('click', makeCode);
+$('#btn-copy-code').addEventListener('click', async () => {
+  const code = online.code ?? '';
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('Code copied');
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents($('#code-text'));
+    getSelection()?.removeAllRanges();
+    getSelection()?.addRange(range);
+    toast('Code selected. Copy it from here.');
+  }
+});
+
+$('#restore-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const raw = $<HTMLInputElement>('#restore-input').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (raw.length !== 16) {
+    sfx.error();
+    toast('Recovery codes have 16 letters and numbers, like ABCD-EFGH-JKLM-NPQR.');
+    return;
+  }
+  $('#restore-loss').textContent = state.defeated > 0 || state.tasksDone.length
+    ? `Your current game here (level ${state.level}, ${state.defeated} monsters defeated) will be replaced.`
+    : '';
+  $('#restore-confirm').classList.remove('hidden');
+});
+$('#btn-restore-no').addEventListener('click', () => $('#restore-confirm').classList.add('hidden'));
+$('#btn-restore-yes').addEventListener('click', async () => {
+  const code = $<HTMLInputElement>('#restore-input').value;
+  try {
+    const res = await online.recover(code);
+    const next = validateSave(res.save);
+    if (next) replaceState(next);
+    $<HTMLInputElement>('#restore-input').value = '';
+    renderProfile();
+    sfx.levelUp();
+    toast(next ? `Welcome back, ${online.name}!` : `Linked to ${online.name}. No cloud save was found yet.`, true, 2200);
+  } catch (err) {
+    sfx.error();
+    toast(err instanceof Error && err.message.includes('not found') ? 'That recovery code was not found. Check it and try again.' : "Couldn't restore. Check your connection; this works on the game's website.");
+  }
+});
+
+/** On startup, use the cloud save if it is newer than this device's (e.g. played on another device). */
+async function syncFromCloud() {
+  try {
+    const c = await online.cloudLoad();
+    if (!c?.save || !c.save_at) return;
+    if (c.save_at <= (state.savedAt ?? 0) + 1000) return;
+    const next = validateSave(c.save);
+    if (!next) return;
+    replaceState(next);
+    toast('Loaded your newer progress from the cloud');
+  } catch { /* offline: keep playing locally */ }
+}
+
 // ------------------------------------------------------------------ story
 
 interface StoryLine { text: string; extra?: string; then?: () => void }
@@ -891,9 +1038,16 @@ async function boot() {
   document.fonts?.ready.then(layout);
 
   setInterval(() => {
-    if (tickEnergy(state)) { renderHud(); persist(); } else updateTimer();
+    // Energy refilling on its own is not a player change.
+    if (tickEnergy(state)) { renderHud(); persist(false); } else updateTimer();
   }, 1000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) save(state); });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) return;
+    save(state);
+    online.cloudSave(state, true);
+  });
+
+  syncFromCloud();
 
   // Catch up on monsters defeated while offline.
   if (state.defeated > 0) online.submit(state.defeated, state.level);

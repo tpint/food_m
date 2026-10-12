@@ -15,7 +15,7 @@
   <div id="scene"></div>
   <div id="app">
     <header id="hud">
-      <div class="badge level" id="hud-level"><img data-icon="star" alt="" /><span class="stroked">1</span></div>
+      <button class="badge level" id="hud-level" aria-label="Open your profile"><img data-icon="star" alt="" /><span class="stroked">1</span></button>
       <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val stroked">100</span><small class="timer"></small></div>
       <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
       <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
@@ -85,8 +85,49 @@
         <div class="me-score"><span class="stroked" id="me-score">0</span><small>monsters</small></div>
         <button class="round" id="btn-rename" aria-label="Change your name">✎</button>
       </div>
+      <button class="link-btn" id="btn-profile-from-board">Keep your progress safe: profile &amp; recovery code →</button>
       <p class="board-msg hidden" id="board-msg"></p>
       <ol id="board-list"></ol>
+    </div>
+  </section>
+
+  <section id="profile" class="hidden" aria-label="Profile">
+    <div class="tower-inner">
+      <header class="tower-head">
+        <button class="round" id="btn-profile-back" aria-label="Back to the board">←</button>
+        <div class="tower-title">
+          <small>Your apprentice</small>
+          <b class="stroked" id="profile-name">Apprentice</b>
+        </div>
+      </header>
+
+      <div class="panel">
+        <h2>Cloud save</h2>
+        <p id="cloud-status">Your progress is saved to the cloud as you play.</p>
+        <button class="btn stroked" id="btn-save-now">Save now</button>
+      </div>
+
+      <div class="panel">
+        <h2>Recovery code</h2>
+        <p>Use this code to get your progress back on a new device, or after clearing your browser. Write it down somewhere safe; anyone with the code can load your game.</p>
+        <div id="code-box" class="code-box hidden"><span id="code-text" class="code-text"></span><button class="btn stroked" id="btn-copy-code">Copy</button></div>
+        <button class="btn stroked" id="btn-new-code">Create my recovery code</button>
+        <p class="hint hidden" id="code-confirm">Making a new code stops the old one from working. <button class="link-btn inline" id="btn-new-code-yes">Make a new code</button></p>
+      </div>
+
+      <div class="panel">
+        <h2>Restore progress</h2>
+        <p>Played on another device? Enter that game's recovery code to continue here.</p>
+        <form id="restore-form" class="restore-form">
+          <label for="restore-input" class="sr">Recovery code</label>
+          <input id="restore-input" placeholder="ABCD-EFGH-JKLM-NPQR" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24" />
+          <button class="btn stroked" type="submit">Restore</button>
+        </form>
+        <div id="restore-confirm" class="hint warn hidden">
+          This replaces the progress on this device with the saved game. <span id="restore-loss"></span>
+          <div class="confirm-row"><button class="btn stroked" id="btn-restore-yes">Replace and restore</button><button class="link-btn inline" id="btn-restore-no">Cancel</button></div>
+        </div>
+      </div>
     </div>
   </section>
 
