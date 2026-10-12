@@ -62,16 +62,34 @@ export interface GenDef {
   id: GenId;
   name: string;
   chain: ChainId;
-  /** Weighted odds for the level of the spawned item. */
-  odds: { level: number; weight: number }[];
 }
 
 export const GENERATORS: Record<GenId, GenDef> = {
-  geode: { id: 'geode', name: 'Glimmer Geode', chain: 'crystal', odds: [{ level: 1, weight: 85 }, { level: 2, weight: 15 }] },
-  planter: { id: 'planter', name: 'Fairy Planter', chain: 'herb', odds: [{ level: 1, weight: 85 }, { level: 2, weight: 15 }] },
-  forge: { id: 'forge', name: 'Ember Forge', chain: 'flame', odds: [{ level: 1, weight: 85 }, { level: 2, weight: 15 }] },
-  lectern: { id: 'lectern', name: 'Rune Lectern', chain: 'arcane', odds: [{ level: 1, weight: 85 }, { level: 2, weight: 15 }] },
+  geode: { id: 'geode', name: 'Glimmer Geode', chain: 'crystal' },
+  planter: { id: 'planter', name: 'Fairy Planter', chain: 'herb' },
+  forge: { id: 'forge', name: 'Ember Forge', chain: 'flame' },
+  lectern: { id: 'lectern', name: 'Rune Lectern', chain: 'arcane' },
 };
+
+export interface GenLevel {
+  /** Weight of spawning an item of level 1, 2, 3, 4. */
+  odds: number[];
+  /** Chance a conjure costs no mana. */
+  freeChance: number;
+  /** Coins to upgrade to the next level (absent at max level). */
+  upgradeCost?: number;
+  /** Player level needed to upgrade to the next level. */
+  upgradeReq?: number;
+}
+
+/** Shared by every generator; index 0 = generator level 1. */
+export const GEN_LEVELS: GenLevel[] = [
+  { odds: [85, 15], freeChance: 0, upgradeCost: 40, upgradeReq: 2 },
+  { odds: [70, 25, 5], freeChance: 0.05, upgradeCost: 120, upgradeReq: 3 },
+  { odds: [55, 32, 13], freeChance: 0.1, upgradeCost: 300, upgradeReq: 5 },
+  { odds: [42, 36, 18, 4], freeChance: 0.15, upgradeCost: 700, upgradeReq: 7 },
+  { odds: [32, 36, 22, 10], freeChance: 0.2 },
+];
 
 export interface MonsterDef {
   kind: MonsterKind;

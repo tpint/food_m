@@ -3,12 +3,12 @@
 
 import {
   ACTIVE_MONSTERS, BOARD_COLS, BOARD_ROWS, BOSS, BOSS_EVERY, CHAINS, ChainId, ENERGY_REGEN_MS,
-  GENERATORS, GenId, MAGIC_CHAINS, MAX_ENERGY, MONSTERS, MonsterKind, SPAWN_COST, maxLevel, xpForLevel,
+  GEN_LEVELS, GENERATORS, GenId, MAGIC_CHAINS, MAX_ENERGY, MONSTERS, MonsterKind, SPAWN_COST, maxLevel, xpForLevel,
 } from './config';
 
 export type Piece =
   | { kind: 'item'; chain: ChainId; level: number }
-  | { kind: 'gen'; gen: GenId };
+  | { kind: 'gen'; gen: GenId; level?: number };
 
 /** 0 = open, 1 = veiled (visible, merge onto it to free), 2 = sealed (hidden). */
 export type Lock = 0 | 1 | 2;
@@ -63,7 +63,8 @@ function shuffle<T>(rng: Rng, arr: T[]): T[] {
 }
 
 export const item = (chain: ChainId, level: number): Piece => ({ kind: 'item', chain, level });
-export const gen = (g: GenId): Piece => ({ kind: 'gen', gen: g });
+export const gen = (g: GenId, level = 1): Piece => ({ kind: 'gen', gen: g, level });
+export const genLevel = (p: Piece) => (p.kind === 'gen' ? p.level ?? 1 : 0);
 
 export const idx = (s: GameState, x: number, y: number) => y * s.cols + x;
 export const pos = (s: GameState, i: number) => ({ x: i % s.cols, y: Math.floor(i / s.cols) });
@@ -207,7 +208,7 @@ export function nearestEmpty(s: GameState, origin: number): number {
 }
 
 export type SpawnResult =
-  | { ok: true; at: number; piece: Piece }
+  | { ok: true; at: number; piece: Piece; free: boolean }
   | { ok: false; reason: 'energy' | 'full' | 'invalid' };
 
 export function spawnFrom(s: GameState, genIdx: number, rng: Rng = Math.random): SpawnResult {
@@ -218,16 +219,43 @@ export function spawnFrom(s: GameState, genIdx: number, rng: Rng = Math.random):
   if (at < 0) return { ok: false, reason: 'full' };
 
   const def = GENERATORS[c.piece.gen];
-  const total = def.odds.reduce((t, o) => t + o.weight, 0);
-  let r = rng() * total, level = def.odds[0].level;
-  for (const o of def.odds) {
-    if ((r -= o.weight) < 0) { level = o.level; break; }
+  const lv = GEN_LEVELS[genLevel(c.piece) - 1];
+  const total = lv.odds.reduce((t, w) => t + w, 0);
+  let r = rng() * total, level = 1;
+  for (let k = 0; k < lv.odds.length; k++) {
+    if ((r -= lv.odds[k]) < 0) { level = k + 1; break; }
   }
-  if (s.energy >= MAX_ENERGY) s.energyTs = Date.now();
-  s.energy -= SPAWN_COST;
+  const free = rng() < lv.freeChance;
+  if (!free) {
+    if (s.energy >= MAX_ENERGY) s.energyTs = Date.now();
+    s.energy -= SPAWN_COST;
+  }
   const piece = item(def.chain, level);
   s.board[at].piece = piece;
-  return { ok: true, at, piece };
+  return { ok: true, at, piece, free };
+}
+
+export type UpgradeCheck =
+  | { ok: true; cost: number }
+  | { ok: false; reason: 'max' | 'level' | 'coins' | 'invalid'; cost?: number; req?: number };
+
+export function canUpgrade(s: GameState, i: number): UpgradeCheck {
+  const c = s.board[i];
+  if (!c.piece || c.piece.kind !== 'gen' || c.lock) return { ok: false, reason: 'invalid' };
+  const lv = GEN_LEVELS[genLevel(c.piece) - 1];
+  if (lv.upgradeCost === undefined) return { ok: false, reason: 'max' };
+  if (s.level < (lv.upgradeReq ?? 0)) return { ok: false, reason: 'level', cost: lv.upgradeCost, req: lv.upgradeReq };
+  if (s.coins < lv.upgradeCost) return { ok: false, reason: 'coins', cost: lv.upgradeCost };
+  return { ok: true, cost: lv.upgradeCost };
+}
+
+export function upgradeGen(s: GameState, i: number): UpgradeCheck {
+  const chk = canUpgrade(s, i);
+  if (!chk.ok) return chk;
+  const p = s.board[i].piece as Extract<Piece, { kind: 'gen' }>;
+  s.coins -= chk.cost;
+  p.level = genLevel(p) + 1;
+  return chk;
 }
 
 /** Tap a coin / mana item to turn it into resources. */

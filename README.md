@@ -20,6 +20,8 @@ npm run build      # production build in dist/
 
 - **Generators** (Geode, Planter, Forge, Lectern): tap one to conjure an item. Each tap costs 1 ⚡ mana.
   Mana refills over time (+1 every 20 s, up to 100).
+- **Upgrade generators**: select a generator and press **Upgrade** (costs coins, needs a minimum player level).
+  Each level (up to 5) raises the odds of higher-level drops and adds a chance of a free conjure. Tuning lives in `GEN_LEVELS`.
 - **Merge**: drag an item onto an identical item to make the next level. Items you can merge with glow blue while you drag.
 - **Monsters**: each card shows the items the monster is weak to. Items that match get a ✓.
   When you have them all, press **Cast!** to defeat it and collect coins, XP and gems.

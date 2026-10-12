@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cast, collect, findSpell, gen, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy, GameState,
+  canUpgrade, cast, collect, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
+  upgradeGen, GameState,
 } from '../src/game/state';
-import { ENERGY_REGEN_MS, MAX_ENERGY } from '../src/game/config';
+import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY } from '../src/game/config';
 
 function seeded(seed = 1) {
   return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -124,5 +125,44 @@ describe('monsters', () => {
     m.needs = [{ chain: 'crystal', level: 2 }];
     s.board[0] = { piece: item('crystal', 2), lock: 1 };
     expect(findSpell(s, m)).toBeNull();
+  });
+});
+
+describe('generator upgrades', () => {
+  it('costs coins, needs player level and raises the generator level', () => {
+    const s = empty();
+    s.board[0].piece = gen('geode');
+    s.coins = 1000;
+    s.level = 1;
+    expect(canUpgrade(s, 0)).toMatchObject({ ok: false, reason: 'level', req: 2 });
+    s.level = 2;
+    expect(upgradeGen(s, 0)).toEqual({ ok: true, cost: GEN_LEVELS[0].upgradeCost });
+    expect(genLevel(s.board[0].piece!)).toBe(2);
+    expect(s.coins).toBe(1000 - GEN_LEVELS[0].upgradeCost!);
+  });
+
+  it('refuses without coins and at max level', () => {
+    const s = empty();
+    s.level = 99;
+    s.board[0].piece = gen('forge');
+    s.coins = 0;
+    expect(canUpgrade(s, 0)).toMatchObject({ ok: false, reason: 'coins' });
+    s.board[0].piece = gen('forge', GEN_LEVELS.length);
+    s.coins = 1e6;
+    expect(canUpgrade(s, 0)).toEqual({ ok: false, reason: 'max' });
+  });
+
+  it('higher levels can drop higher level items and conjure for free', () => {
+    const s = empty();
+    s.board[0].piece = gen('lectern', 5);
+    const r = spawnFrom(s, 0, () => 0.999);
+    expect(r.ok && r.piece).toEqual(item('arcane', 4));
+    const r2 = spawnFrom(s, 0, () => 0.01);
+    expect(r2.ok && r2.free).toBe(true);
+    expect(s.energy).toBe(MAX_ENERGY - 1);
+  });
+
+  it('treats generators from old saves as level 1', () => {
+    expect(genLevel({ kind: 'gen', gen: 'geode' })).toBe(1);
   });
 });

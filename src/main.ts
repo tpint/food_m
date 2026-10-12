@@ -1,8 +1,8 @@
 import './style.css';
-import { CHAINS, GENERATORS, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
+import { CHAINS, GEN_LEVELS, GENERATORS, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
-  GameState, Monster, Piece, cast, collect, findSpell, isWanted, load, movePiece, msToNextEnergy,
-  newGame, save, sell, sellValue, spawnFrom, tickEnergy,
+  GameState, Monster, Piece, canUpgrade, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
+  newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen,
 } from './game/state';
 import { iconArt, itemArt, monsterImg, pieceArt } from './render/art';
 import { burst, puff, shower, trail } from './render/fx';
@@ -128,10 +128,12 @@ function renderCell(i: number, anim?: 'pop' | 'merge' | 'squish') {
   el.classList.toggle('veiled', c.lock === 1);
   el.classList.toggle('sealed', c.lock === 2);
   const p = c.piece;
-  const key = p ? (p.kind === 'gen' ? `g${p.gen}` : `${p.chain}${p.level}`) : '';
+  const key = p ? (p.kind === 'gen' ? `g${p.gen}${genLevel(p)}` : `${p.chain}${p.level}`) : '';
   if (key !== cellKeys[i]) {
     cellKeys[i] = key;
-    el.innerHTML = p ? `<div class="piece ${p.kind === 'gen' ? 'gen' : ''}"><img src="${pieceArt(p)}" alt=""></div>` : '';
+    el.innerHTML = !p ? '' : p.kind === 'gen'
+      ? `<div class="piece gen lv${genLevel(p)}"><img src="${pieceArt(p)}" alt=""><span class="gen-lv">${genLevel(p)}</span></div>`
+      : `<div class="piece"><img src="${pieceArt(p)}" alt=""></div>`;
   }
   const pe = el.firstElementChild;
   if (pe) {
@@ -163,6 +165,8 @@ function renderHud() {
   $('#xpfill').style.width = `${(state.xp / need) * 100}%`;
   $('#xptext').textContent = `${state.xp} / ${need} XP`;
   updateTimer();
+  // Keep the Upgrade button in sync with coins / level.
+  if (selected >= 0 && state.board[selected]?.piece?.kind === 'gen') select(selected);
 }
 
 function updateTimer() {
@@ -281,7 +285,7 @@ async function doCast(id: number) {
 
 let selected = -1;
 
-function setInfo(img: string | null, title: string, desc: string, action?: { label: string; fn: () => void }) {
+function setInfo(img: string | null, title: string, desc: string, action?: { label: string; fn: () => void; off?: boolean }) {
   const im = $<HTMLImageElement>('#info-img');
   if (img) im.src = img; else im.removeAttribute('src');
   $('#info-title').textContent = title;
@@ -290,6 +294,7 @@ function setInfo(img: string | null, title: string, desc: string, action?: { lab
   btn.classList.toggle('hidden', !action);
   btn.onclick = action ? (e) => { e.stopPropagation(); action.fn(); } : null;
   if (action) btn.textContent = action.label;
+  btn.classList.toggle('off', !!action?.off);
 }
 
 function select(i: number) {
@@ -310,7 +315,16 @@ function select(i: number) {
 
   if (p.kind === 'gen') {
     const def = GENERATORS[p.gen];
-    return setInfo(pieceArt(p), def.name, `Tap to conjure ${CHAINS[def.chain].name} items. Costs ${SPAWN_COST} ⚡.`, { label: `Conjure ⚡${SPAWN_COST}`, fn: () => doSpawn(i) });
+    const gl = genLevel(p);
+    const lv = GEN_LEVELS[gl - 1];
+    const top = CHAINS[def.chain].levels[lv.odds.length - 1];
+    const free = lv.freeChance ? ` ${Math.round(lv.freeChance * 100)}% free conjure.` : '';
+    const desc = `Tap to conjure (⚡${SPAWN_COST}). Drops up to ${top}.${free}`;
+    const up = canUpgrade(state, i);
+    if (!up.ok && up.reason === 'max') return setInfo(pieceArt(p), `${def.name} · Lv ${gl} (max)`, desc);
+    const cost = up.ok ? up.cost : up.cost!;
+    return setInfo(pieceArt(p), `${def.name} · Lv ${gl}`, desc,
+      { label: `Upgrade 🪙${cost}`, fn: () => doUpgrade(i), off: !up.ok });
   }
 
   const def = CHAINS[p.chain];
@@ -339,6 +353,7 @@ function doSpawn(i: number) {
   sfx.spawn();
   restartAnim(cells[i].firstElementChild!, 'squish');
   const from = center(cells[i]);
+  if (r.free) floater('Free!', from.x, from.y - 20);
   const to = center(cells[r.at]);
   const p = r.piece;
   cellKeys[r.at] = '__pending';
@@ -347,6 +362,27 @@ function doSpawn(i: number) {
     renderCell(r.at, 'pop');
     puff(to.x, to.y, pieceColor(p));
     renderMonsters();
+  });
+  renderHud();
+  persist();
+}
+
+function doUpgrade(i: number) {
+  const r = upgradeGen(state, i);
+  if (!r.ok) {
+    sfx.error();
+    if (r.reason === 'level') toast(`Reach player level ${r.req} to upgrade.`);
+    else if (r.reason === 'coins') toast(`Need ${r.cost} coins. Defeat monsters to earn more!`);
+    return;
+  }
+  const pt = center(cells[i]);
+  fly(iconArt.coin(), center($('#hud-coins img')), pt, { ms: 450, color: '#ffd147', size: 28 }).then(() => {
+    renderCell(i, 'merge');
+    burst(pt.x, pt.y, pieceColor(state.board[i].piece!), 1.4);
+    shower(pt.x, pt.y, [pieceColor(state.board[i].piece!), '#ffe680', '#fff']);
+    sfx.levelUp();
+    floater(`Lv ${genLevel(state.board[i].piece!)}!`, pt.x, pt.y - 20);
+    select(i);
   });
   renderHud();
   persist();
