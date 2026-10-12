@@ -1065,7 +1065,6 @@ function questText(q: Quest): string {
     case 'merge': return `Merge ${q.target} times`;
     case 'conjure': return `Conjure ${q.target} items`;
     case 'mergeHigh': return `Merge any item up to level ${q.level}`;
-    case 'coins': return `Collect ${q.target} coins from gold items`;
   }
 }
 
@@ -1075,7 +1074,6 @@ function questIcon(q: Quest): string {
     case 'merge': return itemArt('water', 3);
     case 'conjure': return generatorArt('forge', 1);
     case 'mergeHigh': return itemArt('earth', q.level ?? 4);
-    case 'coins': return itemArt('coin', 3);
   }
 }
 

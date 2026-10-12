@@ -50,7 +50,7 @@ npm run build      # production build in dist/
   cost gems (10, then 5 more each time, up to 15 slots). Tuning lives in `BAG_START_SLOTS` / `BAG_MAX_SLOTS` /
   `bagSlotCost` in `src/game/state.ts`.
 - **Daily quests**: tap the scroll button (top right) for three quests a day, picked from: defeat monsters, merge,
-  conjure, merge an item up to a given level, and collect coins from gold items. Targets and rewards scale with your level.
+  conjure, and merge an item up to a given level. Targets and rewards scale with your level.
   Claim each for coins and gems; claiming all three opens a chest (+10 gems, +50 mana). New quests arrive at local midnight.
   Tuning lives in `makeQuest` / `DAILY_BONUS` in `src/game/state.ts`.
 - **Tower restoration**: monsters also drop **Stars** (bosses drop 3). Tap the tower button (top right) to open the

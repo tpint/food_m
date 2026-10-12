@@ -69,7 +69,9 @@ export interface GameState {
   savedAt?: number;
 }
 
-export type QuestKind = 'defeat' | 'merge' | 'conjure' | 'mergeHigh' | 'coins';
+export type QuestKind = 'defeat' | 'merge' | 'conjure' | 'mergeHigh';
+/** Quests drawn from each day. */
+export const QUEST_KINDS: QuestKind[] = ['defeat', 'merge', 'conjure', 'mergeHigh'];
 
 export interface Quest {
   kind: QuestKind;
@@ -367,7 +369,7 @@ export function collect(s: GameState, i: number): { resource: 'coins' | 'energy'
   const def = CHAINS[c.piece.chain].collect;
   if (!def) return null;
   const amount = def.amounts[c.piece.level - 1];
-  if (def.resource === 'coins') { s.coins += amount; questProgress(s, 'coins', amount); }
+  if (def.resource === 'coins') s.coins += amount;
   else s.energy += amount; // may exceed the cap, like bonus energy in most merge games
   c.piece = null;
   return { resource: def.resource, amount };
@@ -574,15 +576,26 @@ export function makeQuest(s: GameState, kind: QuestKind): Quest {
     case 'merge': return { ...q, target: 12 + L };
     case 'conjure': return { ...q, target: 25 + L * 2 };
     case 'mergeHigh': return { ...q, target: 1, level: Math.min(6, 3 + Math.floor(L / 4)), gems: 3 };
-    case 'coins': return { ...q, target: 20 + L * 5 };
   }
 }
 
 /** Give the player today's quests if they don't have them yet. Returns true when new ones were made. */
 export function ensureDaily(s: GameState, now = Date.now(), rng: Rng = Math.random): boolean {
   const day = dayKey(now);
-  if (s.daily?.day === day) return false;
-  const kinds = shuffle(rng, ['defeat', 'merge', 'conjure', 'mergeHigh', 'coins'] as QuestKind[]).slice(0, QUESTS_PER_DAY);
+  if (s.daily?.day === day) {
+    // The "collect coins" quest was removed: swap any left in today's set for an unused kind,
+    // already claimed if the old one was (its reward was paid).
+    const qs = s.daily.quests;
+    qs.forEach((q, i) => {
+      if (QUEST_KINDS.includes(q.kind)) return;
+      const kind = QUEST_KINDS.find((k) => !qs.some((o) => o.kind === k))!;
+      const fresh = makeQuest(s, kind);
+      if (q.claimed) { fresh.claimed = true; fresh.progress = fresh.target; }
+      qs[i] = fresh;
+    });
+    return false;
+  }
+  const kinds = shuffle(rng, [...QUEST_KINDS]).slice(0, QUESTS_PER_DAY);
   s.daily = { day, quests: kinds.map((k) => makeQuest(s, k)), bonusClaimed: false };
   return true;
 }

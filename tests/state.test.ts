@@ -409,9 +409,9 @@ describe('daily quests', () => {
     expect(msToNextDay(noon)).toBe(12 * 3600_000);
   });
 
-  it('counts merges, conjures, coins and defeats', () => {
+  it('counts merges, conjures and defeats', () => {
     const s = empty();
-    s.daily = { day: dayKey(noon), bonusClaimed: false, quests: [makeQuest(s, 'merge'), makeQuest(s, 'conjure'), makeQuest(s, 'coins')] };
+    s.daily = { day: dayKey(noon), bonusClaimed: false, quests: [makeQuest(s, 'merge'), makeQuest(s, 'conjure')] };
     s.board[0].piece = item('water', 1);
     s.board[1].piece = item('water', 1);
     s.board[20].piece = item('water', 1);
@@ -420,13 +420,29 @@ describe('daily quests', () => {
     spawnFrom(s, 30, seeded());
     s.board[40].piece = item('coin', 2);
     collect(s, 40);
-    expect(s.daily.quests.map((q) => q.progress)).toEqual([1, 1, 6]);
+    expect(s.daily.quests.map((q) => q.progress)).toEqual([1, 1]);
 
     s.daily.quests = [makeQuest(s, 'defeat')];
     const m = s.monsters[0];
     m.needs.forEach((n, k) => { s.board[k].piece = item(n.chain, n.level); });
     cast(s, m.id, seeded());
     expect(s.daily.quests[0].progress).toBe(1);
+  });
+
+  it('never offers the removed collect-coins quest, and replaces one in an old save', () => {
+    for (let seed = 1; seed < 30; seed++) {
+      const s = empty();
+      ensureDaily(s, noon, seeded(seed));
+      expect(s.daily!.quests.map((q) => q.kind)).not.toContain('coins');
+    }
+    const s = empty();
+    s.daily = JSON.parse(JSON.stringify({ day: dayKey(noon), bonusClaimed: false, quests: [
+      makeQuest(s, 'merge'), makeQuest(s, 'defeat'), { kind: 'coins', target: 25, progress: 25, claimed: true, coins: 25, gems: 2 },
+    ] }));
+    expect(ensureDaily(s, noon)).toBe(false);
+    const q = s.daily!.quests[2];
+    expect(['conjure', 'mergeHigh']).toContain(q.kind);
+    expect(q.claimed && q.progress === q.target).toBe(true);
   });
 
   it('only counts merges that reach the level a mergeHigh quest asks for', () => {
