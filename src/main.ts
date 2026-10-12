@@ -185,7 +185,6 @@ function buildBoard() {
 function renderCell(i: number, anim?: 'pop' | 'merge' | 'squish') {
   const c = state.board[i];
   const el = cells[i];
-  el.classList.toggle('veiled', c.lock === 1);
   el.classList.toggle('sealed', c.lock === 2);
   const p = c.piece;
   const key = p ? (p.kind === 'gen' ? `g${p.gen}${genLevel(p)}` : `${p.chain}${p.level}`) : '';
@@ -476,7 +475,6 @@ function select(i: number) {
   const name = pieceName(p);
 
   if (c.lock === 2) return setInfo(null, 'Sealed by shadow', 'Merge items next to it to lift the seal.');
-  if (c.lock === 1) return setInfo(pieceArt(p), `${name} (veiled)`, 'Drag a matching item onto it to free it!');
 
   if (p.kind === 'gen') {
     const def = GENERATORS[p.gen];
@@ -632,7 +630,7 @@ function onDrop(from: number, to: number) {
       }
       if (r.results.length > 1) floater('Bonus x2!', target.x, target.y - 24);
       sfx.merge(lvl);
-      for (const u of r.unveiled) {
+      for (const u of r.revealed) {
         renderCell(u, 'squish');
         const up = center(cells[u]);
         puff(up.x, up.y, '#b8d8ff');

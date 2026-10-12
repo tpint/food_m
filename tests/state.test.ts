@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canUpgrade, cast, collect, mergeYield, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save, refreshCost, refreshMonsters,
-  makeMonster, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
+  makeMonster, validateSave, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
 } from '../src/game/state';
 import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, MONSTERS, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
@@ -83,25 +83,26 @@ describe('board moves', () => {
     expect(movePiece(s, 0, 1).type).toBe('swap');
   });
 
-  it('uses veiled matches, frees the cell and reveals sealed neighbours', () => {
+  it('a merge opens sealed neighbours, which then move freely', () => {
     const s = empty();
     const above = 1, target = 1 + s.cols, side = 2 + s.cols, src = 1 + 3 * s.cols;
     s.board[above] = { piece: item('earth', 3), lock: 2 };
-    s.board[target] = { piece: item('fire', 2), lock: 1 };
-    s.board[side] = { piece: item('fire', 2), lock: 1 };
+    s.board[target].piece = item('fire', 2);
+    s.board[side].piece = item('fire', 2);
     s.board[src].piece = item('fire', 2);
     const r = movePiece(s, src, target);
     expect(r.type).toBe('merge');
+    expect(r.type === 'merge' && r.revealed).toEqual([above]);
     expect(s.board[target]).toEqual({ piece: item('fire', 3), lock: 0 });
-    expect(s.board[side]).toEqual({ piece: null, lock: 0 });
-    expect(s.board[above].lock).toBe(1);
+    expect(s.board[above]).toEqual({ piece: item('earth', 3), lock: 0 });
+    expect(movePiece(s, above, 3 * s.cols).type).toBe('move');
   });
 
-  it('cannot move onto a veiled cell without a match', () => {
-    const s = empty();
-    s.board[1] = { piece: item('fire', 2), lock: 1 };
-    s.board[0].piece = item('earth', 2);
-    expect(movePiece(s, 0, 1).type).toBe('none');
+  it('starts with no bubble tiles and opens any in an old save', () => {
+    expect(newGame(seeded(), 0).board.every((c) => c.lock === 0 || c.lock === 2)).toBe(true);
+    const old = JSON.parse(JSON.stringify(empty()));
+    old.board[3].lock = 1;
+    expect(validateSave(old)!.board[3].lock).toBe(0);
   });
 });
 
@@ -174,7 +175,7 @@ describe('monsters', () => {
     const s = empty();
     const m = s.monsters[0];
     m.needs = [{ chain: 'water', level: 2 }];
-    s.board[0] = { piece: item('water', 2), lock: 1 };
+    s.board[0] = { piece: item('water', 2), lock: 2 };
     expect(findSpell(s, m)).toBeNull();
   });
 });
@@ -323,7 +324,7 @@ describe('tower restoration', () => {
     for (let i = 0; i < CHAPTERS[0].tasks.length; i++) last = restore(s);
     expect(last!.ok && last!.chapterDone?.id).toBe('library');
     expect(last!.ok && last!.unsealed).toEqual([0, 1]);
-    expect(s.board[0].lock).toBe(1);
+    expect(s.board[0].lock).toBe(0);
     expect(s.coins).toBe(coins + CHAPTERS[0].reward.coins);
     expect(s.gems).toBe(gems + CHAPTERS[0].reward.gems);
     expect(s.chapter).toBe(1);

@@ -55,7 +55,7 @@ export const CHAPTERS: ChapterDef[] = [
       'The library breathes again, and the tower feels a little less afraid.',
       'The Grimoire showed me the Alchemy Lab below us. Elowen sealed something there before she vanished. We will need stronger magic for that, so keep merging!',
     ],
-    rewardText: '100 coins, 10 gems, and the sealed rows on your board start to clear',
+    rewardText: '100 coins, 10 gems, and the sealed rows on your board clear',
     reward: { coins: 100, gems: 10, unsealBoard: true },
   },
   {

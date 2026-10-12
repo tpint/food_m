@@ -52,7 +52,7 @@ npm run build      # production build in dist/
 - **Tower restoration**: monsters also drop **Stars** (bosses drop 3). Tap the tower button (top right) to open the
   Tower screen and spend Stars on restoration tasks, in order. Each task visibly repairs the room and Professor Hoot,
   the Archmage's owl, tells a bit more of the story. Five chapters, one room each:
-  1. *The Dusty Library*: sealed board rows start to clear.
+  1. *The Dusty Library*: the sealed board rows clear.
   2. *The Alchemy Lab* (Earth Seal): every grimoire gains a level.
   3. *The Observatory* (Wind Seal): two Mana Flasks appear on the board.
   4. *The Moonlit Greenhouse* (Water Seal): every monster drops 1 extra Star from then on.
@@ -70,8 +70,8 @@ npm run build      # production build in dist/
 - **Start over**: the About panel on the profile screen has a button to reset your account. After a confirmation it
   wipes this device's game and starts a new one as a new apprentice. The old player's cloud save and leaderboard
   entry are kept, so a recovery code made beforehand still brings the old game back.
-- **Locked area**: veiled (bubble) items are freed when you merge a matching item onto them. Merging next to
-  sealed (shadow) cells turns them into veiled ones.
+- **Locked area**: the top rows start sealed under cobwebs. Merging next to a sealed cell opens it, and its item
+  can then be moved and merged like any other.
 - **Coins / Mana items**: tap one twice (or press Collect) to cash it in. Other items can be sold for coins.
 
 To package the game as one self-contained HTML page (for sharing), run `node scripts/artifact.mjs`. The output is `dist-artifact/arcane-merge.html`.

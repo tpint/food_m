@@ -12,8 +12,8 @@ export type Piece =
   | { kind: 'item'; chain: ChainId; level: number }
   | { kind: 'gen'; gen: GenId; level?: number };
 
-/** 0 = open, 1 = veiled (visible, merge onto it to free), 2 = sealed (hidden). */
-export type Lock = 0 | 1 | 2;
+/** 0 = open, 2 = sealed (hidden under cobwebs). Old saves may hold 1 (a bubble); load() opens those. */
+export type Lock = 0 | 2;
 
 export interface Cell {
   piece: Piece | null;
@@ -135,12 +135,12 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
   };
 
   // Top three rows: a misty, locked area full of items, like the cobwebbed
-  // part of a Love & Pies board. The row nearest the play area starts veiled.
+  // part of a Love & Pies board. The row nearest the play area starts open.
   for (let y = 0; y < 3; y++) {
     for (let x = 0; x < s.cols; x++) {
       const chain = pick(rng, MAGIC_CHAINS);
       const level = 1 + Math.floor(rng() * (2 + y));
-      s.board[idx(s, x, y)] = { piece: item(chain, Math.min(level, 4)), lock: y === 2 ? 1 : 2 };
+      s.board[idx(s, x, y)] = { piece: item(chain, Math.min(level, 4)), lock: y === 2 ? 0 : 2 };
     }
   }
 
@@ -187,7 +187,7 @@ export type MoveResult =
   | { type: 'none' }
   | { type: 'move'; from: number; to: number }
   | { type: 'swap'; from: number; to: number }
-  | { type: 'merge'; from: number; to: number; result: Piece; results: number[]; consumed: number[]; unveiled: number[] }
+  | { type: 'merge'; from: number; to: number; result: Piece; results: number[]; consumed: number[]; revealed: number[] }
   | { type: 'need3'; from: number; to: number };
 
 /** Items needed to merge, and the bonus rule: 5 matching items make 2. */
@@ -235,11 +235,11 @@ function mergeAt(s: GameState, from: number, to: number, consumed: number[], mad
   for (const i of consumed) s.board[i] = { piece: null, lock: 0 };
   const results = consumed.slice(0, made);
   for (const i of results) s.board[i].piece = { ...result };
-  const unveiled: number[] = [];
-  for (const i of results) unveiled.push(...revealAround(s, i));
+  const revealed: number[] = [];
+  for (const i of results) revealed.push(...revealAround(s, i));
   questProgress(s, 'merge');
   questProgress(s, 'mergeHigh', made, result.level);
-  return { type: 'merge', from, to, result, results, consumed, unveiled };
+  return { type: 'merge', from, to, result, results, consumed, revealed };
 }
 
 /** Drag the piece at `from` onto cell `to`. */
@@ -261,7 +261,6 @@ export function movePiece(s: GameState, from: number, to: number): MoveResult {
     return mergeAt(s, from, to, group.slice(0, used - 1), made, p);
   }
 
-  if (b.lock === 1) return { type: 'none' };
   if (!b.piece) {
     b.piece = a.piece;
     a.piece = null;
@@ -277,7 +276,7 @@ export function movePiece(s: GameState, from: number, to: number): MoveResult {
   return { type: 'swap', from, to };
 }
 
-/** A merge next to sealed cells turns them into veiled ones. */
+/** A merge next to sealed cells opens them. */
 function revealAround(s: GameState, i: number): number[] {
   const { x, y } = pos(s, i);
   const out: number[] = [];
@@ -286,7 +285,7 @@ function revealAround(s: GameState, i: number): number[] {
     if (nx < 0 || ny < 0 || nx >= s.cols || ny >= s.rows) continue;
     const c = s.board[idx(s, nx, ny)];
     if (c.lock === 2) {
-      c.lock = 1;
+      c.lock = 0;
       out.push(idx(s, nx, ny));
     }
   }
@@ -607,7 +606,7 @@ export function restore(s: GameState): RestoreResult {
   s.gems += ch.reward.gems;
   const unsealed: number[] = [];
   if (ch.reward.unsealBoard) {
-    s.board.forEach((c, i) => { if (c.lock === 2) { c.lock = 1; unsealed.push(i); } });
+    s.board.forEach((c, i) => { if (c.lock === 2) { c.lock = 0; unsealed.push(i); } });
   }
   const upgraded: number[] = [];
   if (ch.reward.upgradeGens) {
@@ -652,6 +651,8 @@ export function validateSave(data: unknown): GameState | null {
   s.chapter ??= 0;
   s.tasksDone ??= [];
   s.storySeen ??= [];
+  // Bubble (veiled) tiles were removed; any left in an old save are simply open.
+  for (const c of s.board) if ((c.lock as number) === 1) c.lock = 0;
   return s;
 }
 
