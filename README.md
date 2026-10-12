@@ -37,9 +37,9 @@ npm run build      # production build in dist/
   level 5, an orbit of element motes, crystal shards and a gem-studded cover, a crown, gilded wings, and a starry sky at level 10.
 - **Merge**: put three identical items side by side (drag one onto or next to the other two) to make one of the next level.
   Five touching items make two. Two alone won't merge. Items you can merge with glow blue while you drag.
-- **Monsters**: each card shows the items the monster is weak to. Items that match get a ✓.
+- **Monsters**: each monster stands over a tray holding the items it is weak to. Items you have on the board get a ✓.
   When you have them all, press **Cast!** to defeat it and collect coins, XP and gems.
-  The badge on each portrait shows the XP it gives; tap the portrait for its full rewards.
+  Badges over the monster show the XP, coins and stars it gives, and a bar at its feet shows its health; tap it for its name and full rewards.
   Every 6th monster is a boss. New monsters join as you level up: Shadow Spider (level 2), Wisp Ghost (3),
   Cinder Imp and Tide Crab (4), Moss Golem (5), Frost Wolf (6), Gnarlroot (8) and Grumble Cyclops (10).
 - **New monsters**: don't like the current lineup? The ⟳ button above the monster cards swaps all three for new ones.

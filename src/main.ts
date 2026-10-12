@@ -255,11 +255,13 @@ function monsterCard(m: Monster): HTMLElement {
   el.className = `monster enter${m.boss ? ' boss' : ''}`;
   el.dataset.id = String(m.id);
   el.innerHTML = `
-    <div class="portrait"><img src="${monsterImg(m.kind)}" alt=""><span class="xp-badge stroked" title="Experience for defeating it">+${m.xp} XP</span></div>
-    <div class="name">${m.name}</div>
+    <div class="portrait" aria-label="${m.name}"><img src="${monsterImg(m.kind)}" alt="${m.name}"></div>
+    <div class="tags">
+      <span class="xp-badge stroked" title="Experience for defeating it">+${m.xp} XP</span>
+      <span class="reward"><img src="${iconArt.coin()}" alt="coins">${m.coins} <img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span>${m.gems ? ` <img src="${iconArt.gem()}" alt="gems">${m.gems}` : ''}</span>
+    </div>
     <div class="hp">${m.needs.map(() => '<span class="seg"></span>').join('')}</div>
-    <div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div>
-    <div class="reward"><img src="${iconArt.coin()}" alt="">${m.coins} <img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span>${m.gems ? ` <img src="${iconArt.gem()}" alt="">${m.gems}` : ''}</div>
+    <div class="tray"><div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
     <button class="cast stroked">Cast!</button>`;
   el.querySelector('.cast')!.addEventListener('click', (e) => { e.stopPropagation(); doCast(m.id); });
   el.querySelector('.portrait')!.addEventListener('click', () => showMonsterInfo(m));
