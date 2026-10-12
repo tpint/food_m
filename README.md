@@ -30,6 +30,8 @@ npm run build      # production build in dist/
   sealed (shadow) cells turns them into veiled ones.
 - **Coins / Mana items**: tap one twice (or press Collect) to cash it in. Other items can be sold for coins.
 
+To package the game as one self-contained HTML page (for sharing), run `node scripts/artifact.mjs`. The output is `dist-artifact/arcane-merge.html`.
+
 Console helpers: `arcane.reset()`, `arcane.energy(100)`.
 
 ## Code layout

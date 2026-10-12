@@ -23,6 +23,7 @@ html, body {
   -webkit-user-select: none;
   touch-action: none;
   background: #2c2142;
+  color-scheme: dark;
 }
 
 body {
@@ -36,7 +37,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 #app {
   position: relative;
-  height: 100dvh;
+  height: 100%;
   max-width: 520px;
   margin: 0 auto;
   display: flex;
