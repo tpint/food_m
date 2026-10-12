@@ -35,6 +35,8 @@
       <div id="board"></div>
     </main>
 
+    <div id="bottom">
+    <button id="btn-bag" aria-label="Open the bag. Drag items here to store them"><img data-icon="bag" alt="" /><span class="bag-count stroked" id="bag-count">0/5</span></button>
     <footer id="info">
       <div id="info-frame"><img id="info-img" alt="" /></div>
       <div id="info-text">
@@ -44,6 +46,7 @@
       <button id="info-action" class="btn stroked hidden"></button>
       <span id="version-tag" class="version-tag" aria-label="Game version"></span>
     </footer>
+    </div>
   </div>
 
   <section id="tower" class="hidden" aria-label="Tower">
@@ -94,6 +97,20 @@
       <button class="link-btn" id="btn-profile-from-board">Keep your progress safe: profile &amp; recovery code →</button>
       <p class="board-msg hidden" id="board-msg"></p>
       <ol id="board-list"></ol>
+    </div>
+  </section>
+
+  <section id="bag" class="hidden" aria-label="Bag">
+    <div class="tower-inner">
+      <header class="tower-head">
+        <button class="round" id="btn-bag-back" aria-label="Back to the board">←</button>
+        <div class="tower-title">
+          <small id="bag-sub">0 of 5 slots used</small>
+          <b class="stroked">Bag</b>
+        </div>
+      </header>
+      <div class="bag-grid" id="bag-grid"></div>
+      <p class="bag-hint">Drag an item or grimoire onto the bag to store it. Tap a stored one to put it back on the board.</p>
     </div>
   </section>
 

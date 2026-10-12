@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canUpgrade, cast, collect, mergeYield, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save, refreshCost, refreshMonsters,
-  makeMonster, validateSave, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
+  makeMonster, validateSave, storeInBag, takeFromBag, buyBagSlot, bagSlots, bagSlotCost, BAG_START_SLOTS, BAG_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
 } from '../src/game/state';
 import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, MONSTERS, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
@@ -491,5 +491,51 @@ describe('monster roster', () => {
     expect(kindsAt(2).has('spider')).toBe(true);
     expect(kindsAt(7).has('treant')).toBe(false);
     expect(kindsAt(10)).toEqual(new Set(MONSTERS.map((m) => m.kind)));
+  });
+});
+
+describe('inventory bag', () => {
+  it('stores items and generators, and refuses locked or empty cells', () => {
+    const s = empty();
+    s.board[3].piece = item('fire', 4);
+    s.board[4].piece = gen('well', 3);
+    expect(storeInBag(s, 3)).toEqual({ ok: true, piece: item('fire', 4) });
+    expect(storeInBag(s, 4).ok).toBe(true);
+    expect(s.board[3].piece).toBeNull();
+    expect(s.bag).toEqual([item('fire', 4), gen('well', 3)]);
+    expect(storeInBag(s, 3)).toEqual({ ok: false, reason: 'invalid' });
+    s.board[5] = { piece: item('earth', 1), lock: 2 };
+    expect(storeInBag(s, 5)).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  it('is full at its slot count', () => {
+    const s = empty();
+    for (let i = 0; i < BAG_START_SLOTS + 1; i++) s.board[i].piece = item('water', 1);
+    for (let i = 0; i < BAG_START_SLOTS; i++) expect(storeInBag(s, i).ok).toBe(true);
+    expect(storeInBag(s, BAG_START_SLOTS)).toEqual({ ok: false, reason: 'full' });
+  });
+
+  it('puts items back on the nearest free cell, or says the board is full', () => {
+    const s = empty();
+    s.bag = [item('wind', 2), item('earth', 5)];
+    const r = takeFromBag(s, 1, 10);
+    expect(r).toEqual({ ok: true, at: 10, piece: item('earth', 5) });
+    expect(s.bag).toEqual([item('wind', 2)]);
+    s.board.forEach((c) => { c.piece = item('fire', 1); });
+    expect(takeFromBag(s, 0)).toEqual({ ok: false, reason: 'full' });
+    expect(s.bag).toHaveLength(1);
+  });
+
+  it('sells extra slots for gems, pricier each time, up to the maximum', () => {
+    const s = empty();
+    s.gems = 1000;
+    expect(bagSlotCost(s)).toBe(10);
+    expect(buyBagSlot(s)).toEqual({ ok: true, cost: 10 });
+    expect(bagSlots(s)).toBe(BAG_START_SLOTS + 1);
+    expect(bagSlotCost(s)).toBe(15);
+    while (bagSlots(s) < BAG_MAX_SLOTS) buyBagSlot(s);
+    expect(buyBagSlot(s)).toEqual({ ok: false, reason: 'max' });
+    s.bagSlots = BAG_START_SLOTS; s.gems = 0;
+    expect(buyBagSlot(s)).toEqual({ ok: false, reason: 'gems', cost: 10 });
   });
 });

@@ -968,6 +968,18 @@ export const iconArt = {
     s.add(shape('M66 66Q76 60 80 70Q84 80 72 82Q62 82 64 72Z', s.rad({ hi: '#ff9a9a', mid: '#d8302a', lo: '#8a1410', ink: '#5a0a08' }), '#5a0a08', 'stroke-width="2"'));
     s.add(shape('M66 80L62 92L68 88L70 94L73 82Z', '#d8302a', '#5a0a08', 'stroke-width="1.6"'));
   }),
+  bag: () => toUrl('icon-bag', (s) => {
+    const leather = { hi: '#f2c48a', mid: '#b8743c', lo: '#7a4420', ink: '#4a2610' };
+    s.shadow(34);
+    s.add(shape('M30 30Q30 10 50 10Q70 10 70 30', 'none', leather.ink, 'stroke-width="9"') + shape('M30 30Q30 10 50 10Q70 10 70 30', 'none', leather.mid, 'stroke-width="4.5"'));
+    s.add(shape('M18 36Q16 30 24 28L76 28Q84 30 82 36L86 82Q86 92 76 92L24 92Q14 92 14 82Z', s.rad(leather), leather.ink));
+    s.add(`<path d="M20 60Q50 66 80 60" fill="none" stroke="${leather.lo}" stroke-width="2" stroke-dasharray="3 3"/>`);
+    s.add(shape('M16 34Q50 26 84 34L82 56Q50 66 18 56Z', s.rad({ ...leather, mid: '#c8844a' }), leather.ink));
+    s.add(shape('M42 50L58 50L58 66L42 66Z', s.rad(P.metal), P.metal.ink, 'stroke-width="2.4"'));
+    s.add(`<rect x="47" y="55" width="6" height="6" rx="1" fill="${P.metal.lo}"/>`);
+    s.add(hl('M24 40Q40 34 56 34', 2.6, 0.5));
+    s.sparkle(78, 20, 4, '#fff6c4');
+  }),
   star: () => toUrl('icon-star', (s) => {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#c9ecff', mid: '#5aaaf0', lo: '#2a6ac8', ink: '#163e80' }), '#163e80'));
   }),

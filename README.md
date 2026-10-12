@@ -45,6 +45,10 @@ npm run build      # production build in dist/
 - **New monsters**: don't like the current lineup? The ⟳ button above the monster cards swaps all three for new ones.
   It costs 10 coins, and the price doubles with every refresh until you defeat a monster, which resets it to 10.
   A boss stays a boss when you refresh. Tuning lives in `REFRESH_BASE_COST` / `REFRESH_COST_GROWTH`.
+- **Bag**: drag any item or grimoire onto the bag (bottom left) to store it and free up the board. Tap the bag to see
+  what is inside, and tap a stored piece to put it back on the nearest free tile. The bag starts with 5 slots; more
+  cost gems (10, then 5 more each time, up to 15 slots). Tuning lives in `BAG_START_SLOTS` / `BAG_MAX_SLOTS` /
+  `bagSlotCost` in `src/game/state.ts`.
 - **Daily quests**: tap the scroll button (top right) for three quests a day, picked from: defeat monsters, merge,
   conjure, merge an item up to a given level, and collect coins from gold items. Targets and rewards scale with your level.
   Claim each for coins and gems; claiming all three opens a chest (+10 gems, +50 mana). New quests arrive at local midnight.

@@ -3,6 +3,7 @@ import { CHAINS, ElementId, GEN_LEVELS, GENERATORS, isElement, MAX_ENERGY, SPAWN
 import {
   GameState, MERGE_COUNT, Monster, Piece, canUpgrade, currentTask, restore, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
   newGame, refreshCost, refreshMonsters, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
+  BAG_MAX_SLOTS, bagSlotCost, bagSlots, buyBagSlot, storeInBag, takeFromBag,
   DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
@@ -36,6 +37,7 @@ let saveTimer = 0;
  */
 function persist(changed = true) {
   if (changed) state.savedAt = Date.now();
+  updateBagCount();
   updateQuestBadge();
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
@@ -704,6 +706,7 @@ addEventListener('pointermove', (e) => {
   }
   drag.ghost!.style.left = `${e.clientX}px`;
   drag.ghost!.style.top = `${e.clientY}px`;
+  bagBtn.classList.toggle('target', overBag(e.clientX, e.clientY));
   const over = cellAt(e.clientX, e.clientY);
   if (over !== drag.over) {
     if (drag.over >= 0) cells[drag.over].classList.remove('drop');
@@ -720,6 +723,8 @@ function endDrag(e: PointerEvent) {
   d.ghost?.remove();
   cells[d.from].firstElementChild?.classList.remove('dragging-src');
   clearHints();
+  bagBtn.classList.remove('target');
+  if (overBag(e.clientX, e.clientY)) { doStore(d.from); return; }
   const to = cellAt(e.clientX, e.clientY);
   if (to >= 0 && to !== d.from) onDrop(d.from, to);
   else renderCell(d.from, 'squish');
@@ -730,6 +735,7 @@ addEventListener('pointercancel', (e) => {
   drag.ghost?.remove();
   cells[drag.from].firstElementChild?.classList.remove('dragging-src');
   clearHints();
+  bagBtn.classList.remove('target');
   drag = null;
 });
 
@@ -945,6 +951,95 @@ $('#rename-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ------------------------------------------------------------------ bag
+
+const bagBtn = $('#btn-bag');
+const bagEl = $('#bag');
+
+function overBag(x: number, y: number) {
+  const r = bagBtn.getBoundingClientRect();
+  return x >= r.left - 6 && x <= r.right + 6 && y >= r.top - 6 && y <= r.bottom + 6;
+}
+
+function updateBagCount() {
+  const n = state.bag?.length ?? 0, max = bagSlots(state);
+  const el = $('#bag-count');
+  el.textContent = `${n}/${max}`;
+  el.classList.toggle('full', n >= max);
+}
+
+/** Drop the dragged piece into the bag. */
+function doStore(i: number) {
+  const p = state.board[i].piece;
+  const r = storeInBag(state, i);
+  if (!r.ok) {
+    sfx.error();
+    renderCell(i, 'squish');
+    toast(r.reason === 'full' ? 'Your bag is full! Take something out or buy another slot.' : "That can't go in the bag.");
+    return;
+  }
+  sfx.pick();
+  if (selected === i) select(-1);
+  renderCell(i);
+  fly(pieceArt(p!), center(cells[i]), center(bagBtn), { ms: 300, size: 40 }).then(() => restartAnim(bagBtn, 'bump'));
+  renderMonsters();
+  renderBoard();
+  persist();
+}
+
+function renderBag() {
+  const bag = state.bag ?? [], max = bagSlots(state);
+  $('#bag-sub').textContent = `${bag.length} of ${max} slots used`;
+  let html = '';
+  for (let k = 0; k < max; k++) {
+    const p = bag[k];
+    html += p
+      ? `<button class="bag-slot" data-slot="${k}" aria-label="Take out ${pieceName(p)}"><img src="${pieceArt(p)}" alt="">${p.kind === 'gen' ? `<span class="gen-lv stroked">${genLevel(p)}</span>` : ''}</button>`
+      : '<div class="bag-slot"></div>';
+  }
+  if (max < BAG_MAX_SLOTS) {
+    html += `<button class="bag-slot buy" data-buy aria-label="Buy another slot for ${bagSlotCost(state)} gems"><b>+</b><span><img src="${iconArt.gem()}" alt="gems">${bagSlotCost(state)}</span></button>`;
+  }
+  $('#bag-grid').innerHTML = html;
+}
+
+function openBag() {
+  sfx.pick();
+  bagEl.classList.remove('hidden');
+  renderBag();
+}
+
+bagBtn.addEventListener('click', openBag);
+$('#btn-bag-back').addEventListener('click', () => bagEl.classList.add('hidden'));
+$('#bag-grid').addEventListener('click', (e) => {
+  const btn = (e.target as Element).closest<HTMLButtonElement>('button');
+  if (!btn) return;
+  if (btn.dataset.buy !== undefined) {
+    const r = buyBagSlot(state);
+    if (!r.ok) {
+      sfx.error();
+      toast(r.reason === 'gems' ? `Need ${r.cost} gems for another slot.` : 'Your bag is as big as it gets!');
+      return;
+    }
+    sfx.levelUp();
+    toast(`New bag slot! (−${r.cost} gems)`);
+  } else {
+    const r = takeFromBag(state, Number(btn.dataset.slot));
+    if (!r.ok) {
+      sfx.error();
+      toast(r.reason === 'full' ? 'The board is full! Merge or sell something first.' : "Couldn't take that out.");
+      return;
+    }
+    sfx.spawn();
+    renderCell(r.at, 'pop');
+    renderMonsters();
+    renderBoard();
+  }
+  renderBag();
+  renderHud();
+  persist();
+});
+
 // ------------------------------------------------------------------ daily quests
 
 const questsEl = $('#quests');
@@ -1061,6 +1156,7 @@ function replaceState(next: GameState) {
   ensureDaily(state);
   questsReady = claimableQuests(state);
   updateQuestBadge();
+  updateBagCount();
 }
 
 function ago(ms: number) {
@@ -1297,6 +1393,7 @@ async function boot() {
   ensureDaily(state);
   questsReady = claimableQuests(state);
   updateQuestBadge();
+  updateBagCount();
 
   setInterval(() => {
     // Energy refilling on its own is not a player change.

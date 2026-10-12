@@ -62,6 +62,9 @@ export interface GameState {
   refreshes?: number;
   /** Today's quests (filled in by ensureDaily). */
   daily?: Daily;
+  /** Pieces stored in the inventory bag, and how many slots it has. */
+  bag?: Piece[];
+  bagSlots?: number;
   /** When the player last changed something (ms); the newest of local and cloud wins. */
   savedAt?: number;
 }
@@ -495,6 +498,53 @@ export function addXp(s: GameState, xp: number): boolean {
     up = true;
   }
   return up;
+}
+
+// ---------------------------------------------------------------- inventory bag
+
+export const BAG_START_SLOTS = 5;
+export const BAG_MAX_SLOTS = 15;
+
+export const bagSlots = (s: GameState) => s.bagSlots ?? BAG_START_SLOTS;
+/** Gems for the next bag slot: 10, then 5 more for each slot bought. */
+export const bagSlotCost = (s: GameState) => 10 + 5 * (bagSlots(s) - BAG_START_SLOTS);
+
+export type StoreResult = { ok: true; piece: Piece } | { ok: false; reason: 'full' | 'invalid' };
+
+/** Move the piece on board cell `i` into the bag. */
+export function storeInBag(s: GameState, i: number): StoreResult {
+  const c = s.board[i];
+  if (!c?.piece || c.lock) return { ok: false, reason: 'invalid' };
+  s.bag ??= [];
+  if (s.bag.length >= bagSlots(s)) return { ok: false, reason: 'full' };
+  const piece = c.piece;
+  s.bag.push(piece);
+  c.piece = null;
+  return { ok: true, piece };
+}
+
+export type TakeResult = { ok: true; at: number; piece: Piece } | { ok: false; reason: 'full' | 'invalid' };
+
+/** Put bag slot `slot` back on the board, on the free cell nearest `near` (default: the bottom middle). */
+export function takeFromBag(s: GameState, slot: number, near = s.board.length - 1 - Math.floor(s.cols / 2)): TakeResult {
+  const piece = s.bag?.[slot];
+  if (!piece) return { ok: false, reason: 'invalid' };
+  const at = nearestEmpty(s, near);
+  if (at < 0) return { ok: false, reason: 'full' };
+  s.board[at].piece = piece;
+  s.bag!.splice(slot, 1);
+  return { ok: true, at, piece };
+}
+
+export type BuySlotResult = { ok: true; cost: number } | { ok: false; reason: 'max' | 'gems'; cost?: number };
+
+export function buyBagSlot(s: GameState): BuySlotResult {
+  if (bagSlots(s) >= BAG_MAX_SLOTS) return { ok: false, reason: 'max' };
+  const cost = bagSlotCost(s);
+  if (s.gems < cost) return { ok: false, reason: 'gems', cost };
+  s.gems -= cost;
+  s.bagSlots = bagSlots(s) + 1;
+  return { ok: true, cost };
 }
 
 // ---------------------------------------------------------------- daily quests
