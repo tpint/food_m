@@ -34,6 +34,11 @@ To package the game as one self-contained HTML page (for sharing), run `node scr
 
 Console helpers: `arcane.reset()`, `arcane.energy(100)`.
 
+## Play online
+
+Every push to `main` deploys to GitHub Pages: https://tpint.github.io/magic_m/
+(one-time setup: repo **Settings → Pages → Source: GitHub Actions**).
+
 ## Code layout
 
 | Path | What |
