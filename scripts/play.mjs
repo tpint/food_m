@@ -10,7 +10,7 @@ async function skipStory(p) {
   }
 }
 
-const [url, dir] = process.argv.slice(2);
+const [url = 'http://localhost:5173/', dir = 'shots'] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: false });
 const errors = [];

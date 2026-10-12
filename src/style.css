@@ -518,17 +518,25 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .piece.dissolving { z-index: 3; }
 .piece.dissolving img { animation: dissolve var(--charge) ease-in forwards; }
 
-/* Wind attack forms (blade, arrows, tornado, beams). */
-.wind-sprite { position: fixed; left: 0; top: 0; z-index: 46; pointer-events: none; }
-.wind-sprite svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.wind-sprite.glow { filter: drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 10px #5fd0aa); }
-.wind-beam {
+/* Spell attack forms (blades, arrows, tornado, phoenix, serpent, beams...). */
+.spell-sprite { position: fixed; left: 0; top: 0; z-index: 46; pointer-events: none; }
+.spell-sprite svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.spell-sprite.glow.el-wind { filter: drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 10px #5fd0aa); }
+.spell-sprite.glow.el-fire { filter: drop-shadow(0 0 4px #ffe08a) drop-shadow(0 0 12px #ff6a1e); }
+.spell-sprite.glow.el-water { filter: drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 10px #3a98e8); }
+.spell-sprite.glow.el-earth { filter: drop-shadow(0 2px 2px rgba(40, 20, 5, .6)) drop-shadow(0 0 8px #e8b060); }
+.spell-sprite .flap { transform-box: view-box; transform-origin: 0 0; animation: flap .16s ease-in-out infinite alternate; }
+@keyframes flap { to { transform: scaleY(.35); } }
+.spell-beam {
   position: fixed; left: 0; top: 0; z-index: 46; pointer-events: none; transform-origin: 0 50%; border-radius: 999px;
-  background: linear-gradient(to bottom, rgba(95, 208, 170, 0) 0%, rgba(156, 232, 204, .9) 25%, #ffffff 42%, #ffffff 58%, rgba(156, 232, 204, .9) 75%, rgba(95, 208, 170, 0) 100%);
-  box-shadow: 0 0 18px #5fd0aa, 0 0 40px rgba(120, 230, 190, .7);
-  animation: wind-beam var(--beam-ms) ease-out forwards;
+  --b0: #5fd0aa; --b1: rgba(156, 232, 204, .9); --b2: #ffffff; --bg: rgba(120, 230, 190, .7);
+  background: linear-gradient(to bottom, transparent 0%, var(--b1) 25%, var(--b2) 42%, var(--b2) 58%, var(--b1) 75%, transparent 100%);
+  box-shadow: 0 0 18px var(--b0), 0 0 40px var(--bg);
+  animation: spell-beam var(--beam-ms) ease-out forwards;
 }
-@keyframes wind-beam {
+.spell-beam.el-fire { --b0: #ff6a1e; --b1: rgba(255, 120, 40, .95); --b2: #fff1b0; --bg: rgba(255, 90, 20, .7); }
+.spell-beam.el-water { --b0: #3a98e8; --b1: rgba(110, 190, 248, .95); --b2: #f0faff; --bg: rgba(60, 150, 240, .7); }
+@keyframes spell-beam {
   0% { clip-path: inset(0 100% 0 0); opacity: 1; }
   25% { clip-path: inset(0 0 0 0); opacity: 1; }
   70% { opacity: .9; filter: brightness(1.3); }

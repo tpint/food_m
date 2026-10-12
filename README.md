@@ -80,7 +80,7 @@ Bump `version` in `package.json` for each release.
 | `build-info.ts` | Version/commit/date baked into each build, and the `version.json` it publishes |
 | `src/online.ts` | Online features: leaderboard, cloud save and recovery codes (Supabase database functions `arcane_*`) |
 | `src/render/circle.ts` | Arcane casting circle shown while a spell charges |
-| `src/render/wind.ts` | Wind attacks, a different form at each level (experimental) |
+| `src/render/spells.ts` | Element attacks, a different form at each level |
 | `src/render/fx.ts` | Canvas particles (merge bursts, rings, sparkle trails) |
 | `src/render/sfx.ts` | Sound effects synthesised with WebAudio (no audio files) |
 | `src/main.ts` | UI: board, drag and drop, HUD, monster cards, info bar |
@@ -100,9 +100,12 @@ Straight top-down grid with soft 2D art, following the four merge-art rules:
    polygrams and satellite circles at higher levels; a pillar of light at level 7), then merge flash + bounce, particle bursts, shockwave rings, coin showers and sounds. Each element has its own
    spell hit when cast at a monster (fire burst, water splash, wind vortex, earth rocks), and it grows with item level:
    level 4+ adds a fire pillar / geyser / tornado / ground cracks and screen shake, level 5+ a coloured flash, level 7 a finale.
-   *Experimental:* wind spells change form by level: 1 wind sphere, 2 twin wisps, 3 spinning wind blade, 4 volley of
-   three wind arrows, 5 tornado, 6 wind laser, 7 storm lance (a thick beam wrapped in spiralling blades).
-   `node scripts/spellvideo.mjs <url> <dir> 1-7 '' wind` records all of them.
+   Every element spell also changes form by level (level 1 is the plain orb):
+   - Wind: sphere, twin wisps, wind blade, arrow volley, tornado, wind laser, storm lance.
+   - Fire: fireball, fire darts, flame wheel, meteor shower, phoenix, flamethrower, sunfall.
+   - Water: bubble, bubble barrage, ice star, ice spears, water serpent, hydro jet, tidal wave.
+   - Earth: pebble, twin rocks, boulder, stone spikes, golem fist, crystal spire, meteor.
+   `node scripts/spellvideo.mjs <url> <dir> 1-7 '' fire,water,wind,earth` records all of them.
 
 The SVG art is a stand-in. Items are auto-framed to fill their tile and get a sticker outline and drop shadow, so the set stays consistent.
 To replace any item with painted art, drop a PNG into `public/art/` and list its key in `public/art/manifest.json`

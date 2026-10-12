@@ -268,6 +268,99 @@ export const sfx = {
     }
   },
 
+  /** The sound of an element attack; each level's form has its own voice. */
+  attack(el: 'earth' | 'water' | 'wind' | 'fire', level: number) {
+    if (el === 'wind') return sfx.windAttack(level);
+    const k = 0.6 + level * 0.08;
+    if (level <= 1) return sfx.spellFly(el, level, 0.52);
+    if (el === 'fire') {
+      if (level === 2) { for (let i = 0; i < 3; i++) hiss(i * 0.06, [[0, 0], [0.04, 0.16 * k], [0.4, 0]], { type: 'bandpass', freq: [[0, 900], [0.4, 2600]], q: 2 }); bursts(0, 0.5, 10, 3800, 6, 0.08, 0.012); return; }
+      if (level === 3) { sfx.spellFly('fire', level, 0.5); hiss(0, [[0, 0], [0.1, 0.14 * k], [0.5, 0]], { type: 'lowpass', freq: [[0, 600], [0.5, 1400]] }, { tremolo: { rate: 14, depth: 0.08 } }); return; }
+      if (level === 4) { // three falling whistles, each ending in a thump
+        for (let i = 0; i < 3; i++) {
+          const t = i * 0.13;
+          osc('sine', t, [[0, 1800], [0.42, 500]], [[0, 0], [0.05, 0.05 * k], [0.42, 0]]);
+          hiss(t, [[0, 0], [0.3, 0.14 * k], [0.45, 0]], { type: 'lowpass', freq: [[0, 400], [0.42, 2400]] });
+          osc('sine', t + 0.42, [[0, 90], [0.2, 45]], [[0, 0], [0.01, 0.2], [0.22, 0]]);
+        }
+        return;
+      }
+      if (level === 5) { // a fiery whoosh and a phoenix screech
+        sfx.spellFly('fire', level, 0.64);
+        osc('sawtooth', 0.08, [[0, 1500], [0.15, 2300], [0.5, 1100]], [[0, 0], [0.04, 0.06], [0.3, 0.05], [0.5, 0]], { vibrato: { rate: 18, depth: 90 }, filter: { type: 'bandpass', freq: [[0, 2000], [0.5, 1400]], q: 3 }, echo: 0.3 });
+        return;
+      }
+      if (level === 6) { // a roaring flamethrower
+        hiss(0, [[0, 0], [0.05, 0.3 * k], [0.55, 0.26 * k], [0.7, 0]], { type: 'lowpass', freq: [[0, 900], [0.1, 3000], [0.7, 1200]], q: 0.8 }, { tremolo: { rate: 11, depth: 0.08 } });
+        bursts(0, 0.65, 24, 3600, 6, 0.08, 0.012);
+        osc('sawtooth', 0, [[0, 70], [0.7, 60]], [[0, 0], [0.05, 0.05], [0.7, 0]], { filter: { type: 'lowpass', freq: [[0, 200], [0.7, 200]] } });
+        return;
+      }
+      // sunfall: a swelling drone into a roar
+      osc('sawtooth', 0, [[0, 80], [0.76, 160]], [[0, 0], [0.5, 0.08], [0.78, 0]], { filter: { type: 'lowpass', freq: [[0, 300], [0.76, 1200]] }, echo: 0.4 });
+      osc('sine', 0, [[0, 440], [0.76, 880]], [[0, 0], [0.5, 0.04], [0.78, 0]], { vibrato: { rate: 6, depth: 12 } });
+      hiss(0, [[0, 0], [0.6, 0.3 * k], [0.8, 0]], { type: 'lowpass', freq: [[0, 400], [0.78, 3000]] });
+      bursts(0.2, 0.6, 18, 3800, 6, 0.08, 0.012);
+      return;
+    }
+    if (el === 'water') {
+      if (level === 2) { for (let i = 0; i < 5; i++) { const t = i * 0.07 + 0.42, f = rnd(300, 600); osc('sine', t, [[0, f], [0.06, f * 2.6]], [[0, 0], [0.008, 0.1], [0.07, 0]]); } sfx.spellFly('water', 1, 0.45); return; }
+      if (level === 3) { sfx.spellFly('water', level, 0.47); osc('sine', 0, [[0, 2400], [0.4, 2300]], [[0, 0], [0.01, 0.05], [0.45, 0]]); osc('sine', 0.02, [[0, 3600], [0.3, 3500]], [[0, 0], [0.01, 0.03], [0.35, 0]]); return; }
+      if (level === 4) { // crystalline launches
+        for (let i = 0; i < 3; i++) {
+          const t = i * 0.1;
+          osc('sine', t, [[0, 2800 + i * 300], [0.2, 2600]], [[0, 0], [0.005, 0.06], [0.25, 0]], { echo: 0.15 });
+          hiss(t, [[0, 0], [0.01, 0.1 * k], [0.32, 0]], { type: 'bandpass', freq: [[0, 2000], [0.32, 4500]], q: 4 });
+        }
+        return;
+      }
+      if (level === 5) { // rushing water and a hissing serpent
+        hiss(0, [[0, 0], [0.15, 0.2 * k], [0.6, 0.2 * k], [0.72, 0]], { type: 'bandpass', freq: [[0, 600], [0.35, 1800], [0.72, 900]], q: 1.2 }, { tremolo: { rate: 7, depth: 0.08 } });
+        hiss(0.1, [[0, 0], [0.05, 0.06], [0.4, 0.06], [0.5, 0]], { type: 'highpass', freq: [[0, 5000], [0.5, 6000]] });
+        for (let i = 0; i < 8; i++) { const t = rnd(0, 0.7), f = rnd(260, 520); osc('sine', t, [[0, f], [0.05, f * 2.5]], [[0, 0], [0.008, 0.06], [0.06, 0]]); }
+        return;
+      }
+      if (level === 6) { // pressurised jet
+        osc('sine', 0, [[0, 600], [0.12, 1800]], [[0, 0], [0.02, 0.05], [0.14, 0]]);
+        hiss(0.1, [[0, 0], [0.03, 0.28 * k], [0.55, 0.22 * k], [0.65, 0]], { type: 'bandpass', freq: [[0, 2500], [0.6, 1500]], q: 0.8 });
+        hiss(0.1, [[0, 0], [0.03, 0.1], [0.6, 0]], { type: 'lowpass', freq: [[0, 500], [0.6, 400]] });
+        return;
+      }
+      // tidal wave: a huge swelling surge
+      hiss(0, [[0, 0], [0.6, 0.4 * k], [0.9, 0.2], [1.1, 0]], { type: 'lowpass', freq: [[0, 200], [0.7, 1600], [1.1, 500]], q: 0.9 }, { echo: 0.3 });
+      hiss(0.3, [[0, 0], [0.4, 0.12], [0.7, 0]], { type: 'highpass', freq: [[0, 3000], [0.7, 5000]] });
+      osc('sine', 0, [[0, 50], [0.78, 80]], [[0, 0], [0.6, 0.2], [0.85, 0]]);
+      return;
+    }
+    // earth
+    if (level === 2) { sfx.spellFly('earth', 2, 0.48); sfx.spellFly('earth', 1, 0.44); return; }
+    if (level === 3) { sfx.spellFly('earth', level, 0.52); bursts(0, 0.5, 12, 300, 3, 0.1, 0.04); return; }
+    if (level === 4) { // crunch, crunch, crunch: spikes punching up
+      for (let i = 0; i < 6; i++) {
+        const t = i * 0.055 + 0.04;
+        hiss(t, [[0, 0], [0.005, 0.25 * k], [0.12, 0]], { type: 'lowpass', freq: [[0, 1800], [0.12, 300]] });
+        osc('sine', t, [[0, 140 - i * 8], [0.1, 60]], [[0, 0], [0.005, 0.15], [0.12, 0]]);
+      }
+      return;
+    }
+    if (level === 5) { // heavy swing and a growl
+      sfx.spellFly('earth', level, 0.56);
+      osc('sawtooth', 0, [[0, 70], [0.5, 55]], [[0, 0], [0.1, 0.08], [0.55, 0]], { distort: true, filter: { type: 'lowpass', freq: [[0, 400], [0.5, 300]] } });
+      return;
+    }
+    if (level === 6) { // rumble along the ground, then a crystal chime
+      hiss(0, [[0, 0], [0.1, 0.3 * k], [0.32, 0.3 * k], [0.4, 0]], { type: 'lowpass', freq: [[0, 120], [0.4, 300]] }, { tremolo: { rate: 20, depth: 0.1 } });
+      osc('sine', 0, [[0, 45], [0.4, 60]], [[0, 0], [0.1, 0.2], [0.4, 0]]);
+      [1568, 2093, 2637].forEach((f, i) => osc('sine', 0.34 + i * 0.03, [[0, f], [0.5, f]], [[0, 0], [0.01, 0.05], [0.6, 0]], { echo: 0.3 }));
+      return;
+    }
+    // meteor: a falling roar into the impact
+    osc('sine', 0, [[0, 1400], [0.7, 300]], [[0, 0], [0.1, 0.05], [0.7, 0]]);
+    hiss(0, [[0, 0], [0.6, 0.35 * k], [0.72, 0]], { type: 'lowpass', freq: [[0, 300], [0.7, 2600]] });
+    bursts(0.1, 0.6, 16, 3500, 6, 0.07, 0.012);
+    osc('sine', 0.3, [[0, 50], [0.4, 40]], [[0, 0], [0.35, 0.18], [0.45, 0]]);
+  },
+
   /** Each wind level attacks differently, so each gets its own sound. */
   windAttack(level: number) {
     const k = 0.6 + level * 0.08;
