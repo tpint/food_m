@@ -381,7 +381,7 @@ function select(i: number) {
     const lv = GEN_LEVELS[gl - 1];
     const top = CHAINS[def.chain].levels[lv.odds.length - 1];
     const free = lv.freeChance ? ` ${Math.round(lv.freeChance * 100)}% free conjure.` : '';
-    const desc = `Tap to conjure (⚡${SPAWN_COST}). Drops up to ${top}.${free}`;
+    const desc = `Tap again to conjure (⚡${SPAWN_COST}). Drops up to ${top}.${free}`;
     const up = canUpgrade(state, i);
     if (!up.ok && up.reason === 'max') return setInfo(pieceArt(p), `${def.name} · Lv ${gl} (max)`, desc);
     const cost = up.ok ? up.cost : up.cost!;
@@ -481,7 +481,12 @@ function doSell(i: number) {
 function onTap(i: number) {
   const c = state.board[i];
   if (!c.piece) { select(-1); return; }
-  if (!c.lock && c.piece.kind === 'gen') { select(i); doSpawn(i); return; }
+  if (!c.lock && c.piece.kind === 'gen') {
+    // First tap selects (free, shows Upgrade); tapping the selected generator conjures.
+    if (selected === i) doSpawn(i);
+    else { sfx.pick(); restartAnim(cells[i].firstElementChild!, 'squish'); select(i); }
+    return;
+  }
   if (!c.lock && c.piece.kind === 'item' && CHAINS[c.piece.chain].collect && selected === i) { doCollect(i); return; }
   sfx.pick();
   if (!c.lock) restartAnim(cells[i].firstElementChild!, 'squish');

@@ -20,7 +20,7 @@ npm run build      # production build in dist/
 
 - **Elements**: Earth, Water, Wind and Fire. Each has a 7-level merge chain and its own generator
   (a grimoire for each element).
-- **Generators**: tap one to conjure an item. Each tap costs 1 ⚡ mana.
+- **Generators**: tap one to select it (free; shows its info and Upgrade button), then tap it again to conjure an item. Each conjure costs 1 ⚡ mana.
   Mana refills over time (+1 every 20 s, up to 100).
 - **Upgrade generators**: select a generator and press **Upgrade** (costs coins, needs a minimum player level).
   Each level (up to 5) raises the odds of higher-level drops and adds a chance of a free conjure. Tuning lives in `GEN_LEVELS`.
