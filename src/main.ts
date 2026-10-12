@@ -7,7 +7,7 @@ import {
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
 import { burst, elementCharge, elementHit, puff, shower, trail } from './render/fx';
-import { sceneArt, webArt } from './render/scene';
+import { THEMES, ThemeId, sceneArt, webArt } from './render/scene';
 import { magicCircle } from './render/circle';
 import { spellAttack } from './render/spells';
 import { roomAnchor, roomSvg, updateRoom } from './render/room';
@@ -18,6 +18,28 @@ import { sfx } from './render/sfx';
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
 let state: GameState = load() ?? newGame();
+
+// ------------------------------------------------------------------ theme
+
+const THEME_KEY = 'arcane-theme';
+
+function savedTheme(): ThemeId {
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    if (t && t in THEMES) return t as ThemeId;
+  } catch { /* storage unavailable */ }
+  return 'sunny';
+}
+
+/** Colour the page chrome (CSS variables) and repaint the backdrop for a theme. */
+function applyTheme(id: ThemeId) {
+  document.documentElement.dataset.theme = id;
+  document.documentElement.style.setProperty('--scene', sceneArt(id));
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEMES[id].color);
+  document.querySelectorAll<HTMLButtonElement>('.theme-opt').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === id)));
+}
+
+document.documentElement.dataset.theme = savedTheme();
 tickEnergy(state);
 
 // ------------------------------------------------------------------ helpers
@@ -1271,7 +1293,18 @@ $('#story-next').addEventListener('click', nextStory);
 
 async function boot() {
   await loadArtOverrides();
-  document.documentElement.style.setProperty('--scene', sceneArt());
+  // Theme picker on the profile screen, each option previewing its backdrop.
+  $('#themes').innerHTML = (Object.keys(THEMES) as ThemeId[]).map((id) =>
+    `<button class="theme-opt" data-theme="${id}" aria-pressed="false"><i style="background-image:${sceneArt(id).replace(/"/g, '&quot;')}"></i>${THEMES[id].name}</button>`).join('');
+  $('#themes').addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('.theme-opt');
+    if (!b) return;
+    sfx.pick();
+    const id = b.dataset.theme as ThemeId;
+    try { localStorage.setItem(THEME_KEY, id); } catch { /* storage unavailable */ }
+    applyTheme(id);
+  });
+  applyTheme(savedTheme());
   document.documentElement.style.setProperty('--web', webArt());
   document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
     img.src = iconArt[img.dataset.icon as keyof typeof iconArt]();

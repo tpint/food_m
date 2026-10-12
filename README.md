@@ -67,6 +67,9 @@ npm run build      # production build in dist/
   you leave). Tap the level star to open your profile: create a recovery code (like `ABCD-EFGH-JKLM-NPQR`) and type it
   on another device, or after clearing the browser, to restore your progress, name and leaderboard scores. When a
   device opens with older progress than the cloud copy, it loads the newer one. Codes are stored hashed on the server.
+- **Themes**: the profile screen has a Theme picker: *Sunny Study* (bright daytime, the default), *Fairy Garden*
+  (mint walls, flowers and a pink sky) and *Moonlit Night* (the original dusky look). The choice is kept per device.
+  Palettes live in `THEMES` (`src/render/scene.ts`) and the `data-theme` blocks at the top of `src/style.css`.
 - **Start over**: the About panel on the profile screen has a button to reset your account. After a confirmation it
   wipes this device's game and starts a new one as a new apprentice. The old player's cloud save and leaderboard
   entry are kept, so a recovery code made beforehand still brings the old game back.
