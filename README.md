@@ -114,7 +114,7 @@ Bump `version` in `package.json` for each release.
 Straight top-down grid with soft 2D art, following the four merge-art rules:
 1. **Silhouette progression**: e.g. bubbles → seashell → splash → tide orb → fountain → trident → great wave.
 2. **Strict colour coding**: Earth = brown, Water = blue, Wind = mint/white, Fire = orange/red, Gold = yellow, Mana = pink.
-3. **Low-contrast board**: cream tiles with very little contrast. The dark backdrop sits outside the board.
+3. **Bright, calm board**: periwinkle-blue tiles with a little contrast, and tiles that hold an item a monster wants turn green. The sunny backdrop sits outside the board.
 4. **Sound**: all sounds are synthesised live with WebAudio (`src/render/sfx.ts`): each element has its own swoop while a
    spell flies (roaring fire, rushing water with bubbles, whistling wind, rumbling earth) and every monster has its own
    parting cry, with echo, distortion and bass for the tougher ones. `node scripts/spellvideo.mjs <url> <dir> [level|1-7] [ffmpeg] [elements]` records a video of each element's spell at a level, and

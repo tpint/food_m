@@ -82,13 +82,14 @@ class Svg {
   }
 
   inner() {
-    // Kept crisp: a solid outline, a tight offset shadow and a little extra contrast.
+    // Vibrant and crisp: a solid navy outline, a tight offset shadow, boosted colour and a little extra contrast.
     const outline = `<filter id="o${uid}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
-<feMorphology in="SourceAlpha" operator="dilate" radius="1.8" result="d"/>
-<feFlood flood-color="#3a2350"/><feComposite in2="d" operator="in" result="ol"/>
+<feMorphology in="SourceAlpha" operator="dilate" radius="1.5" result="d"/>
+<feFlood flood-color="#28306a"/><feComposite in2="d" operator="in" result="ol"/>
 <feGaussianBlur in="d" stdDeviation=".5"/><feOffset dy="2.2" result="b"/>
-<feFlood flood-color="#2a1640" flood-opacity=".3"/><feComposite in2="b" operator="in" result="sh"/>
-<feComponentTransfer in="SourceGraphic" result="g"><feFuncR type="linear" slope="1.08" intercept="-.03"/><feFuncG type="linear" slope="1.08" intercept="-.03"/><feFuncB type="linear" slope="1.08" intercept="-.03"/></feComponentTransfer>
+<feFlood flood-color="#1e3a8a" flood-opacity=".28"/><feComposite in2="b" operator="in" result="sh"/>
+<feColorMatrix in="SourceGraphic" type="saturate" values="1.25" result="sat"/>
+<feComponentTransfer in="sat" result="g"><feFuncR type="linear" slope="1.08" intercept="-.03"/><feFuncG type="linear" slope="1.08" intercept="-.03"/><feFuncB type="linear" slope="1.08" intercept="-.03"/></feComponentTransfer>
 <feMerge><feMergeNode in="sh"/><feMergeNode in="ol"/><feMergeNode in="g"/></feMerge></filter>`;
     return { defs: this.defs.join('') + outline, filter: `o${uid++}` };
   }
