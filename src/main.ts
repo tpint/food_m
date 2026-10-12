@@ -8,7 +8,7 @@ import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './rend
 import { burst, elementHit, elementTrail, puff, shower, trail } from './render/fx';
 import { sceneArt, webArt } from './render/scene';
 import { magicCircle } from './render/circle';
-import { ROOM_ANCHORS, roomSvg, updateRoom } from './render/room';
+import { roomAnchor, roomSvg, updateRoom } from './render/room';
 import { CHAPTERS, COMING_SOON, MENTOR } from './game/story';
 import { sfx } from './render/sfx';
 
@@ -660,19 +660,19 @@ function updateTowerBadge() {
 /** The chapter whose room is shown: the current one, or the last one once all are done. */
 const viewChapter = () => Math.min(state.chapter, CHAPTERS.length - 1);
 
-function renderTower(fresh?: string) {
-  const idx = viewChapter();
+function renderTower(fresh?: string, chapterIdx = viewChapter()) {
+  const idx = chapterIdx;
   const ch = CHAPTERS[idx];
-  const allDone = state.chapter >= CHAPTERS.length;
+  const allDone = state.chapter > idx;
   $('#tower-chapter').textContent = `Chapter ${idx + 1}`;
   $('#tower-name').textContent = ch.name;
   $('#tower-stars').textContent = String(state.stars);
   const room = $('#room');
-  if (roomFor !== ch.id) { room.innerHTML = roomSvg(); roomFor = ch.id; }
+  if (roomFor !== ch.id) { room.innerHTML = roomSvg(ch.id); roomFor = ch.id; }
   const done = ch.tasks.filter((t) => state.tasksDone.includes(t.id)).map((t) => t.id);
   updateRoom(room.querySelector('svg')!, done, ch.tasks.length, fresh);
   $('#tower-fill').style.width = `${(done.length / ch.tasks.length) * 100}%`;
-  $('#tower-progress-text').textContent = allDone ? 'Fully restored! More rooms coming soon' : `${done.length} / ${ch.tasks.length} restored`;
+  $('#tower-progress-text').textContent = allDone ? (state.chapter >= CHAPTERS.length ? 'Fully restored! More rooms coming soon' : 'Fully restored!') : `${done.length} / ${ch.tasks.length} restored`;
   const cur = currentTask(state);
   $('#tasks').innerHTML = ch.tasks.map((t, k) => {
     const isDone = done.includes(t.id);
@@ -706,20 +706,34 @@ function doRestore() {
     return;
   }
   sfx.levelUp();
-  renderTower(r.task.id);
+  // Keep showing the room this task belongs to, even if the chapter just ended.
+  const shown = r.chapterDone ? state.chapter - 1 : state.chapter;
+  renderTower(r.task.id, shown);
   const svg = $('#room svg');
   const box = svg.getBoundingClientRect();
-  const [ax, ay] = ROOM_ANCHORS[r.task.id] ?? [200, 160];
+  const [ax, ay] = roomAnchor(CHAPTERS[shown].id, r.task.id);
   const x = box.left + (ax / 400) * box.width, y = box.top + (ay / 320) * box.height;
   burst(x, y, '#ffe680', 1.5);
   shower(x, y, ['#ffe680', '#b98cff', '#fff']);
-  const lines: { text: string; extra?: string }[] = [{ text: r.task.story }];
+  const lines: StoryLine[] = [{ text: r.task.story }];
   if (r.chapterDone) {
     for (const t of r.chapterDone.outro) lines.push({ text: t });
-    lines.push({ text: `Chapter complete: ${r.chapterDone.name}!`, extra: `Reward: ${r.chapterDone.rewardText}.` });
-    if (state.chapter >= CHAPTERS.length) lines.push({ text: COMING_SOON });
+    const next = CHAPTERS[state.chapter];
+    lines.push({
+      text: `Chapter complete: ${r.chapterDone.name}!`,
+      extra: `Reward: ${r.chapterDone.rewardText}.`,
+      // Move to the next room once the chapter's story is over.
+      then: () => renderTower(),
+    });
+    if (next) {
+      state.storySeen.push(`${next.id}-intro`);
+      for (const t of next.intro) lines.push({ text: t });
+    } else {
+      lines.push({ text: COMING_SOON });
+    }
     renderBoard();
     for (const i of r.unsealed) renderCell(i, 'squish');
+    for (const i of r.upgraded) renderCell(i, 'merge');
   }
   setTimeout(() => tell(lines), 700);
   renderHud();
@@ -734,15 +748,19 @@ $('#tasks').addEventListener('click', (e) => {
 
 // ------------------------------------------------------------------ story
 
-const storyQueue: { text: string; extra?: string }[] = [];
+interface StoryLine { text: string; extra?: string; then?: () => void }
+const storyQueue: StoryLine[] = [];
+let storyThen: (() => void) | undefined;
 
 /** Queue lines for Professor Hoot to say, one card at a time. */
-function tell(lines: (string | { text: string; extra?: string })[]) {
+function tell(lines: (string | StoryLine)[]) {
   for (const l of lines) storyQueue.push(typeof l === 'string' ? { text: l } : l);
   if ($('#story').classList.contains('hidden')) nextStory();
 }
 
 function nextStory() {
+  storyThen?.();
+  storyThen = undefined;
   const n = storyQueue.shift();
   const box = $('#story');
   if (!n) { box.classList.add('hidden'); return; }
@@ -755,6 +773,7 @@ function nextStory() {
     r.textContent = n.extra;
     text.appendChild(r);
   }
+  storyThen = n.then;
   $('#story-next').textContent = storyQueue.length ? 'Next' : 'Continue';
   box.classList.remove('hidden');
   restartAnim(box.querySelector('.story-card')!, 'story-card');
@@ -788,11 +807,13 @@ async function boot() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(state); });
 
   $<HTMLImageElement>('#story-owl').src = iconArt.owl();
-  const intro = `${CHAPTERS[0].id}-intro`;
-  if (!state.storySeen.includes(intro)) {
-    state.storySeen.push(intro);
+  // Play the current chapter's intro once (also for players who finished
+  // the previous chapter before this one existed).
+  const ch = CHAPTERS[state.chapter];
+  if (ch && !state.storySeen.includes(`${ch.id}-intro`)) {
+    state.storySeen.push(`${ch.id}-intro`);
     persist();
-    setTimeout(() => tell(CHAPTERS[0].intro), 500);
+    setTimeout(() => tell(ch.intro), 500);
   }
 }
 

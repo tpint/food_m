@@ -31,8 +31,9 @@ npm run build      # production build in dist/
   Every 6th monster is a boss.
 - **Tower restoration**: monsters also drop **Stars** (bosses drop 3). Tap the tower button (top right) to open the
   Tower screen and spend Stars on restoration tasks, in order. Each task visibly repairs the room and Professor Hoot,
-  the Archmage's owl, tells a bit more of the story. Chapter 1 is *The Dusty Library* (6 tasks); finishing it pays
-  coins and gems and starts clearing the sealed rows on the board. Chapters live in `src/game/story.ts`.
+  the Archmage's owl, tells a bit more of the story. Chapter 1 is *The Dusty Library* (6 tasks; reward: coins, gems and the sealed board rows
+  start to clear). Chapter 2 is *The Alchemy Lab* (6 tasks; reward: coins, gems and every grimoire gains a level).
+  Chapters live in `src/game/story.ts`; each chapter's room is drawn in `src/render/room.ts`.
 - **Locked area**: veiled (bubble) items are freed when you merge a matching item onto them. Merging next to
   sealed (shadow) cells turns them into veiled ones.
 - **Coins / Mana items**: tap one twice (or press Collect) to cash it in. Other items can be sold for coins.

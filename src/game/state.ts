@@ -452,7 +452,7 @@ export function currentTask(s: GameState): TaskDef | null {
 }
 
 export type RestoreResult =
-  | { ok: true; task: TaskDef; chapterDone: ChapterDef | null; unsealed: number[] }
+  | { ok: true; task: TaskDef; chapterDone: ChapterDef | null; unsealed: number[]; upgraded: number[] }
   | { ok: false; reason: 'stars' | 'none'; cost?: number };
 
 /** Spend Stars on the next task. Finishing the last task completes the chapter. */
@@ -463,7 +463,7 @@ export function restore(s: GameState): RestoreResult {
   s.stars -= task.cost;
   s.tasksDone.push(task.id);
   const ch = currentChapter(s)!;
-  if (currentTask(s)) return { ok: true, task, chapterDone: null, unsealed: [] };
+  if (currentTask(s)) return { ok: true, task, chapterDone: null, unsealed: [], upgraded: [] };
 
   // Chapter complete: pay out its reward and move on.
   s.coins += ch.reward.coins;
@@ -472,8 +472,17 @@ export function restore(s: GameState): RestoreResult {
   if (ch.reward.unsealBoard) {
     s.board.forEach((c, i) => { if (c.lock === 2) { c.lock = 1; unsealed.push(i); } });
   }
+  const upgraded: number[] = [];
+  if (ch.reward.upgradeGens) {
+    s.board.forEach((c, i) => {
+      if (c.piece?.kind === 'gen' && genLevel(c.piece) < GEN_LEVELS.length) {
+        c.piece.level = genLevel(c.piece) + 1;
+        upgraded.push(i);
+      }
+    });
+  }
   s.chapter++;
-  return { ok: true, task, chapterDone: ch, unsealed };
+  return { ok: true, task, chapterDone: ch, unsealed, upgraded };
 }
 
 // ---------------------------------------------------------------- save

@@ -252,8 +252,29 @@ describe('tower restoration', () => {
     expect(s.coins).toBe(coins + CHAPTERS[0].reward.coins);
     expect(s.gems).toBe(gems + CHAPTERS[0].reward.gems);
     expect(s.chapter).toBe(1);
+    expect(currentTask(s)).toEqual(CHAPTERS[1].tasks[0]);
+  });
+
+  it('has nothing left to restore after the last chapter', () => {
+    const s = empty();
+    s.chapter = CHAPTERS.length;
     expect(currentTask(s)).toBeNull();
     expect(restore(s)).toEqual({ ok: false, reason: 'none' });
+  });
+
+  it('chapter 2 gives every grimoire a level', () => {
+    const s = empty();
+    s.board[0].piece = gen('forge', 2);
+    s.board[1].piece = gen('well', GEN_LEVELS.length);
+    s.stars = 999;
+    const all = CHAPTERS[0].tasks.length + CHAPTERS[1].tasks.length;
+    let last;
+    for (let i = 0; i < all; i++) last = restore(s);
+    expect(last!.ok && last!.chapterDone?.id).toBe('lab');
+    expect(last!.ok && last!.upgraded).toEqual([0]);
+    expect(genLevel(s.board[0].piece!)).toBe(3);
+    expect(genLevel(s.board[1].piece!)).toBe(GEN_LEVELS.length);
+    expect(s.chapter).toBe(2);
   });
 
   it('loads older saves without tower fields', () => {
