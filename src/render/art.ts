@@ -90,6 +90,9 @@ const P: Record<string, Pal> = {
 
 let uid = 0;
 
+/** Pixel size the art is drawn at: the largest it is shown (about 100 CSS px) on a 3x screen, plus headroom. */
+const RASTER = 384;
+
 /**
  * Builds an SVG document in three layers: `back` (halo + ground shadow),
  * `body` (the object, drawn with a chunky sticker outline) and `fx`
@@ -196,7 +199,10 @@ class Svg {
       + `<filter id="ww${w}"><feFlood flood-color="#fff"/><feComposite in2="SourceAlpha" operator="in"/></filter>`
       + `<mask id="wm${w}" maskUnits="userSpaceOnUse" x="${f(vx)}" y="${f(vy)}" width="${f(size)}" height="${f(size)}"><g filter="url(#ww${w})">${this.body.join('')}</g></mask>`;
     const washRect = `<rect x="${f(vx)}" y="${f(vy)}" width="${f(size)}" height="${f(size)}" fill="url(#wg${w})" mask="url(#wm${w})" style="mix-blend-mode:${style.washBlend}"/>`;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(vx)} ${f(vy)} ${f(size)} ${f(size)}"><defs>${defs}${wash}</defs>${back.join('')}${this.behind.join('')}${body}${washRect}${this.fx.join('')}${decor}</svg>`;
+    // A large intrinsic size: WebKit (every iPhone browser) renders the filters above
+    // at an SVG image's own size and then scales the result, so a small or default
+    // size leaves outlines blurry on high-density screens. CSS sets the shown size.
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${RASTER}" height="${RASTER}" viewBox="${f(vx)} ${f(vy)} ${f(size)} ${f(size)}"><defs>${defs}${wash}</defs>${back.join('')}${this.behind.join('')}${body}${washRect}${this.fx.join('')}${decor}</svg>`;
   }
 }
 
