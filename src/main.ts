@@ -862,12 +862,14 @@ function boardMessage(text: string, retry = false) {
 function renderMe(b: Board | null) {
   $('#me-name').textContent = b?.me?.name ?? online.name;
   $('#me-rank').textContent = b?.me?.rank ? `#${b.me.rank}` : '–';
-  $('#me-score').textContent = String(b?.me?.score ?? (period === 'week' ? 0 : state.defeated));
+  $('#me-score').textContent = String(b?.me?.score ?? (period === 'week' ? 0 : period === 'level' ? state.level : state.defeated));
+  $('#me-unit').textContent = period === 'level' ? 'level' : 'monsters';
 }
 
 async function loadBoard() {
   const req = ++boardReq;
-  $('#leaders-sub').textContent = period === 'week' ? `Monsters defeated · resets in ${untilReset()}` : 'Monsters defeated · all time';
+  $('#leaders-sub').textContent = period === 'week' ? `Monsters defeated · resets in ${untilReset()}`
+    : period === 'level' ? 'Highest level' : 'Monsters defeated · all time';
   renderMe(null);
   $('#board-list').innerHTML = '';
   boardMessage('Summoning the scores...');
@@ -879,8 +881,8 @@ async function loadBoard() {
     $('#board-list').innerHTML = b.top.map((r) => {
       const medal = r.rank <= 3 ? ` medal r${r.rank}` : '';
       return `<li class="row${r.me ? ' me' : ''}"><span class="row-rank${medal}">${r.rank}</span>`
-        + `<span class="row-name"><b>${escapeHtml(r.name)}${r.me ? ' (you)' : ''}</b><small>Level ${r.level}</small></span>`
-        + `<span class="row-score">${r.score}</span></li>`;
+        + `<span class="row-name"><b>${escapeHtml(r.name)}${r.me ? ' (you)' : ''}</b><small>${period === 'level' ? `${r.defeated ?? 0} monsters defeated` : `Level ${r.level}`}</small></span>`
+        + `<span class="row-score">${period === 'level' ? `Lv ${r.score}` : r.score}</span></li>`;
     }).join('');
   } catch {
     if (req !== boardReq) return;

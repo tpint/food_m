@@ -52,9 +52,9 @@ npm run build      # production build in dist/
   Each also pays coins and gems.
   Chapters live in `src/game/story.ts`; each chapter's room is drawn in `src/render/room.ts`.
 - **Leaderboard**: the trophy button shows the top 50 by monsters defeated, this week (resets Monday 00:00 UTC) or
-  all time, plus your own rank. Each device gets a hidden player ID and an "Apprentice ####" name you can change.
+  all time, or by player level (the Level tab), plus your own rank. Each device gets a hidden player ID and an "Apprentice ####" name you can change.
   Scores are stored in Supabase (`src/online.ts`); the database only accepts score increases at a realistic rate,
-  so an edited save cannot jump to the top. The leaderboard works on the public website only.
+  so an edited save cannot jump to the top (a level can only rise by one per monster defeated). The leaderboard works on the public website only.
 - **Cloud save & recovery code**: progress uploads to the cloud automatically (a few seconds after changes and when
   you leave). Tap the level star to open your profile: create a recovery code (like `ABCD-EFGH-JKLM-NPQR`) and type it
   on another device, or after clearing the browser, to restore your progress, name and leaderboard scores. When a

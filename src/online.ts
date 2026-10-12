@@ -9,9 +9,10 @@ const API = 'https://hdeywsbduhzvuthcvakk.supabase.co/rest/v1/rpc/';
 const KEY = 'sb_publishable_nekzHm_EjEPsPvdwyyuSfA_hC7btEgx';
 const STORE = 'arcane-player-v1';
 
-export type Period = 'week' | 'all';
+/** 'week' and 'all' rank monsters defeated; 'level' ranks player level. */
+export type Period = 'week' | 'all' | 'level';
 
-export interface BoardRow { rank: number; name: string; score: number; level: number; me: boolean }
+export interface BoardRow { rank: number; name: string; score: number; level: number; me: boolean; defeated?: number }
 export interface Board {
   period: Period;
   week_start: string;
