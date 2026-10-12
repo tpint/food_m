@@ -1,9 +1,19 @@
 import { chromium } from '@playwright/test';
+
+/** Click through Professor Hoot's story cards if any are showing. */
+async function skipStory(p) {
+  await p.waitForTimeout(700);
+  for (let i = 0; i < 10 && await p.locator('#story:not(.hidden)').count(); i++) {
+    await p.locator('#story-next').click();
+    await p.waitForTimeout(150);
+  }
+}
+
 const [url, dir] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 const errors = []; p.on('pageerror', (e) => errors.push(e.message));
-await p.goto(url); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(500);
+await p.goto(url); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(500); await skipStory(p);
 const tap = async (i) => { const r = await p.locator(`.cell[data-i="${i}"]`).boundingBox(); await p.mouse.click(r.x + r.width / 2, r.y + r.height / 2); };
 await tap(56); await p.waitForTimeout(400);
 await p.screenshot({ path: `${dir}/u1-locked.png` });

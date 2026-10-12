@@ -1,6 +1,16 @@
 // Screenshots of each element's spell effect at a few levels.
 // Usage: node scripts/fxshots.mjs <url> <dir> [element...]
 import { chromium } from '@playwright/test';
+
+/** Click through Professor Hoot's story cards if any are showing. */
+async function skipStory(p) {
+  await p.waitForTimeout(700);
+  for (let i = 0; i < 10 && await p.locator('#story:not(.hidden)').count(); i++) {
+    await p.locator('#story-next').click();
+    await p.waitForTimeout(150);
+  }
+}
+
 const [url, dir, ...only] = process.argv.slice(2);
 const elements = only.length ? only : ['fire', 'water', 'wind', 'earth'];
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -10,14 +20,14 @@ await p.goto(url);
 for (const el of elements) {
   for (const level of [1, 4, 7]) {
     await p.evaluate(() => localStorage.clear());
-    await p.reload(); await p.waitForTimeout(400);
+    await p.reload(); await p.waitForTimeout(400); await skipStory(p);
     await p.evaluate(({ el, level }) => {
       const s = window.arcane.state;
       s.monsters[1].needs = [{ chain: el, level }];
       s.board[31] = { piece: { kind: 'item', chain: el, level }, lock: 0 };
       localStorage.setItem('arcane-merge-save-v2', JSON.stringify(s));
     }, { el, level });
-    await p.reload(); await p.waitForTimeout(500);
+    await p.reload(); await p.waitForTimeout(500); await skipStory(p);
     await p.locator('.monster.ready .cast').first().click();
     await p.waitForTimeout(560 + 170);
     await p.screenshot({ path: `${dir}/fx-${el}-${level}.png`, clip: { x: 0, y: 0, width: 390, height: 520 } });

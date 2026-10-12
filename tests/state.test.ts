@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   canUpgrade, cast, collect, mergeYield, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
-  upgradeGen, GameState,
+  upgradeGen, GameState, currentTask, restore, load, save,
 } from '../src/game/state';
 import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY } from '../src/game/config';
+import { CHAPTERS } from '../src/game/story';
 
 function seeded(seed = 1) {
   return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -212,5 +213,57 @@ describe('generator upgrades', () => {
 
   it('treats generators from old saves as level 1', () => {
     expect(genLevel({ kind: 'gen', gen: 'geode' })).toBe(1);
+  });
+});
+
+describe('tower restoration', () => {
+  it('monsters drop stars', () => {
+    const s = empty();
+    const m = s.monsters[0];
+    m.needs.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
+    cast(s, m.id, seeded(5));
+    expect(s.stars).toBe(m.stars);
+    expect(m.stars).toBeGreaterThan(0);
+  });
+
+  it('spends stars on tasks in order and refuses without enough', () => {
+    const s = empty();
+    const first = CHAPTERS[0].tasks[0];
+    expect(currentTask(s)).toEqual(first);
+    expect(restore(s)).toEqual({ ok: false, reason: 'stars', cost: first.cost });
+    s.stars = 5;
+    const r = restore(s);
+    expect(r.ok && r.task.id).toBe(first.id);
+    expect(s.stars).toBe(5 - first.cost);
+    expect(currentTask(s)).toEqual(CHAPTERS[0].tasks[1]);
+  });
+
+  it('completing the chapter pays out and unseals the board', () => {
+    const s = empty();
+    s.board[0].lock = 2;
+    s.board[1].lock = 2;
+    s.stars = 999;
+    const coins = s.coins, gems = s.gems;
+    let last;
+    for (let i = 0; i < CHAPTERS[0].tasks.length; i++) last = restore(s);
+    expect(last!.ok && last!.chapterDone?.id).toBe('library');
+    expect(last!.ok && last!.unsealed).toEqual([0, 1]);
+    expect(s.board[0].lock).toBe(1);
+    expect(s.coins).toBe(coins + CHAPTERS[0].reward.coins);
+    expect(s.gems).toBe(gems + CHAPTERS[0].reward.gems);
+    expect(s.chapter).toBe(1);
+    expect(currentTask(s)).toBeNull();
+    expect(restore(s)).toEqual({ ok: false, reason: 'none' });
+  });
+
+  it('loads older saves without tower fields', () => {
+    const s = empty() as Partial<GameState>;
+    delete s.stars; delete s.chapter; delete s.tasksDone; delete s.storySeen;
+    const store: Record<string, string> = {};
+    save(s as GameState, { setItem: (k, v) => { store[k] = v; } });
+    const loaded = load({ getItem: (k) => store[k] ?? null })!;
+    expect(loaded.stars).toBe(0);
+    expect(loaded.chapter).toBe(0);
+    expect(loaded.tasksDone).toEqual([]);
   });
 });

@@ -1,5 +1,15 @@
 // Scripted playtest: merge, spawn, cast. Saves screenshots to the given dir.
 import { chromium } from '@playwright/test';
+
+/** Click through Professor Hoot's story cards if any are showing. */
+async function skipStory(p) {
+  await p.waitForTimeout(700);
+  for (let i = 0; i < 10 && await p.locator('#story:not(.hidden)').count(); i++) {
+    await p.locator('#story-next').click();
+    await p.waitForTimeout(150);
+  }
+}
+
 const [url, dir] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: false });
@@ -8,7 +18,7 @@ p.on('pageerror', (e) => errors.push(e.message));
 await p.goto(url);
 await p.evaluate(() => localStorage.clear());
 await p.reload();
-await p.waitForTimeout(600);
+await p.waitForTimeout(600); await skipStory(p);
 await p.screenshot({ path: `${dir}/p1.png` });
 
 const cellCenter = async (i) => {

@@ -1,6 +1,7 @@
 // Pure game logic. No DOM access here so it can be unit tested and reused
 // unchanged when the game is wrapped for iOS / Android.
 
+import { CHAPTERS, ChapterDef, TaskDef } from './story';
 import {
   ACTIVE_MONSTERS, BOARD_COLS, BOARD_ROWS, BOSS, BOSS_EVERY, CHAINS, ChainId, ENERGY_REGEN_MS,
   GEN_LEVELS, GENERATORS, GenId, MAGIC_CHAINS, MAX_ENERGY, MONSTERS, MonsterKind, SPAWN_COST, maxLevel, xpForLevel,
@@ -31,6 +32,7 @@ export interface Monster {
   coins: number;
   xp: number;
   gems: number;
+  stars: number;
   boss: boolean;
 }
 
@@ -48,6 +50,11 @@ export interface GameState {
   monsters: Monster[];
   nextMonsterId: number;
   defeated: number;
+  /** Tower restoration (added after v2 shipped; filled in by load()). */
+  stars: number;
+  chapter: number;
+  tasksDone: string[];
+  storySeen: string[];
 }
 
 export type Rng = () => number;
@@ -91,6 +98,10 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
     monsters: [],
     nextMonsterId: 1,
     defeated: 0,
+    stars: 0,
+    chapter: 0,
+    tasksDone: [],
+    storySeen: [],
   };
 
   // Top three rows: a misty, locked area full of items, like the cobwebbed
@@ -369,6 +380,7 @@ export function makeMonster(s: GameState, rng: Rng = Math.random): Monster {
     coins: Math.round(power * 2 + 4) * (boss ? 2 : 1),
     xp: needs.reduce((t, n) => t + n.level * 2, 0) + (boss ? 10 : 0),
     gems: boss ? 5 : 0,
+    stars: boss ? 3 : needs.length >= 2 ? 2 : 1,
     boss,
   };
 }
@@ -407,6 +419,7 @@ export function cast(s: GameState, monsterId: number, rng: Rng = Math.random): C
   for (const i of cells) s.board[i].piece = null;
   s.coins += m.coins;
   s.gems += m.gems;
+  s.stars += m.stars ?? 1;
   s.defeated++;
   const levelUp = addXp(s, m.xp);
   s.monsters.splice(mi, 1, makeMonster(s, rng));
@@ -426,6 +439,43 @@ export function addXp(s: GameState, xp: number): boolean {
   return up;
 }
 
+// ---------------------------------------------------------------- tower
+
+export function currentChapter(s: GameState): ChapterDef | null {
+  return CHAPTERS[s.chapter] ?? null;
+}
+
+/** The next task to do in the current chapter, or null if none are left. */
+export function currentTask(s: GameState): TaskDef | null {
+  const ch = currentChapter(s);
+  return ch?.tasks.find((t) => !s.tasksDone.includes(t.id)) ?? null;
+}
+
+export type RestoreResult =
+  | { ok: true; task: TaskDef; chapterDone: ChapterDef | null; unsealed: number[] }
+  | { ok: false; reason: 'stars' | 'none'; cost?: number };
+
+/** Spend Stars on the next task. Finishing the last task completes the chapter. */
+export function restore(s: GameState): RestoreResult {
+  const task = currentTask(s);
+  if (!task) return { ok: false, reason: 'none' };
+  if (s.stars < task.cost) return { ok: false, reason: 'stars', cost: task.cost };
+  s.stars -= task.cost;
+  s.tasksDone.push(task.id);
+  const ch = currentChapter(s)!;
+  if (currentTask(s)) return { ok: true, task, chapterDone: null, unsealed: [] };
+
+  // Chapter complete: pay out its reward and move on.
+  s.coins += ch.reward.coins;
+  s.gems += ch.reward.gems;
+  const unsealed: number[] = [];
+  if (ch.reward.unsealBoard) {
+    s.board.forEach((c, i) => { if (c.lock === 2) { c.lock = 1; unsealed.push(i); } });
+  }
+  s.chapter++;
+  return { ok: true, task, chapterDone: ch, unsealed };
+}
+
 // ---------------------------------------------------------------- save
 
 // v2: elements replaced the old crystal/herb/flame/arcane chains.
@@ -441,6 +491,11 @@ export function load(storage: Pick<Storage, 'getItem'> = localStorage): GameStat
     if (!raw) return null;
     const s = JSON.parse(raw) as GameState;
     if (s.v !== 2 || s.board?.length !== s.cols * s.rows) return null;
+    // Saves from before the tower existed start at the first chapter.
+    s.stars ??= 0;
+    s.chapter ??= 0;
+    s.tasksDone ??= [];
+    s.storySeen ??= [];
     return s;
   } catch {
     return null;

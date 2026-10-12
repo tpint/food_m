@@ -1,11 +1,21 @@
 // Playtest for merge-3: five matching items should merge into two.
 // Usage: node scripts/merge3.mjs <url> <screenshot-dir>
 import { chromium } from '@playwright/test';
+
+/** Click through Professor Hoot's story cards if any are showing. */
+async function skipStory(p) {
+  await p.waitForTimeout(700);
+  for (let i = 0; i < 10 && await p.locator('#story:not(.hidden)').count(); i++) {
+    await p.locator('#story-next').click();
+    await p.waitForTimeout(150);
+  }
+}
+
 const [url, dir] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-await p.goto(url); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(500);
+await p.goto(url); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(500); await skipStory(p);
 const c = async (i) => { const r = await p.locator(`.cell[data-i="${i}"]`).boundingBox(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
 const drag = async (a, z) => {
   const s = await c(a), e = await c(z);
@@ -18,7 +28,7 @@ await p.evaluate(() => {
   for (const i of [22, 23, 24, 25, 49]) s.board[i] = { piece: { kind: 'item', chain: 'earth', level: 2 }, lock: 0 };
   localStorage.setItem('arcane-merge-save-v2', JSON.stringify(s));
 });
-await p.reload(); await p.waitForTimeout(500);
+await p.reload(); await p.waitForTimeout(500); await skipStory(p);
 await drag(49, 22);
 await p.waitForTimeout(120);
 await p.screenshot({ path: `${dir}/m3a.png` });

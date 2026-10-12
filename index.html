@@ -19,7 +19,7 @@
       <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val stroked">100</span><small class="timer"></small></div>
       <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
       <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
-      <button class="round" id="btn-sound" aria-label="Toggle sound">🔊</button>
+      <button class="tower-btn" id="btn-tower" aria-label="Open the tower"><img data-icon="tower" alt="" /><span class="star-badge stroked" id="star-badge">0</span></button>
     </header>
 
     <div id="xpbar"><div id="xpfill"></div><span id="xptext" class="stroked"></span></div>
@@ -38,6 +38,34 @@
       </div>
       <button id="info-action" class="btn stroked hidden"></button>
     </footer>
+  </div>
+
+  <section id="tower" class="hidden" aria-label="Tower">
+    <div class="tower-inner">
+      <header class="tower-head">
+        <button class="round" id="btn-back" aria-label="Back to the board">←</button>
+        <div class="tower-title">
+          <small id="tower-chapter">Chapter 1</small>
+          <b id="tower-name" class="stroked">The Dusty Library</b>
+        </div>
+        <div class="pill tower-stars"><img data-icon="gstar" alt="" /><span class="val stroked" id="tower-stars">0</span></div>
+        <button class="round" id="btn-sound" aria-label="Toggle sound">🔊</button>
+      </header>
+      <div class="room-frame" id="room"></div>
+      <div class="tower-progress"><div id="tower-fill"></div><span id="tower-progress-text" class="stroked">0 / 6 restored</span></div>
+      <ol id="tasks"></ol>
+    </div>
+  </section>
+
+  <div id="story" class="hidden" role="dialog" aria-modal="true" aria-labelledby="story-name">
+    <div class="story-card">
+      <img id="story-owl" alt="" />
+      <div class="story-body">
+        <b id="story-name">Professor Hoot</b>
+        <p id="story-text"></p>
+        <button class="btn stroked" id="story-next">Continue</button>
+      </div>
+    </div>
   </div>
 
   <canvas id="fx"></canvas>

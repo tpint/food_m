@@ -721,6 +721,33 @@ export const monsterImg = (k: MonsterKind) => toUrl(`mon-${k}`, monsterArt[k], 0
 export const pieceArt = (p: Piece) => (p.kind === 'gen' ? generatorArt(p.gen) : itemArt(p.chain, p.level));
 
 export const iconArt = {
+  owl: () => toUrl('icon-owl', (s) => {
+    const fur = { hi: '#d8c0f0', mid: '#8a6ab8', lo: '#4e3478', ink: '#2e1d4a' };
+    const belly = { hi: '#fff8e8', mid: '#f0dcb8', lo: '#c8a878', ink: '#6a5236' };
+    s.shadow(30);
+    s.add(shape('M22 40L18 18L36 30Z', s.rad(fur), fur.ink) + shape('M78 40L82 18L64 30Z', s.rad(fur), fur.ink));
+    s.add(shape('M50 22Q84 22 84 58Q84 92 50 92Q16 92 16 58Q16 22 50 22Z', s.rad(fur), fur.ink));
+    s.add(shape('M14 56Q8 74 22 86Q26 70 24 58Z', s.rad(fur), fur.ink) + shape('M86 56Q92 74 78 86Q74 70 76 58Z', s.rad(fur), fur.ink));
+    s.add(shape('M50 54Q70 56 70 74Q70 90 50 90Q30 90 30 74Q30 56 50 54Z', s.rad(belly), belly.ink));
+    s.add(`<path d="M38 70Q42 74 46 70M54 70Q58 74 62 70M44 80Q48 84 52 80M50 80Q54 84 58 80" fill="none" stroke="${belly.lo}" stroke-width="1.8"/>`);
+    for (const x of [37, 63]) {
+      s.add(`<circle cx="${x}" cy="46" r="11" fill="#fff" stroke="${fur.ink}" stroke-width="2.4"/>`);
+      s.add(`<circle cx="${x + 1}" cy="47" r="5.5" fill="#2a1a3a"/><circle cx="${x - 1}" cy="45" r="2" fill="#fff"/>`);
+      s.add(`<circle cx="${x}" cy="46" r="13" fill="none" stroke="#e9c46a" stroke-width="2.6"/>`);
+    }
+    s.add('<path d="M48 46L52 46" stroke="#e9c46a" stroke-width="2.6"/>');
+    s.add(shape('M46 56L54 56L50 64Z', '#ffb43c', '#8a5010', 'stroke-width="2"'));
+    s.add(shape('M30 24Q46 -6 70 6Q58 12 60 26Q46 20 30 24Z', s.rad(P.arcane), P.arcane.ink));
+    s.add(shape('M26 26Q48 18 66 28L64 32Q48 24 28 30Z', s.rad(P.coin), P.coin.ink, 'stroke-width="2"'));
+    s.sparkle(66, 10, 3.5, '#ffe680');
+  }),
+  tower: () => toUrl('icon-tower', (s) => {
+    s.add(shape('M30 92L34 40L66 40L70 92Z', s.rad(P.stone), P.stone.ink));
+    s.add(shape('M26 42L50 4L74 42Z', s.rad(P.arcane), P.arcane.ink));
+    s.add(shape('M44 92L44 76Q50 70 56 76L56 92Z', '#5a3a26', P.wood.ink, 'stroke-width="2"'));
+    s.add(shape('M45 52Q50 46 55 52L55 62L45 62Z', '#ffd36a', P.stone.ink, 'stroke-width="2"'));
+    s.add(`<path d="M50 4L50 -6M50 -6L60 -2L50 1" fill="#ff8a3c" stroke="${P.stone.ink}" stroke-width="2"/>`);
+  }),
   hat: () => toUrl('icon-hat', (s) => {
     s.shadow(32, 90);
     s.add(shape('M14 80Q50 64 86 80Q86 90 50 90Q14 90 14 80Z', s.rad(P.arcane), P.arcane.ink));
@@ -737,6 +764,10 @@ export const iconArt = {
   }),
   energy: () => toUrl('icon-energy', (s) => {
     s.add(shape('M58 6L20 56L46 56L38 94L82 40L54 40Z', s.rad({ hi: '#fff6b0', mid: '#ffd23c', lo: '#e89a1c', ink: '#8a5a10' }), '#8a5a10'));
+  }),
+  gstar: () => toUrl('icon-gstar', (s) => {
+    s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#fff8c8', mid: '#ffd23c', lo: '#e8961c', ink: '#8a5a10' }), '#8a5a10'));
+    s.add('<path d="M38 34L50 10L46 40Z" fill="#fff" opacity=".5"/>');
   }),
   star: () => toUrl('icon-star', (s) => {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#c9ecff', mid: '#5aaaf0', lo: '#2a6ac8', ink: '#163e80' }), '#163e80'));

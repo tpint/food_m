@@ -1,13 +1,15 @@
 import './style.css';
 import { CHAINS, ElementId, GEN_LEVELS, GENERATORS, isElement, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
-  GameState, MERGE_COUNT, Monster, Piece, canUpgrade, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
+  GameState, MERGE_COUNT, Monster, Piece, canUpgrade, currentTask, restore, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
   newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen,
 } from './game/state';
 import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
 import { burst, elementHit, elementTrail, puff, shower, trail } from './render/fx';
 import { sceneArt, webArt } from './render/scene';
 import { magicCircle } from './render/circle';
+import { ROOM_ANCHORS, roomSvg, updateRoom } from './render/room';
+import { CHAPTERS, COMING_SOON, MENTOR } from './game/story';
 import { sfx } from './render/sfx';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -191,6 +193,7 @@ function renderHud() {
   $('#xpfill').style.width = `${(state.xp / need) * 100}%`;
   $('#xptext').textContent = `${state.xp} / ${need} XP`;
   updateTimer();
+  updateTowerBadge();
   // Keep the Upgrade button in sync with coins / level.
   if (selected >= 0 && state.board[selected]?.piece?.kind === 'gen') select(selected);
 }
@@ -216,7 +219,7 @@ function monsterCard(m: Monster): HTMLElement {
     <div class="name">${m.name}</div>
     <div class="hp">${m.needs.map(() => '<span class="seg"></span>').join('')}</div>
     <div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div>
-    <div class="reward"><img src="${iconArt.coin()}" alt="">${m.coins}${m.gems ? ` <img src="${iconArt.gem()}" alt="">${m.gems}` : ''} <span class="xp">+${m.xp} XP</span></div>
+    <div class="reward"><img src="${iconArt.coin()}" alt="">${m.coins} <img src="${iconArt.gstar()}" alt="stars">${m.stars ?? 1}${m.gems ? ` <img src="${iconArt.gem()}" alt="">${m.gems}` : ''}</div>
     <button class="cast stroked">Cast!</button>`;
   el.querySelector('.cast')!.addEventListener('click', (e) => { e.stopPropagation(); doCast(m.id); });
   el.querySelector('.portrait')!.addEventListener('click', () => showMonsterInfo(m));
@@ -317,6 +320,10 @@ async function doCast(id: number) {
   el.classList.add('dying');
   shower(target.x, target.y, m.boss ? ['#ffcf4a', '#ff8a3c', '#fff'] : ['#ffd147', '#b98cff', '#fff']);
   floater(`+${res.monster.coins}`, target.x, target.y - 20);
+
+  // A star flies to the Tower button.
+  fly(iconArt.gstar(), target, center($('#btn-tower img')), { ms: 700, delay: 250, color: '#ffd23c', size: 30 })
+    .then(() => { restartAnim($('#btn-tower'), 'bump'); updateTowerBadge(); });
 
   // Coins fly to the HUD.
   const hudCoin = center($('#hud-coins img'));
@@ -639,6 +646,123 @@ Object.assign(window, {
   },
 });
 
+// ------------------------------------------------------------------ tower
+
+const towerEl = $('#tower');
+let roomFor = '';
+
+function updateTowerBadge() {
+  $('#star-badge').textContent = String(state.stars);
+  const t = currentTask(state);
+  $('#btn-tower').classList.toggle('ready', !!t && state.stars >= t.cost);
+}
+
+/** The chapter whose room is shown: the current one, or the last one once all are done. */
+const viewChapter = () => Math.min(state.chapter, CHAPTERS.length - 1);
+
+function renderTower(fresh?: string) {
+  const idx = viewChapter();
+  const ch = CHAPTERS[idx];
+  const allDone = state.chapter >= CHAPTERS.length;
+  $('#tower-chapter').textContent = `Chapter ${idx + 1}`;
+  $('#tower-name').textContent = ch.name;
+  $('#tower-stars').textContent = String(state.stars);
+  const room = $('#room');
+  if (roomFor !== ch.id) { room.innerHTML = roomSvg(); roomFor = ch.id; }
+  const done = ch.tasks.filter((t) => state.tasksDone.includes(t.id)).map((t) => t.id);
+  updateRoom(room.querySelector('svg')!, done, ch.tasks.length, fresh);
+  $('#tower-fill').style.width = `${(done.length / ch.tasks.length) * 100}%`;
+  $('#tower-progress-text').textContent = allDone ? 'Fully restored! More rooms coming soon' : `${done.length} / ${ch.tasks.length} restored`;
+  const cur = currentTask(state);
+  $('#tasks').innerHTML = ch.tasks.map((t, k) => {
+    const isDone = done.includes(t.id);
+    const isCur = cur?.id === t.id;
+    const cls = isDone ? 'done' : isCur ? 'current' : 'locked';
+    const action = isCur
+      ? `<button class="btn stroked${state.stars < t.cost ? ' off' : ''}" data-restore>Restore</button>`
+      : '';
+    return `<li class="task ${cls}"><span class="task-num stroked">${isDone ? '✓' : k + 1}</span>`
+      + `<span class="task-name">${t.name}</span>`
+      + (isDone ? '' : `<span class="task-cost"><img src="${iconArt.gstar()}" alt="stars">${t.cost}</span>`)
+      + `${action}</li>`;
+  }).join('');
+}
+
+function openTower() {
+  sfx.pick();
+  towerEl.classList.remove('hidden');
+  renderTower();
+}
+
+function closeTower() {
+  towerEl.classList.add('hidden');
+}
+
+function doRestore() {
+  const r = restore(state);
+  if (!r.ok) {
+    sfx.error();
+    if (r.reason === 'stars') toast(`Need ${r.cost} stars. Defeat monsters to earn more!`);
+    return;
+  }
+  sfx.levelUp();
+  renderTower(r.task.id);
+  const svg = $('#room svg');
+  const box = svg.getBoundingClientRect();
+  const [ax, ay] = ROOM_ANCHORS[r.task.id] ?? [200, 160];
+  const x = box.left + (ax / 400) * box.width, y = box.top + (ay / 320) * box.height;
+  burst(x, y, '#ffe680', 1.5);
+  shower(x, y, ['#ffe680', '#b98cff', '#fff']);
+  const lines: { text: string; extra?: string }[] = [{ text: r.task.story }];
+  if (r.chapterDone) {
+    for (const t of r.chapterDone.outro) lines.push({ text: t });
+    lines.push({ text: `Chapter complete: ${r.chapterDone.name}!`, extra: `Reward: ${r.chapterDone.rewardText}.` });
+    if (state.chapter >= CHAPTERS.length) lines.push({ text: COMING_SOON });
+    renderBoard();
+    for (const i of r.unsealed) renderCell(i, 'squish');
+  }
+  setTimeout(() => tell(lines), 700);
+  renderHud();
+  persist();
+}
+
+$('#btn-tower').addEventListener('click', openTower);
+$('#btn-back').addEventListener('click', closeTower);
+$('#tasks').addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).closest('[data-restore]')) doRestore();
+});
+
+// ------------------------------------------------------------------ story
+
+const storyQueue: { text: string; extra?: string }[] = [];
+
+/** Queue lines for Professor Hoot to say, one card at a time. */
+function tell(lines: (string | { text: string; extra?: string })[]) {
+  for (const l of lines) storyQueue.push(typeof l === 'string' ? { text: l } : l);
+  if ($('#story').classList.contains('hidden')) nextStory();
+}
+
+function nextStory() {
+  const n = storyQueue.shift();
+  const box = $('#story');
+  if (!n) { box.classList.add('hidden'); return; }
+  $('#story-name').textContent = MENTOR;
+  const text = $('#story-text');
+  text.textContent = n.text;
+  if (n.extra) {
+    const r = document.createElement('span');
+    r.className = 'story-reward';
+    r.textContent = n.extra;
+    text.appendChild(r);
+  }
+  $('#story-next').textContent = storyQueue.length ? 'Next' : 'Continue';
+  box.classList.remove('hidden');
+  restartAnim(box.querySelector('.story-card')!, 'story-card');
+  sfx.pick();
+}
+
+$('#story-next').addEventListener('click', nextStory);
+
 // ------------------------------------------------------------------ boot
 
 async function boot() {
@@ -662,6 +786,14 @@ async function boot() {
     if (tickEnergy(state)) { renderHud(); persist(); } else updateTimer();
   }, 1000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(state); });
+
+  $<HTMLImageElement>('#story-owl').src = iconArt.owl();
+  const intro = `${CHAPTERS[0].id}-intro`;
+  if (!state.storySeen.includes(intro)) {
+    state.storySeen.push(intro);
+    persist();
+    setTimeout(() => tell(CHAPTERS[0].intro), 500);
+  }
 }
 
 boot();
