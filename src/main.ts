@@ -5,7 +5,7 @@ import {
   newGame, refreshCost, refreshMonsters, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
   DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
 } from './game/state';
-import { generatorArt, iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
+import { generatorArt, iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt, setArtTheme } from './render/art';
 import { burst, elementCharge, elementHit, puff, shower, trail } from './render/fx';
 import { THEMES, ThemeId, sceneArt, webArt } from './render/scene';
 import { magicCircle } from './render/circle';
@@ -33,6 +33,7 @@ function savedTheme(): ThemeId {
 
 /** Colour the page chrome (CSS variables) and repaint the backdrop for a theme. */
 function applyTheme(id: ThemeId) {
+  setArtTheme(id);
   document.documentElement.dataset.theme = id;
   document.documentElement.style.setProperty('--scene', sceneArt(id));
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEMES[id].color);
@@ -40,6 +41,7 @@ function applyTheme(id: ThemeId) {
 }
 
 document.documentElement.dataset.theme = savedTheme();
+setArtTheme(savedTheme());
 tickEnergy(state);
 
 // ------------------------------------------------------------------ helpers
@@ -790,7 +792,7 @@ function renderTower(fresh?: string, chapterIdx = viewChapter()) {
   $('#tower-name').textContent = ch.name;
   $('#tower-stars').textContent = String(state.stars);
   const room = $('#room');
-  if (roomFor !== ch.id) { room.innerHTML = roomSvg(ch.id); roomFor = ch.id; }
+  if (roomFor !== ch.id) { room.innerHTML = roomSvg(ch.id, document.documentElement.dataset.theme as ThemeId); roomFor = ch.id; }
   const done = ch.tasks.filter((t) => state.tasksDone.includes(t.id)).map((t) => t.id);
   updateRoom(room.querySelector('svg')!, done, ch.tasks.length, fresh);
   $('#tower-fill').style.width = `${(done.length / ch.tasks.length) * 100}%`;
@@ -1291,6 +1293,24 @@ $('#story-next').addEventListener('click', nextStory);
 
 // ------------------------------------------------------------------ boot
 
+/** Swap every image on screen for the current theme's art. */
+function redrawArt() {
+  document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
+    img.src = iconArt[img.dataset.icon as keyof typeof iconArt]();
+  });
+  $<HTMLImageElement>('#story-owl').src = iconArt.owl();
+  cellKeys.fill('');
+  renderBoard();
+  if (!dyingIds.size) {
+    monsterEls.forEach((el) => el.remove());
+    monsterEls.clear();
+    renderMonsters();
+  }
+  select(selected);
+  roomFor = '';
+  if (!questsEl.classList.contains('hidden')) renderQuests();
+}
+
 async function boot() {
   await loadArtOverrides();
   // Theme picker on the profile screen, each option previewing its backdrop.
@@ -1303,6 +1323,7 @@ async function boot() {
     const id = b.dataset.theme as ThemeId;
     try { localStorage.setItem(THEME_KEY, id); } catch { /* storage unavailable */ }
     applyTheme(id);
+    redrawArt();
   });
   applyTheme(savedTheme());
   document.documentElement.style.setProperty('--web', webArt());

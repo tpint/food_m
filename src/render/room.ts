@@ -2,6 +2,8 @@
 // "broken" and a "fixed" layer; finishing a task swaps them with a sparkle.
 // The whole room also gets brighter as more tasks are done.
 
+import type { ThemeId } from './scene';
+
 const INK = '#2e1d40';
 const sw = `stroke="${INK}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
 
@@ -551,7 +553,49 @@ const ROOMS: Record<string, { svg: () => string; anchors: Record<string, [number
   sanctum: { svg: sanctumRoom, anchors: SANCTUM_ANCHORS },
 };
 
-export const roomSvg = (chapterId: string) => (ROOMS[chapterId] ?? ROOMS.library).svg();
+/** Day skies for the window and dome in the bright themes. */
+const DAY_SKY: Partial<Record<ThemeId, [string, string]>> = { sunny: ['#4ab8ff', '#c4ecff'], garden: ['#ff9ad0', '#ffe4b0'] };
+
+/** Theme light over a room: a tint, plus sunbeams, vines or moonlight. */
+function roomAmbience(theme: ThemeId): string {
+  if (theme === 'sunny') {
+    return `<defs><linearGradient id="tSun" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2b0" stop-opacity=".55"/><stop offset="1" stop-color="#ffb060" stop-opacity=".25"/></linearGradient>`
+      + `<linearGradient id="tBeam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c8" stop-opacity=".5"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient></defs>`
+      + `<rect width="400" height="320" fill="url(#tSun)" style="mix-blend-mode:soft-light" pointer-events="none"/>`
+      + `<rect width="400" height="320" fill="#ffe0a0" opacity=".18" style="mix-blend-mode:screen" pointer-events="none"/>`
+      + `<path d="M160 40L240 40L330 320L90 320Z" fill="url(#tBeam)" style="mix-blend-mode:screen" pointer-events="none"/>`;
+  }
+  if (theme === 'garden') {
+    let vines = '';
+    for (const [x, len] of [[18, 90], [70, 50], [330, 60], [384, 100]]) {
+      vines += `<path d="M${x} 0Q${x + 10} ${len / 2} ${x} ${len}" fill="none" stroke="#3a9a5a" stroke-width="4" stroke-linecap="round"/>`;
+      for (let y = 14; y < len; y += 18) {
+        vines += `<path d="M${x + 2} ${y}q10 -4 12 4q-8 4 -12 -4z" fill="#7ad66a" stroke="#1e5a2a" stroke-width="1"/>`;
+      }
+      vines += `<g fill="#ff9ad0">${[0, 72, 144, 216, 288].map((a) => `<circle cx="${(x + Math.cos((a * Math.PI) / 180) * 4).toFixed(1)}" cy="${(len + Math.sin((a * Math.PI) / 180) * 4).toFixed(1)}" r="3.6"/>`).join('')}</g><circle cx="${x}" cy="${len}" r="2.4" fill="#ffd84a"/>`;
+    }
+    return `<rect width="400" height="320" fill="#b8ffd0" opacity=".35" style="mix-blend-mode:soft-light" pointer-events="none"/>`
+      + `<rect width="400" height="320" fill="#d0ffe0" opacity=".16" style="mix-blend-mode:screen" pointer-events="none"/>`
+      + `<rect width="400" height="320" fill="#ffc8ec" opacity=".12" pointer-events="none"/>` + `<g pointer-events="none">${vines}</g>`;
+  }
+  return `<rect width="400" height="320" fill="#3a3aa0" opacity=".18" style="mix-blend-mode:multiply" pointer-events="none"/>`
+    + `<rect width="400" height="320" fill="#a8c8ff" opacity=".12" style="mix-blend-mode:screen" pointer-events="none"/>`;
+}
+
+export function roomSvg(chapterId: string, theme: ThemeId = 'sunny'): string {
+  let svg = (ROOMS[chapterId] ?? ROOMS.library).svg();
+  const sky = DAY_SKY[theme];
+  if (sky) {
+    svg = svg.replace(/<linearGradient id="rSky"[^]*?<\/linearGradient>/,
+      `<linearGradient id="rSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient>`);
+  }
+  // Daylight themes keep unrestored rooms less gloomy.
+  svg = svg.replace('<svg class="room"', `<svg class="room" data-dim="${theme === 'night' ? 1 : 0.45}"`);
+  // Over the room but under the darkness that lifts as it is restored.
+  const at = svg.lastIndexOf('<rect id="room-dark"');
+  const amb = roomAmbience(theme);
+  return at >= 0 ? svg.slice(0, at) + amb + svg.slice(at) : svg.replace(/<\/svg>$/, amb + '</svg>');
+}
 export const roomAnchor = (chapterId: string, task: string): [number, number] =>
   (ROOMS[chapterId] ?? ROOMS.library).anchors[task] ?? [200, 160];
 
@@ -568,5 +612,6 @@ export function updateRoom(svg: SVGSVGElement, done: string[], total: number, fr
     }
   });
   const dark = svg.querySelector<SVGRectElement>('#room-dark');
-  if (dark) dark.style.opacity = String(0.5 * (1 - done.length / Math.max(1, total)));
+  const dim = Number(svg.dataset.dim ?? 1);
+  if (dark) dark.style.opacity = String(0.5 * dim * (1 - done.length / Math.max(1, total)));
 }

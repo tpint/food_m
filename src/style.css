@@ -37,6 +37,16 @@
   --chrome-glow: rgba(255, 220, 140, .7);
   --overlay: rgba(70, 50, 140, .62);
   --panel-dim: rgba(60, 50, 140, .55);
+  /* Honey wood, cream parchment and a sunlit board. */
+  --wood-hi: #e8b070;
+  --wood: #c27c3e;
+  --wood-lo: #7e4618;
+  --parch-hi: #fffdf4;
+  --parch: #fff0d0;
+  --parch-lo: #f4d6a0;
+  --tile: #fff2d8;
+  --tile-alt: #fbeacb;
+  --board: #fff8e8;
 }
 :root[data-theme='garden'] {
   --page: #a8e0b0;
@@ -48,6 +58,16 @@
   --chrome-glow: rgba(255, 190, 230, .7);
   --overlay: rgba(20, 90, 70, .55);
   --panel-dim: rgba(20, 90, 70, .55);
+  /* Pale birch, leafy parchment and a mossy board. */
+  --wood-hi: #e6d4a0;
+  --wood: #b49a5c;
+  --wood-lo: #5e4c22;
+  --parch-hi: #fbfff4;
+  --parch: #eaf8dc;
+  --parch-lo: #cbe8b4;
+  --tile: #eef8e2;
+  --tile-alt: #e4f2d6;
+  --board: #f6fcee;
 }
 :root[data-theme='night'] {
   --page: #241a3c;
@@ -59,6 +79,16 @@
   --chrome-glow: rgba(150, 110, 230, .55);
   --overlay: rgba(20, 12, 36, .82);
   --panel-dim: rgba(30, 18, 50, .6);
+  /* Dark walnut, lavender parchment and a moonlit board. */
+  --wood-hi: #a8784e;
+  --wood: #7a4e2c;
+  --wood-lo: #3e2412;
+  --parch-hi: #faf6ff;
+  --parch: #ece4fa;
+  --parch-lo: #d2c4ee;
+  --tile: #e8e0f6;
+  --tile-alt: #e0d6f2;
+  --board: #f2ecfc;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
