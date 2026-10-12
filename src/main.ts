@@ -200,7 +200,7 @@ function renderCell(i: number, anim?: 'pop' | 'merge' | 'squish') {
   if (key !== cellKeys[i]) {
     cellKeys[i] = key;
     el.innerHTML = !p ? '' : p.kind === 'gen'
-      ? `<div class="piece gen lv${genLevel(p)}"><img src="${pieceArt(p)}" alt=""><span class="gen-lv stroked">${genLevel(p)}</span></div>`
+      ? `<div class="piece gen lv${genLevel(p)}"><img src="${pieceArt(p)}" alt=""></div>`
       : `<div class="piece"><img src="${pieceArt(p)}" alt=""><span class="check"></span></div>`;
   }
   const pe = el.firstElementChild;
@@ -460,7 +460,20 @@ let selected = -1;
 function setInfo(img: string | null, title: string, desc: string, action?: { label: string; fn: () => void; off?: boolean }) {
   const im = $<HTMLImageElement>('#info-img');
   if (img) im.src = img; else im.removeAttribute('src');
-  $('#info-title').textContent = title;
+  // A trailing "· Lv N" becomes a chip that never gets cut off; only the name shortens.
+  const m = title.match(/^(.*) · (Lv \d+(?: \(max\))?)$/);
+  const t = $('#info-title');
+  t.textContent = '';
+  const name = document.createElement('span');
+  name.className = 'info-name';
+  name.textContent = m ? m[1] : title;
+  t.append(name);
+  if (m) {
+    const lv = document.createElement('span');
+    lv.className = 'info-lv';
+    lv.textContent = m[2];
+    t.append(lv);
+  }
   $('#info-desc').textContent = desc;
   const btn = $<HTMLButtonElement>('#info-action');
   btn.classList.toggle('hidden', !action);
@@ -496,7 +509,7 @@ function select(i: number) {
     if (!up.ok && up.reason === 'max') return setInfo(pieceArt(p), `${def.name} · Lv ${gl} (max)`, desc);
     const cost = up.ok ? up.cost : up.cost!;
     return setInfo(pieceArt(p), `${def.name} · Lv ${gl}`, desc,
-      { label: `Upgrade <img class="btn-ico" src="${iconArt.coin()}" alt="coins">${cost}`, fn: () => doUpgrade(i), off: !up.ok });
+      { label: `Upgrade<span class="btn-cost"><img class="btn-ico" src="${iconArt.coin()}" alt="coins">${cost}</span>`, fn: () => doUpgrade(i), off: !up.ok });
   }
 
   const def = CHAINS[p.chain];
@@ -994,7 +1007,7 @@ function renderBag() {
   for (let k = 0; k < max; k++) {
     const p = bag[k];
     html += p
-      ? `<button class="bag-slot" data-slot="${k}" aria-label="Take out ${pieceName(p)}"><img src="${pieceArt(p)}" alt="">${p.kind === 'gen' ? `<span class="gen-lv stroked">${genLevel(p)}</span>` : ''}</button>`
+      ? `<button class="bag-slot" data-slot="${k}" aria-label="Take out ${pieceName(p)}${p.kind === 'gen' ? ` (level ${genLevel(p)})` : ''}"><img src="${pieceArt(p)}" alt=""></button>`
       : '<div class="bag-slot"></div>';
   }
   if (max < BAG_MAX_SLOTS) {
