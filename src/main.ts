@@ -260,7 +260,6 @@ function monsterCard(m: Monster): HTMLElement {
       <span class="xp-badge stroked" title="Experience for defeating it">+${m.xp} XP</span>
       <span class="reward"><img src="${iconArt.coin()}" alt="coins">${m.coins} <img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span>${m.gems ? ` <img src="${iconArt.gem()}" alt="gems">${m.gems}` : ''}</span>
     </div>
-    <div class="hp">${m.needs.map(() => '<span class="seg"></span>').join('')}</div>
     <div class="tray"><div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
     <button class="cast stroked">Cast!</button>`;
   el.querySelector('.cast')!.addEventListener('click', (e) => { e.stopPropagation(); doCast(m.id); });
@@ -358,7 +357,6 @@ async function doCast(id: number) {
   select(-1);
 
   const target = center(el.querySelector('.portrait')!);
-  const segs = el.querySelectorAll('.hp .seg');
   const cell = cells[0].offsetWidth;
   const boardBox = boardEl.getBoundingClientRect();
   const frame = boardEl.clientLeft;
@@ -403,7 +401,6 @@ async function doCast(id: number) {
           } else {
             burst(target.x, target.y, f.color, 0.7);
           }
-          segs[k]?.classList.add('lost');
           restartAnim(el, 'hit');
           done();
         });

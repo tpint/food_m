@@ -200,23 +200,16 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   background: rgba(30, 40, 90, .6); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); backdrop-filter: blur(2px);
 }
 .monster .reward img { width: 15px; height: 15px; }
-/* Health sits at the monster's feet, just above the tray. */
-.hp { display: flex; gap: 2px; width: 46px; height: 7px; padding: 1px; border-radius: 5px; background: #31457e; box-shadow: 0 0 0 1.5px #fff; }
-.monster > .hp { position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); bottom: calc(var(--cell) * .7 + 15px); pointer-events: none; }
-.hp .seg { flex: 1; border-radius: 3px; background: linear-gradient(#ff8a7a 0 40%, #e2504a 41%); transition: transform .25s ease, opacity .25s; transform-origin: left; }
-.hp .seg.lost { transform: scaleX(0); opacity: 0; }
 
-/* The tray in front of the monster with what it is weak to. */
+/* The items the monster is weak to sit in front of it, with no panel behind them;
+   a soft shadow keeps them readable over the monster and the backdrop. */
 .monster .tray {
-  position: relative; z-index: 2; margin-top: calc(var(--cell) * -.32); padding: 3px 8px 4px; min-width: 70%;
-  display: flex; justify-content: center; border-radius: 999px;
-  background: linear-gradient(#fffdf6, #f6e6c4); border: 2px solid #e2c48c;
-  box-shadow: inset 0 2px 0 #fff, 0 3px 0 #c9a465, 0 6px 10px rgba(30, 60, 140, .25);
+  position: relative; z-index: 2; margin-top: calc(var(--cell) * -.32); padding: 3px 8px 4px;
+  display: flex; justify-content: center;
 }
-.monster.boss .tray { border-color: var(--gold-lo); box-shadow: inset 0 2px 0 #fff, 0 3px 0 #9a6a14, 0 0 14px rgba(255, 190, 60, .7); }
 .monster .needs { display: flex; gap: 2px; justify-content: center; }
 .monster .need { position: relative; width: calc(var(--cell) * .7); height: calc(var(--cell) * .7); }
-.monster .need img { width: 100%; height: 100%; }
+.monster .need img { width: 100%; height: 100%; filter: drop-shadow(0 2px 2px rgba(20, 40, 100, .45)) drop-shadow(0 0 3px rgba(255, 255, 255, .9)); }
 .check {
   position: absolute; right: -3px; bottom: -3px; width: clamp(12px, calc(var(--cell) * .3), 16px); height: clamp(12px, calc(var(--cell) * .3), 16px); border-radius: 50%;
   background: linear-gradient(#7ee08e, var(--ok)); border: 1.5px solid var(--ok-lo); box-shadow: 0 0 0 1.5px #fff;
