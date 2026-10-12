@@ -1,7 +1,7 @@
 import './style.css';
 import { CHAINS, GEN_LEVELS, GENERATORS, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
-  GameState, Monster, Piece, canUpgrade, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
+  GameState, MERGE_COUNT, Monster, Piece, canUpgrade, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
   newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen,
 } from './game/state';
 import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
@@ -336,7 +336,7 @@ function select(i: number) {
 
   const def = CHAINS[p.chain];
   const max = maxLevel(p.chain);
-  const next = p.level < max ? `Merge 2 → ${def.levels[p.level]}` : 'Max level!';
+  const next = p.level < max ? `Merge ${MERGE_COUNT} → ${def.levels[p.level]}` : 'Max level!';
   const title = `${name} · Lv ${p.level}`;
   if (def.collect) {
     const amt = def.collect.amounts[p.level - 1];
@@ -441,20 +441,45 @@ function onDrop(from: number, to: number) {
     renderCell(from, 'squish');
     return;
   }
+  if (r.type === 'need3') {
+    sfx.error();
+    renderCell(from, 'squish');
+    renderCell(to, 'squish');
+    toast(`Need ${MERGE_COUNT} to merge! Put ${MERGE_COUNT} matching items side by side.`);
+    return;
+  }
   if (r.type === 'merge') {
-    renderCell(from);
-    renderCell(to, 'merge');
-    const pt = center(cells[to]);
+    const art = pieceArt(fromPiece);
+    const color = pieceColor(fromPiece);
     const lvl = (r.result as Extract<Piece, { kind: 'item' }>).level;
-    burst(pt.x, pt.y, pieceColor(fromPiece), 0.8 + lvl * 0.12);
-    if (lvl === maxLevel((r.result as Extract<Piece, { kind: 'item' }>).chain)) shower(pt.x, pt.y, [pieceColor(fromPiece), '#fff', '#ffe680']);
-    sfx.merge(lvl);
-    for (const u of r.unveiled) {
-      renderCell(u, 'squish');
-      const up = center(cells[u]);
-      puff(up.x, up.y, '#b8d8ff');
-    }
-    select(to);
+    const isMax = lvl === maxLevel((r.result as Extract<Piece, { kind: 'item' }>).chain);
+    // Hide the results until the used items have flown together.
+    for (const i of r.results) cellKeys[i] = '__pending';
+    r.consumed.forEach((i) => { if (!r.results.includes(i)) renderCell(i); });
+    renderCell(from);
+    const target = center(cells[to]);
+    const sources = [center(cells[from]), ...r.consumed.filter((i) => i !== to).map((i) => center(cells[i]))];
+    Promise.all(sources.map((src) => fly(art, src, target, { ms: 180, color }))).then(() => {
+      for (const i of r.results) {
+        cellKeys[i] = '';
+        renderCell(i, 'merge');
+        const pt = center(cells[i]);
+        burst(pt.x, pt.y, color, 0.8 + lvl * 0.12);
+        if (isMax) shower(pt.x, pt.y, [color, '#fff', '#ffe680']);
+      }
+      if (r.results.length > 1) floater('Bonus x2!', target.x, target.y - 24);
+      sfx.merge(lvl);
+      for (const u of r.unveiled) {
+        renderCell(u, 'squish');
+        const up = center(cells[u]);
+        puff(up.x, up.y, '#b8d8ff');
+      }
+      renderBoard();
+      renderMonsters();
+      select(to);
+    });
+    persist();
+    return;
   } else {
     sfx.drop();
     renderCell(from, r.type === 'swap' ? 'squish' : undefined);

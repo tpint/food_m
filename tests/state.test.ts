@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canUpgrade, cast, collect, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
+  canUpgrade, cast, collect, mergeYield, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState,
 } from '../src/game/state';
 import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY } from '../src/game/config';
@@ -16,14 +16,50 @@ function empty(): GameState {
 }
 
 describe('board moves', () => {
-  it('merges two identical items into the next level', () => {
+  it('needs three matching items to merge', () => {
     const s = empty();
     s.board[0].piece = item('crystal', 1);
     s.board[1].piece = item('crystal', 1);
-    const r = movePiece(s, 0, 1);
+    expect(movePiece(s, 0, 1).type).toBe('need3');
+    expect(s.board[0].piece).toEqual(item('crystal', 1));
+    expect(s.board[1].piece).toEqual(item('crystal', 1));
+  });
+
+  it('merges three touching items into one of the next level on the drop cell', () => {
+    const s = empty();
+    s.board[0].piece = item('crystal', 1);
+    s.board[1].piece = item('crystal', 1);
+    s.board[2].piece = item('crystal', 1);
+    s.board[20].piece = item('crystal', 1);
+    const r = movePiece(s, 20, 1);
     expect(r.type).toBe('merge');
-    expect(s.board[0].piece).toBeNull();
     expect(s.board[1].piece).toEqual(item('crystal', 2));
+    // Four crystals were involved: three are used, one is left over.
+    expect(s.board[20].piece).toBeNull();
+    expect([0, 2].filter((i) => s.board[i].piece).length).toBe(1);
+    if (r.type === 'merge') expect(r.results).toEqual([1]);
+  });
+
+  it('turns five touching items into two', () => {
+    const s = empty();
+    for (const i of [0, 1, 2, 3]) s.board[i].piece = item('herb', 2);
+    s.board[30].piece = item('herb', 2);
+    const r = movePiece(s, 30, 0);
+    expect(r.type === 'merge' && r.results.length).toBe(2);
+    expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.level === 3)).toHaveLength(2);
+    expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.level === 2)).toHaveLength(0);
+    expect(s.board[0].piece).toEqual(item('herb', 3));
+  });
+
+  it('merges when an item is moved next to two matches', () => {
+    const s = empty();
+    s.board[0].piece = item('flame', 1);
+    s.board[1].piece = item('flame', 1);
+    s.board[30].piece = item('flame', 1);
+    const r = movePiece(s, 30, 2);
+    expect(r.type).toBe('merge');
+    expect(s.board[2].piece).toEqual(item('flame', 2));
+    expect(s.board[0].piece).toBeNull();
   });
 
   it('swaps different items and moves into empty cells', () => {
@@ -40,18 +76,21 @@ describe('board moves', () => {
     const s = empty();
     s.board[0].piece = item('mana', 3);
     s.board[1].piece = item('mana', 3);
+    s.board[2].piece = item('mana', 3);
     expect(movePiece(s, 0, 1).type).toBe('swap');
   });
 
-  it('frees a veiled item by merging onto it and reveals sealed neighbours', () => {
+  it('uses veiled matches, frees the cell and reveals sealed neighbours', () => {
     const s = empty();
-    const above = 1, target = 1 + s.cols, src = 1 + 2 * s.cols;
+    const above = 1, target = 1 + s.cols, side = 2 + s.cols, src = 1 + 3 * s.cols;
     s.board[above] = { piece: item('herb', 3), lock: 2 };
     s.board[target] = { piece: item('flame', 2), lock: 1 };
+    s.board[side] = { piece: item('flame', 2), lock: 1 };
     s.board[src].piece = item('flame', 2);
     const r = movePiece(s, src, target);
     expect(r.type).toBe('merge');
     expect(s.board[target]).toEqual({ piece: item('flame', 3), lock: 0 });
+    expect(s.board[side]).toEqual({ piece: null, lock: 0 });
     expect(s.board[above].lock).toBe(1);
   });
 
@@ -60,6 +99,15 @@ describe('board moves', () => {
     s.board[1] = { piece: item('flame', 2), lock: 1 };
     s.board[0].piece = item('herb', 2);
     expect(movePiece(s, 0, 1).type).toBe('none');
+  });
+});
+
+describe('mergeYield', () => {
+  it('follows the 3-for-1, 5-for-2 rule', () => {
+    expect([2, 3, 4, 5, 6, 8, 10].map((n) => mergeYield(n))).toEqual([
+      { made: 0, used: 0 }, { made: 1, used: 3 }, { made: 1, used: 3 }, { made: 2, used: 5 },
+      { made: 2, used: 5 }, { made: 3, used: 8 }, { made: 4, used: 10 },
+    ]);
   });
 });
 

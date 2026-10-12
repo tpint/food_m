@@ -1,6 +1,6 @@
 # Arcane Merge
 
-A merge-2 game in the style of Love & Pies / Merge Mansion, with a magic theme:
+A merge-3 game in the style of Love & Pies / Merge Mansion, with a magic theme:
 instead of delivering goods, you brew the magic that monsters are weak to, cast it
 to defeat them, and collect the rewards.
 
@@ -22,7 +22,8 @@ npm run build      # production build in dist/
   Mana refills over time (+1 every 20 s, up to 100).
 - **Upgrade generators**: select a generator and press **Upgrade** (costs coins, needs a minimum player level).
   Each level (up to 5) raises the odds of higher-level drops and adds a chance of a free conjure. Tuning lives in `GEN_LEVELS`.
-- **Merge**: drag an item onto an identical item to make the next level. Items you can merge with glow blue while you drag.
+- **Merge**: put three identical items side by side (drag one onto or next to the other two) to make one of the next level.
+  Five touching items make two. Two alone won't merge. Items you can merge with glow blue while you drag.
 - **Monsters**: each card shows the items the monster is weak to. Items that match get a ✓.
   When you have them all, press **Cast!** to defeat it and collect coins, XP and gems.
   Every 6th monster is a boss.

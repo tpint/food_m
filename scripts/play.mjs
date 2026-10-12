@@ -22,8 +22,11 @@ const dragCells = async (a, z) => {
   await p.mouse.move(e.x, e.y, { steps: 8 });
   await p.mouse.up();
 };
-// Merge the two crystal shards (cells 36 and 37 = row 5, x 1/2).
+// Two shards alone won't merge; the third (cell 54) completes the set.
 await dragCells(36, 37);
+await p.waitForTimeout(300);
+console.log('two-only toast:', await p.locator('#toast').textContent());
+await dragCells(54, 37);
 await p.waitForTimeout(120);
 await p.screenshot({ path: `${dir}/p2-merge.png` });
 await p.waitForTimeout(500);

@@ -74,10 +74,6 @@ export function samePiece(a: Piece | null, b: Piece | null): boolean {
   return a.chain === b.chain && a.level === b.level;
 }
 
-export function canMerge(a: Piece | null, b: Piece | null): boolean {
-  return samePiece(a, b) && a!.kind === 'item' && a!.level < maxLevel(a!.chain);
-}
-
 // ---------------------------------------------------------------- new game
 
 export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
@@ -115,6 +111,7 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
   place(6, 8, gen('lectern'));
   place(1, 5, item('crystal', 1));
   place(2, 5, item('crystal', 1));
+  place(5, 7, item('crystal', 1)); // drag this onto the pair to learn merge-3
   place(4, 5, item('flame', 1));
   place(5, 6, item('herb', 1));
   place(3, 6, item('coin', 1));
@@ -149,7 +146,58 @@ export type MoveResult =
   | { type: 'none' }
   | { type: 'move'; from: number; to: number }
   | { type: 'swap'; from: number; to: number }
-  | { type: 'merge'; from: number; to: number; result: Piece; unveiled: number[] };
+  | { type: 'merge'; from: number; to: number; result: Piece; results: number[]; consumed: number[]; unveiled: number[] }
+  | { type: 'need3'; from: number; to: number };
+
+/** Items needed to merge, and the bonus rule: 5 matching items make 2. */
+export const MERGE_COUNT = 3;
+const BONUS_COUNT = 5;
+
+/**
+ * Orthogonally connected cells holding the same item as `start`, nearest
+ * first. Veiled cells count (merging frees them); sealed cells do not.
+ */
+export function matchGroup(s: GameState, start: number, p: Piece, skip = -1): number[] {
+  const seen = new Set<number>([start]);
+  const out: number[] = [];
+  const queue = [start];
+  while (queue.length) {
+    const i = queue.shift()!;
+    out.push(i);
+    const { x, y } = pos(s, i);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= s.cols || ny >= s.rows) continue;
+      const j = idx(s, nx, ny);
+      if (seen.has(j) || j === skip) continue;
+      seen.add(j);
+      const c = s.board[j];
+      if (c.lock !== 2 && samePiece(c.piece, p)) queue.push(j);
+    }
+  }
+  return out;
+}
+
+/** How many items a group of `n` turns into, and how many it uses up. */
+export function mergeYield(n: number): { made: number; used: number } {
+  const bonus = Math.floor(n / BONUS_COUNT);
+  const rest = Math.floor((n % BONUS_COUNT) / MERGE_COUNT);
+  return { made: bonus * 2 + rest, used: bonus * BONUS_COUNT + rest * MERGE_COUNT };
+}
+
+/**
+ * Clear `consumed` (nearest first) and put `made` next-level items on the
+ * first of those cells, starting with the drop cell.
+ */
+function mergeAt(s: GameState, from: number, to: number, consumed: number[], made: number, p: Extract<Piece, { kind: 'item' }>): MoveResult {
+  const result = item(p.chain, p.level + 1);
+  for (const i of consumed) s.board[i] = { piece: null, lock: 0 };
+  const results = consumed.slice(0, made);
+  for (const i of results) s.board[i].piece = { ...result };
+  const unveiled: number[] = [];
+  for (const i of results) unveiled.push(...revealAround(s, i));
+  return { type: 'merge', from, to, result, results, consumed, unveiled };
+}
 
 /** Drag the piece at `from` onto cell `to`. */
 export function movePiece(s: GameState, from: number, to: number): MoveResult {
@@ -157,21 +205,29 @@ export function movePiece(s: GameState, from: number, to: number): MoveResult {
   const a = s.board[from];
   const b = s.board[to];
   if (!a.piece || a.lock !== 0 || b.lock === 2) return { type: 'none' };
+  const p = a.piece;
+  const mergeable = p.kind === 'item' && p.level < maxLevel(p.chain);
 
-  if (canMerge(a.piece, b.piece)) {
-    const p = a.piece as Extract<Piece, { kind: 'item' }>;
-    const result = item(p.chain, p.level + 1);
-    b.piece = result;
-    b.lock = 0;
+  // Dropped onto a matching item: the dragged item joins that group.
+  if (mergeable && samePiece(p, b.piece)) {
+    const group = matchGroup(s, to, p, from);
+    const { made, used } = mergeYield(group.length + 1);
+    if (!made) return { type: 'need3', from, to };
     a.piece = null;
-    const unveiled = revealAround(s, to);
-    return { type: 'merge', from, to, result, unveiled };
+    // The dragged item is one of the used items, so take one fewer from the board.
+    return mergeAt(s, from, to, group.slice(0, used - 1), made, p);
   }
 
   if (b.lock === 1) return { type: 'none' };
   if (!b.piece) {
     b.piece = a.piece;
     a.piece = null;
+    // Moving next to two or more matches completes a group.
+    if (mergeable) {
+      const group = matchGroup(s, to, p);
+      const { made, used } = mergeYield(group.length);
+      if (made) return mergeAt(s, from, to, group.slice(0, used), made, p);
+    }
     return { type: 'move', from, to };
   }
   [a.piece, b.piece] = [b.piece, a.piece];
@@ -293,7 +349,8 @@ export function makeMonster(s: GameState, rng: Rng = Math.random): Monster {
   const unlocked = MONSTERS.filter((m) => m.minLevel <= s.level);
   const fresh = unlocked.filter((m) => !s.monsters.some((x) => x.kind === m.kind));
   const def = boss ? BOSS : pick(rng, fresh.length ? fresh : unlocked);
-  const top = Math.min(7, 2 + Math.floor(s.level / 2) + (boss ? 1 : 0));
+  // Merging takes 3, so each level costs 3x the last; keep asks gentle.
+  const top = Math.min(7, 2 + Math.floor((s.level - 1) / 3) + (boss ? 1 : 0));
   const count = boss ? 3 : s.level < 3 ? 1 : 1 + Math.floor(rng() * 2);
 
   const chains = shuffle(rng, [...MAGIC_CHAINS]).slice(0, count);
@@ -303,13 +360,13 @@ export function makeMonster(s: GameState, rng: Rng = Math.random): Monster {
     return { chain, level };
   });
 
-  const power = needs.reduce((t, n) => t + Math.pow(2, n.level - 1), 0);
+  const power = needs.reduce((t, n) => t + Math.pow(3, n.level - 1), 0);
   return {
     id: s.nextMonsterId++,
     kind: def.kind,
     name: def.name,
     needs,
-    coins: Math.round(power * 3 + 4) * (boss ? 2 : 1),
+    coins: Math.round(power * 2 + 4) * (boss ? 2 : 1),
     xp: needs.reduce((t, n) => t + n.level * 2, 0) + (boss ? 10 : 0),
     gems: boss ? 5 : 0,
     boss,
