@@ -133,7 +133,8 @@ Straight top-down grid with soft 2D art, following the four merge-art rules:
 
 The SVG art is a stand-in. Items are auto-framed to fill their tile and get a sticker outline and drop shadow, so the set stays consistent.
 To replace any item with painted art, drop a PNG into `public/art/` and list its key in `public/art/manifest.json`
-(see `public/art/README.md` for the key names). Anything not listed keeps its SVG.
+(see `public/art/README.md` for the key names). Anything not listed keeps its SVG. The grimoire generators already use
+painted PNGs for every element and level, made by `scripts/art/render-generators.mjs`.
 
 ## iOS / Android (next step)
 
