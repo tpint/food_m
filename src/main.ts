@@ -406,7 +406,7 @@ async function doCast(id: number) {
 
   // The monster's parting cry, then the victory jingle.
   sfx.monsterCry(m.kind);
-  setTimeout(() => sfx.defeat(), m.boss ? 900 : ['ghost', 'imp', 'golem'].includes(m.kind) ? 600 : 350);
+  setTimeout(() => sfx.defeat(), m.boss ? 900 : ['ghost', 'imp', 'golem', 'wolf', 'treant', 'cyclops'].includes(m.kind) ? 600 : 350);
   el.classList.add('dying');
   shower(target.x, target.y, m.boss ? ['#ffcf4a', '#ff8a3c', '#fff'] : ['#ffd147', '#b98cff', '#fff']);
   floater(`+${res.monster.coins}`, target.x, target.y - 20);

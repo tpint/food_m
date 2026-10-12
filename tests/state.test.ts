@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   canUpgrade, cast, collect, mergeYield, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save, refreshCost, refreshMonsters,
-  ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
+  makeMonster, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
 } from '../src/game/state';
-import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
+import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, MONSTERS, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
 import { untilReset } from '../src/online';
 
@@ -467,5 +467,28 @@ describe('daily quests', () => {
     expect(s.energy).toBe(e + DAILY_BONUS.energy);
     expect(claimDailyBonus(s)).toBeNull();
     expect(claimableQuests(s)).toBe(0);
+  });
+});
+
+describe('monster roster', () => {
+  const kindsAt = (level: number) => {
+    const s = empty();
+    s.level = level;
+    s.monsters = [];
+    s.nextMonsterId = 1;
+    const rng = seeded(7);
+    const seen = new Set<string>();
+    for (let k = 0; k < 400; k++) {
+      if (s.nextMonsterId % 6 === 0) s.nextMonsterId++; // skip bosses
+      seen.add(makeMonster(s, rng).kind);
+    }
+    return seen;
+  };
+
+  it('unlocks the new monsters as the player levels up', () => {
+    expect([...kindsAt(1)].sort()).toEqual(['bat', 'mushroom', 'slime']);
+    expect(kindsAt(2).has('spider')).toBe(true);
+    expect(kindsAt(7).has('treant')).toBe(false);
+    expect(kindsAt(10)).toEqual(new Set(MONSTERS.map((m) => m.kind)));
   });
 });

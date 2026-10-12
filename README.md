@@ -40,7 +40,8 @@ npm run build      # production build in dist/
 - **Monsters**: each card shows the items the monster is weak to. Items that match get a ✓.
   When you have them all, press **Cast!** to defeat it and collect coins, XP and gems.
   The badge on each portrait shows the XP it gives; tap the portrait for its full rewards.
-  Every 6th monster is a boss.
+  Every 6th monster is a boss. New monsters join as you level up: Shadow Spider (level 2), Wisp Ghost (3),
+  Cinder Imp and Tide Crab (4), Moss Golem (5), Frost Wolf (6), Gnarlroot (8) and Grumble Cyclops (10).
 - **New monsters**: don't like the current lineup? The ⟳ button above the monster cards swaps all three for new ones.
   It costs 10 coins, and the price doubles with every refresh until you defeat a monster, which resets it to 10.
   A boss stays a boss when you refresh. Tuning lives in `REFRESH_BASE_COST` / `REFRESH_COST_GROWTH`.

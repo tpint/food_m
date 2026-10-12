@@ -759,6 +759,77 @@ const monsterArt: Record<MonsterKind, (s: Svg) => void> = {
     s.add('<ellipse cx="38" cy="46" rx="6" ry="4" fill="#9ff0ff"/><ellipse cx="62" cy="46" rx="6" ry="4" fill="#9ff0ff"/>');
     s.add('<path d="M42 64L58 64" stroke="#2a1a3a" stroke-width="3" stroke-linecap="round"/>');
   },
+  spider: (s) => {
+    const p = { hi: '#b8a0e0', mid: '#5a3a8a', lo: '#33204f', ink: '#1e1232' };
+    s.shadow(34, 92);
+    s.add('<path d="M50 0L50 30" stroke="#d8d0e8" stroke-width="1.6"/>');
+    for (const f of [1, -1]) {
+      const x = (n: number) => 50 + f * n;
+      for (const [a, b, c, d] of [[18, 46, 36, 34], [20, 56, 42, 52], [20, 64, 40, 74], [16, 72, 30, 90]]) {
+        s.add(shape(`M${x(a)} ${b}Q${x(c)} ${d - 14} ${x(c + 4)} ${d}`, 'none', p.ink, 'stroke-width="7"'));
+        s.add(shape(`M${x(a)} ${b}Q${x(c)} ${d - 14} ${x(c + 4)} ${d}`, 'none', p.mid, 'stroke-width="3.5"'));
+      }
+    }
+    s.add(shape('M50 30Q76 30 76 58Q76 86 50 86Q24 86 24 58Q24 30 50 30Z', s.rad(p), p.ink));
+    s.add('<path d="M44 34Q50 40 56 34" fill="none" stroke="#9a7ad0" stroke-width="2" opacity=".7"/>');
+    eyes(s, 54, 9, 5);
+    for (const [x, y] of [[38, 44], [62, 44], [44, 42], [56, 42]]) s.add(`<circle cx="${x}" cy="${y}" r="2.2" fill="#ff5a8a"/>`);
+    s.add('<path d="M44 68L46 76L49 69M56 68L54 76L51 69" fill="#fff" stroke="#2a1a3a" stroke-width="1.6" stroke-linejoin="round"/>');
+  },
+  crab: (s) => {
+    const p = { hi: '#ffc0a0', mid: '#f0603a', lo: '#b0301e', ink: '#6a1a10' };
+    s.shadow(40, 92);
+    for (const f of [1, -1]) {
+      const x = (n: number) => 50 + f * n;
+      for (const y of [70, 78, 86]) s.add(shape(`M${x(22)} ${y - 4}L${x(38)} ${y}L${x(42)} ${y + 6}`, 'none', p.ink, 'stroke-width="4"'));
+      s.add(shape(`M${x(22)} 54Q${x(32)} 44 ${x(34)} 36`, 'none', p.ink, 'stroke-width="6"'));
+      s.add(shape(`M${x(30)} 38Q${x(26)} 14 ${x(40)} 10Q${x(48)} 10 ${x(46)} 22L${x(38)} 24L${x(44)} 30Q${x(42)} 40 ${x(30)} 38Z`, s.rad(p), p.ink));
+      s.add(shape(`M${x(10)} 46L${x(12)} 30`, 'none', p.ink, 'stroke-width="4"'));
+    }
+    s.add(shape('M50 44Q84 44 86 66Q84 86 50 86Q16 86 14 66Q16 44 50 44Z', s.rad(p), p.ink));
+    s.add('<ellipse cx="34" cy="54" rx="8" ry="3.5" fill="#fff" opacity=".45" transform="rotate(-15 34 54)"/>');
+    for (const x of [38, 62]) s.add(`<circle cx="${x}" cy="28" r="7" fill="#fff" stroke="${p.ink}" stroke-width="2.4"/><circle cx="${x + 1}" cy="29" r="3.5" fill="#2a1a3a"/><circle cx="${x}" cy="27.5" r="1.2" fill="#fff"/>`);
+    cheeks(s, 68, 20);
+    s.add('<path d="M42 70Q50 77 58 70" fill="none" stroke="#2a1a3a" stroke-width="2.6" stroke-linecap="round"/>');
+  },
+  wolf: (s) => {
+    const p = { hi: '#f2f8ff', mid: '#a8c0de', lo: '#6a86ae', ink: '#34486a' };
+    s.halo('#cfe8ff'); s.shadow(30, 94);
+    s.add(shape('M24 40L20 8L44 28Z', s.rad(p), p.ink) + shape('M76 40L80 8L56 28Z', s.rad(p), p.ink));
+    s.add('<path d="M26 32L24 16L36 28ZM74 32L76 16L64 28Z" fill="#ffb8c8" opacity=".8"/>');
+    s.add(shape('M50 22Q82 22 84 52Q86 70 74 80L64 74L60 86L50 80L40 86L36 74L26 80Q14 70 16 52Q18 22 50 22Z', s.rad(p), p.ink));
+    s.add(shape('M50 56Q64 56 66 70Q64 84 50 86Q36 84 34 70Q36 56 50 56Z', s.rad({ hi: '#ffffff', mid: '#eef4ff', lo: '#c8d6ec', ink: p.ink }), p.ink, 'stroke-width="2.4"'));
+    s.add('<ellipse cx="50" cy="62" rx="5" ry="3.5" fill="#2a1a3a"/>');
+    s.add('<ellipse cx="36" cy="46" rx="5" ry="5.5" fill="#7ad8ff"/><ellipse cx="64" cy="46" rx="5" ry="5.5" fill="#7ad8ff"/><circle cx="37" cy="46" r="2.6" fill="#1a2a4a"/><circle cx="63" cy="46" r="2.6" fill="#1a2a4a"/>');
+    s.add('<path d="M28 38L42 42M72 38L58 42" stroke="#2a1a3a" stroke-width="2.6" stroke-linecap="round"/>');
+    s.add('<path d="M44 74L47 79L50 74L53 79L56 74" fill="#fff" stroke="#2a1a3a" stroke-width="1.6" stroke-linejoin="round"/>');
+    for (const [x, y, r] of [[10, 24, 4], [90, 30, 3.5], [86, 8, 3]]) s.sparkle(x, y, r, '#e8f6ff');
+  },
+  treant: (s) => {
+    const bark = { hi: '#d8a878', mid: '#8a5a32', lo: '#5a361a', ink: '#3a200c' };
+    s.shadow(38, 94);
+    s.add(shape('M20 30Q8 22 6 10M80 30Q92 22 94 10', 'none', bark.ink, 'stroke-width="7"') + shape('M20 30Q8 22 6 10M80 30Q92 22 94 10', 'none', bark.mid, 'stroke-width="3.5"'));
+    for (const [x, y, r] of [[30, 16, 14], [50, 8, 16], [70, 16, 14], [14, 12, 8], [86, 12, 8]] as const) {
+      s.add(`<circle cx="${x}" cy="${y}" r="${r}" fill="${s.rad(P.herb)}" stroke="${P.herb.ink}" stroke-width="3"/>`);
+    }
+    s.add(shape('M24 92L28 50Q28 24 50 24Q72 24 72 50L76 92L62 84L56 94L50 86L44 94L38 84Z', s.rad(bark), bark.ink));
+    s.add(`<path d="M36 34Q34 46 38 56M64 36Q68 48 62 58M44 70Q42 80 46 88" fill="none" stroke="${bark.lo}" stroke-width="2.4" stroke-linecap="round"/>`);
+    s.add('<ellipse cx="40" cy="50" rx="6" ry="5" fill="#3a200c"/><ellipse cx="60" cy="50" rx="6" ry="5" fill="#3a200c"/><circle cx="40" cy="50" r="2.8" fill="#ffe066"/><circle cx="60" cy="50" r="2.8" fill="#ffe066"/>');
+    s.add('<path d="M40 66Q50 60 60 66Q56 72 50 72Q44 72 40 66Z" fill="#3a200c"/>');
+    s.add(shape('M76 62Q86 58 88 66Q84 70 78 68Z', s.rad(P.herb), P.herb.ink, 'stroke-width="2"'));
+  },
+  cyclops: (s) => {
+    const p = { hi: '#e0c0ff', mid: '#9a5ad8', lo: '#5e2e9a', ink: '#361860' };
+    s.shadow(38, 94);
+    s.add(shape('M18 58Q4 66 8 82Q16 86 22 76Z', s.rad(p), p.ink) + shape('M82 58Q96 66 92 82Q84 86 78 76Z', s.rad(p), p.ink));
+    s.add(shape('M42 16Q42 2 54 -4Q50 6 58 14Z', s.rad(P.wax), P.wax.ink));
+    s.add(shape('M50 10Q86 10 86 52Q86 92 50 92Q14 92 14 52Q14 10 50 10Z', s.rad(p), p.ink));
+    s.add(shape('M18 72Q50 82 82 72L80 82Q50 92 20 82Z', s.rad(P.wood), P.wood.ink, 'stroke-width="2.4"'));
+    s.add(shape('M45 80L55 80L55 88L45 88Z', s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
+    s.add(`<circle cx="50" cy="40" r="15" fill="#fff" stroke="${p.ink}" stroke-width="3"/><circle cx="52" cy="42" r="8" fill="#3a8a4a"/><circle cx="52" cy="42" r="4.2" fill="#1a1a2a"/><circle cx="48" cy="38" r="2.6" fill="#fff"/>`);
+    s.add('<path d="M34 24Q50 18 66 24" fill="none" stroke="#2a1a3a" stroke-width="3" stroke-linecap="round"/>');
+    s.add('<path d="M36 60Q50 68 64 60" fill="none" stroke="#2a1a3a" stroke-width="2.6" stroke-linecap="round"/><path d="M42 62L44 56L46 63M54 63L56 56L58 62" fill="#fff" stroke="#2a1a3a" stroke-width="1.4" stroke-linejoin="round"/>');
+  },
   dragon: (s) => {
     const p = { hi: '#ffd08a', mid: '#f07a3a', lo: '#b8402a', ink: '#6a1e14' };
     s.halo('#ffb46a'); s.shadow(36, 94);

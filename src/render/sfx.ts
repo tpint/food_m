@@ -1,5 +1,7 @@
 // Tiny WebAudio synth so the PoC has satisfying sounds without asset files.
 
+import type { MonsterKind } from '../game/config';
+
 let ac: AudioContext | null = null;
 let muted = false;
 try { muted = localStorage.getItem('arcane-muted') === '1'; } catch { /* ignore */ }
@@ -417,7 +419,7 @@ export const sfx = {
   },
 
   /** A monster's parting cry. Tougher monsters get echo, distortion and bass. */
-  monsterCry(kind: 'slime' | 'bat' | 'ghost' | 'mushroom' | 'imp' | 'golem' | 'dragon') {
+  monsterCry(kind: MonsterKind) {
     switch (kind) {
       case 'slime': // wet, wobbly bloop falling away
         osc('triangle', 0, [[0, 420], [0.45, 110]], [[0, 0], [0.02, 0.16], [0.4, 0.08], [0.5, 0]], { vibrato: { rate: 16, depth: 40 } });
@@ -450,6 +452,29 @@ export const sfx = {
         osc('sine', 0.6, [[0, 60], [0.4, 32]], [[0, 0], [0.02, 0.35], [0.5, 0]]);
         hiss(0.5, [[0, 0], [0.05, 0.2], [0.9, 0]], { type: 'lowpass', freq: [[0, 700], [0.9, 150]] }, { echo: 0.4 });
         bursts(0.55, 0.8, 16, 600, 3, 0.16, 0.035);
+        break;
+      case 'spider': // skittering clicks and a hiss
+        for (let i = 0; i < 9; i++) hiss(i * 0.035, [[0, 0], [0.004, 0.14], [0.03, 0]], { type: 'bandpass', freq: [[0, 3200 + (i % 3) * 600], [0.03, 2600]], q: 6 });
+        hiss(0.3, [[0, 0], [0.05, 0.12], [0.45, 0]], { type: 'highpass', freq: [[0, 3500], [0.45, 5500]] });
+        break;
+      case 'crab': // two claw clacks and a stream of bubbles
+        [0, 0.14].forEach((t) => { osc('square', t, [[0, 1600], [0.02, 900]], [[0, 0], [0.003, 0.12], [0.04, 0]]); hiss(t, [[0, 0], [0.003, 0.18], [0.05, 0]], { type: 'bandpass', freq: [[0, 2500], [0.05, 1800]], q: 3 }); });
+        for (let i = 0; i < 6; i++) { const t = 0.28 + i * 0.06, f = 320 + i * 40; osc('sine', t, [[0, f], [0.05, f * 2.4]], [[0, 0], [0.008, 0.08], [0.06, 0]]); }
+        break;
+      case 'wolf': // tier 3: a long, icy howl
+        osc('sine', 0, [[0, 380], [0.3, 640], [1.0, 560], [1.3, 300]], [[0, 0], [0.2, 0.14], [1.0, 0.11], [1.35, 0]], { vibrato: { rate: 5, depth: 14 }, echo: 0.7 });
+        osc('triangle', 0, [[0, 760], [0.3, 1280], [1.0, 1120], [1.3, 600]], [[0, 0], [0.2, 0.03], [1.3, 0]], { vibrato: { rate: 5, depth: 28 }, echo: 0.5 });
+        hiss(0, [[0, 0], [0.4, 0.04], [1.3, 0]], { type: 'highpass', freq: [[0, 4000], [1.3, 6000]] }, { echo: 0.4 });
+        break;
+      case 'treant': // tier 4: creaking timber and rustling leaves
+        osc('sawtooth', 0, [[0, 70], [0.6, 110], [1.1, 55]], [[0, 0], [0.1, 0.12], [0.9, 0.1], [1.15, 0]], { vibrato: { rate: 13, depth: 18 }, filter: { type: 'bandpass', freq: [[0, 500], [1.1, 300]], q: 5 }, echo: 0.4 });
+        hiss(0.2, [[0, 0], [0.1, 0.12], [0.8, 0]], { type: 'bandpass', freq: [[0, 3000], [0.8, 5000]], q: 1 }, { tremolo: { rate: 18, depth: 0.06 } });
+        osc('sine', 0.9, [[0, 55], [0.35, 35]], [[0, 0], [0.02, 0.3], [0.4, 0]]);
+        break;
+      case 'cyclops': // tier 5: a big, dopey groan and a heavy thump
+        osc('sawtooth', 0, [[0, 150], [0.2, 170], [1.0, 70]], [[0, 0], [0.1, 0.15], [0.8, 0.12], [1.05, 0]], { filter: { type: 'lowpass', freq: [[0, 900], [1.05, 300]], q: 3 }, distort: true, echo: 0.5, vibrato: { rate: 4, depth: 5 } });
+        osc('sine', 0.85, [[0, 62], [0.45, 30]], [[0, 0], [0.02, 0.4], [0.55, 0]]);
+        bursts(0.85, 0.6, 12, 500, 3, 0.15, 0.03);
         break;
       case 'dragon': { // boss: layered, distorted roar sweeping open, deep sub and a long echo
         const g: Pts = [[0, 0], [0.12, 0.13], [0.9, 0.12], [1.5, 0]];

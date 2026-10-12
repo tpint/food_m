@@ -4,7 +4,9 @@ export type ChainId = 'earth' | 'water' | 'wind' | 'fire' | 'coin' | 'mana';
 export type GenId = 'geode' | 'well' | 'windmill' | 'forge';
 /** The four elements players brew spells from. */
 export type ElementId = 'earth' | 'water' | 'wind' | 'fire';
-export type MonsterKind = 'slime' | 'bat' | 'ghost' | 'mushroom' | 'imp' | 'golem' | 'dragon';
+export type MonsterKind =
+  | 'slime' | 'bat' | 'ghost' | 'mushroom' | 'imp' | 'golem' | 'dragon'
+  | 'spider' | 'crab' | 'wolf' | 'treant' | 'cyclops';
 
 export interface ChainDef {
   id: ChainId;
@@ -113,6 +115,11 @@ export const MONSTERS: MonsterDef[] = [
   { kind: 'ghost', name: 'Wisp Ghost', minLevel: 3 },
   { kind: 'imp', name: 'Cinder Imp', minLevel: 4 },
   { kind: 'golem', name: 'Moss Golem', minLevel: 5 },
+  { kind: 'spider', name: 'Shadow Spider', minLevel: 2 },
+  { kind: 'crab', name: 'Tide Crab', minLevel: 4 },
+  { kind: 'wolf', name: 'Frost Wolf', minLevel: 6 },
+  { kind: 'treant', name: 'Gnarlroot', minLevel: 8 },
+  { kind: 'cyclops', name: 'Grumble Cyclops', minLevel: 10 },
 ];
 
 export const BOSS: MonsterDef = { kind: 'dragon', name: 'Ember Wyrmling', minLevel: 1 };
