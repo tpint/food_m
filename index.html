@@ -38,6 +38,7 @@
         <span id="info-desc">Tap a grimoire, then tap again to conjure items. Merge three of a kind!</span>
       </div>
       <button id="info-action" class="btn stroked hidden"></button>
+      <span id="version-tag" class="version-tag" aria-label="Game version"></span>
     </footer>
   </div>
 
@@ -128,6 +129,13 @@
           <div class="confirm-row"><button class="btn stroked" id="btn-restore-yes">Replace and restore</button><button class="link-btn inline" id="btn-restore-no">Cancel</button></div>
         </div>
       </div>
+
+      <div class="panel">
+        <h2>About</h2>
+        <p><b id="about-version">Arcane Merge</b><br /><span id="about-built"></span></p>
+        <p id="update-status">Checking for updates...</p>
+        <button class="btn stroked" id="btn-check-update">Check for updates</button>
+      </div>
     </div>
   </section>
 
@@ -141,6 +149,8 @@
       </div>
     </div>
   </div>
+
+  <button id="update-banner" class="update-banner stroked hidden">✨ New version available. Tap to update</button>
 
   <canvas id="fx"></canvas>
   <div id="toast" class="stroked"></div>

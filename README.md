@@ -60,6 +60,13 @@ Console helpers: `arcane.reset()`, `arcane.energy(100)`.
 Every push to `main` deploys to GitHub Pages: https://tpint.github.io/magic_m/
 (one-time setup: repo **Settings → Pages → Source: GitHub Actions**).
 
+## Versions
+
+The game shows its version in the corner of the info bar and on the Profile screen, e.g. `v0.9.0 · e9973fd`
+(the `package.json` version and the git commit it was built from). Each deploy also publishes `version.json`;
+the game checks it every few minutes and shows a "New version available" banner when a newer release is live.
+Bump `version` in `package.json` for each release.
+
 ## Code layout
 
 | Path | What |
@@ -70,6 +77,7 @@ Every push to `main` deploys to GitHub Pages: https://tpint.github.io/magic_m/
 | `src/render/scene.ts` | Blurred wizard's-study backdrop and the cobweb on sealed tiles |
 | `src/game/story.ts` | Tower chapters, restoration tasks and story text |
 | `src/render/room.ts` | The tower room scene with a broken and a fixed layer per task |
+| `build-info.ts` | Version/commit/date baked into each build, and the `version.json` it publishes |
 | `src/online.ts` | Online features: leaderboard, cloud save and recovery codes (Supabase database functions `arcane_*`) |
 | `src/render/circle.ts` | Arcane casting circle shown while a spell charges |
 | `src/render/fx.ts` | Canvas particles (merge bursts, rings, sparkle trails) |

@@ -1025,6 +1025,41 @@ async function syncFromCloud() {
   } catch { /* offline: keep playing locally */ }
 }
 
+// ------------------------------------------------------------------ version & updates
+
+const VERSION_LABEL = `v${__APP_VERSION__} · ${__APP_BUILD__}`;
+
+$('#version-tag').textContent = VERSION_LABEL;
+$('#about-version').textContent = `Arcane Merge ${VERSION_LABEL}`;
+$('#about-built').textContent = `Released ${new Date(__APP_DATE__).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`;
+
+/**
+ * Compare this build with version.json on the server (written by each
+ * deploy). Shows the update banner when a newer release is live.
+ */
+async function checkForUpdate(manual = false) {
+  const status = $('#update-status');
+  if (manual) status.textContent = 'Checking for updates...';
+  try {
+    const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(String(res.status));
+    const live = await res.json() as { version: string; build: string };
+    const newer = live.build !== __APP_BUILD__;
+    $('#update-banner').classList.toggle('hidden', !newer);
+    status.textContent = newer
+      ? `A newer version (v${live.version} · ${live.build}) is available. Tap the banner at the top to update.`
+      : "You're playing the latest version.";
+  } catch {
+    status.textContent = "Couldn't check for updates (this works on the game's website).";
+  }
+}
+
+$('#update-banner').addEventListener('click', () => location.reload());
+$('#btn-check-update').addEventListener('click', () => checkForUpdate(true));
+setTimeout(checkForUpdate, 3000);
+setInterval(checkForUpdate, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+
 // ------------------------------------------------------------------ story
 
 interface StoryLine { text: string; extra?: string; then?: () => void }

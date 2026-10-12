@@ -1,8 +1,10 @@
 // Single-bundle build used to publish the game as one self-contained page.
 import { defineConfig } from 'vite';
+import { buildDefines } from './build-info';
 
 export default defineConfig({
   base: './',
+  define: buildDefines,
   build: {
     outDir: 'dist-artifact',
     cssCodeSplit: false,
