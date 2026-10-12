@@ -308,7 +308,8 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 /* ------------------------------------------------------------ info bar */
 
 #info {
-  flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; min-height: 62px;
+  /* A fixed height so tapping things never changes the layout and pushes the board around. */
+  flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; height: 72px;
   background: linear-gradient(var(--parch-hi), var(--parch) 60%, var(--parch-lo));
   border: 3px solid var(--wood); border-radius: 18px;
   box-shadow: inset 0 0 0 2px var(--parch-hi), 0 4px 0 var(--wood-lo), 0 8px 14px rgba(0,0,0,.4);
@@ -329,8 +330,8 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 #info-img { width: 42px; height: 42px; }
 #info-img:not([src]) { visibility: hidden; }
 #info-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-#info-title { font-size: 15px; font-weight: 700; color: var(--ink); }
-#info-desc { font-size: 12px; color: var(--ink-soft); line-height: 1.25; }
+#info-title { font-size: 15px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#info-desc { font-size: 12px; color: var(--ink-soft); line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 
 .btn {
   border: 2px solid var(--gold-lo); border-radius: 13px; padding: 7px 13px; font: 700 14px var(--font); cursor: pointer; white-space: nowrap;

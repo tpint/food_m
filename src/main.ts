@@ -142,31 +142,38 @@ const boardEl = $('#board');
 const cells: HTMLDivElement[] = [];
 const cellKeys: string[] = [];
 
+/**
+ * Size the board cells to the largest that fit the space left between the
+ * monsters and the info box, then give any spare height to the monster
+ * portraits. Re-run whenever the screen or a panel changes size.
+ */
 function layout() {
-  const app = $('#app');
   const wrap = $('#board-wrap');
-  document.documentElement.style.setProperty('--mon-extra', '0px');
-  const gap = 2, pad = 30; // grid gap; board padding + frame on both sides
-  const availW = app.clientWidth - 20 - pad;
-  // Height left for the board once everything else is laid out.
-  const others = [...app.children].filter((c) => c !== wrap).reduce((h, c) => h + (c as HTMLElement).offsetHeight, 0);
-  const availH = app.clientHeight - others - 8 * (app.children.length) - pad - 20;
-  const size = Math.floor(Math.min((availW - gap * (state.cols - 1)) / state.cols, (availH - gap * (state.rows - 1)) / state.rows, 72));
-  document.documentElement.style.setProperty('--cell', `${Math.max(30, size)}px`);
-  // Monster cards scale with --cell, so settle once more.
-  requestAnimationFrame(() => {
-    const others2 = [...app.children].filter((c) => c !== wrap).reduce((h, c) => h + (c as HTMLElement).offsetHeight, 0);
-    const h2 = app.clientHeight - others2 - 8 * app.children.length - pad - 20;
-    const s2 = Math.floor(Math.min((availW - gap * (state.cols - 1)) / state.cols, (h2 - gap * (state.rows - 1)) / state.rows, 72));
-    document.documentElement.style.setProperty('--cell', `${Math.max(30, s2)}px`);
-    // Give leftover height to the monster portraits instead of a dead gap.
-    requestAnimationFrame(() => {
-      const spare = wrap.clientHeight - boardEl.offsetHeight - 12;
-      const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mon-extra')) || 0;
-      document.documentElement.style.setProperty('--mon-extra', `${Math.max(0, Math.min(70, cur + spare))}px`);
-    });
-  });
+  const root = document.documentElement.style;
+  root.setProperty('--mon-extra', '0px');
+  // Bigger cells mean a bigger board and bigger monster cards (less room), so
+  // whether a size fits only changes once: binary search for the largest.
+  const fits = (size: number) => {
+    root.setProperty('--cell', `${size}px`);
+    return boardEl.offsetHeight <= wrap.clientHeight - 6 && boardEl.offsetWidth <= wrap.clientWidth;
+  };
+  let lo = 20, hi = 72;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (fits(mid)) lo = mid; else hi = mid - 1;
+  }
+  fits(lo);
+  // Give leftover height to the monster portraits instead of a dead gap.
+  const spare = wrap.clientHeight - boardEl.offsetHeight - 12;
+  root.setProperty('--mon-extra', `${Math.max(0, Math.min(70, spare))}px`);
 }
+
+let layoutQueued = false;
+const queueLayout = () => {
+  if (layoutQueued) return;
+  layoutQueued = true;
+  requestAnimationFrame(() => { layoutQueued = false; layout(); });
+};
 
 function buildBoard() {
   boardEl.style.setProperty('--cols', String(state.cols));
@@ -1281,7 +1288,10 @@ async function boot() {
   renderMonsters();
   select(-1);
   layout();
-  addEventListener('resize', layout);
+  // Relayout when the screen changes (rotation, browser toolbars) or a panel changes height.
+  const ro = new ResizeObserver(queueLayout);
+  ro.observe($('#app'));
+  ro.observe($('#info'));
   document.fonts?.ready.then(layout);
 
   ensureDaily(state);
