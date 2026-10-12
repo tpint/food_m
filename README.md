@@ -7,6 +7,14 @@ to defeat them, and collect the rewards.
 Web proof of concept. Built with TypeScript + Vite, with no game engine, so the same
 code can be wrapped for iOS and Android with Capacitor.
 
+<p align="center">
+  <a href="https://github.com/tpint/magic_m/raw/main/media/arcane-merge-promo.mp4">
+    <img src="media/promo.gif" width="300" alt="Arcane Merge promo: merging items, casting a phoenix, a tidal wave and a meteor at monsters, then restoring the tower">
+  </a>
+  <br>
+  <sub>▶ <a href="https://github.com/tpint/magic_m/raw/main/media/arcane-merge-promo.mp4">Watch the promo with sound (MP4)</a> · 🎮 <a href="https://tpint.github.io/magic_m/">Play it in your browser</a></sub>
+</p>
+
 ## Run
 
 ```bash
@@ -77,6 +85,7 @@ Bump `version` in `package.json` for each release.
 | `src/render/scene.ts` | Blurred wizard's-study backdrop and the cobweb on sealed tiles |
 | `src/game/story.ts` | Tower chapters, restoration tasks and story text |
 | `src/render/room.ts` | The tower room scene with a broken and a fixed layer per task |
+| `scripts/promo.mjs` | Renders the promo video in `media/` (`node scripts/promo.mjs <url> <out.mp4>` with the dev server running) |
 | `build-info.ts` | Version/commit/date baked into each build, and the `version.json` it publishes |
 | `src/online.ts` | Online features: leaderboard, cloud save and recovery codes (Supabase database functions `arcane_*`) |
 | `src/render/circle.ts` | Arcane casting circle shown while a spell charges |
