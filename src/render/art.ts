@@ -38,19 +38,19 @@ interface ArtStyle {
 
 const ART_STYLES: Record<ThemeId, ArtStyle> = {
   sunny: {
-    outline: '#5a2e14', outlineOpacity: 0.85, shadow: '#7a3a10', rim: '#ffe7a0', rimOpacity: 0.85, rimFrom: [-1, -1],
+    outline: '#4a240e', outlineOpacity: 1, shadow: '#7a3a10', rim: '#fff0b8', rimOpacity: 0.75, rimFrom: [-1, -1],
     haloTint: '#ffe08a', haloMix: 0.45, haloStrength: 0.9, sparkle: 'sun', saturate: 1.12,
-    wash: [[0, '#fff0a0', 0.7], [0.55, '#ffd070', 0.15], [1, '#ff9a50', 0.3]], washDir: [0, 0, 1, 1], washBlend: 'soft-light',
+    wash: [[0, '#fff0a0', 0.5], [0.55, '#ffd070', 0.1], [1, '#ff9a50', 0.2]], washDir: [0, 0, 1, 1], washBlend: 'soft-light',
   },
   garden: {
-    outline: '#1e4a30', outlineOpacity: 0.85, shadow: '#1e5a3a', rim: '#d8ffe4', rimOpacity: 0.8, rimFrom: [0, -1],
+    outline: '#16402a', outlineOpacity: 1, shadow: '#1e5a3a', rim: '#e4fff0', rimOpacity: 0.7, rimFrom: [0, -1],
     haloTint: '#ffc4e6', haloMix: 0.5, haloStrength: 0.85, sparkle: 'flower', saturate: 1.06,
-    wash: [[0, '#ffd6f0', 0.55], [0.5, '#ffffff', 0], [1, '#5ad08a', 0.45]], washDir: [0, 0, 0, 1], washBlend: 'soft-light',
+    wash: [[0, '#ffd6f0', 0.4], [0.5, '#ffffff', 0], [1, '#5ad08a', 0.3]], washDir: [0, 0, 0, 1], washBlend: 'soft-light',
   },
   night: {
-    outline: '#24133c', outlineOpacity: 0.95, shadow: '#120826', rim: '#9fd0ff', rimOpacity: 0.9, rimFrom: [1, -1],
+    outline: '#24133c', outlineOpacity: 1, shadow: '#120826', rim: '#a8d8ff', rimOpacity: 0.8, rimFrom: [1, -1],
     haloTint: '#b8a8ff', haloMix: 0.3, haloStrength: 1, sparkle: 'star', saturate: 1,
-    wash: [[0, '#d8ecff', 0.45], [0.45, '#8a8aff', 0.1], [1, '#2a1a6a', 0.5]], washDir: [1, 0, 0, 1], washBlend: 'soft-light',
+    wash: [[0, '#d8ecff', 0.35], [0.45, '#8a8aff', 0.05], [1, '#2a1a6a', 0.35]], washDir: [1, 0, 0, 1], washBlend: 'soft-light',
   },
 };
 
@@ -146,15 +146,17 @@ class Svg {
 
   inner() {
     const [rx, ry] = style.rimFrom;
+    // Kept crisp: a solid outline, a tight offset shadow, a thin unblurred rim of theme
+    // light and a little extra contrast, so objects read sharply on the board.
     const outline = `<filter id="o${uid}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
-<feMorphology in="SourceAlpha" operator="dilate" radius="1.7" result="d"/>
+<feMorphology in="SourceAlpha" operator="dilate" radius="1.8" result="d"/>
 <feFlood flood-color="${style.outline}" flood-opacity="${style.outlineOpacity}"/><feComposite in2="d" operator="in" result="ol"/>
-<feGaussianBlur in="d" stdDeviation="1.6"/><feOffset dy="2.4" result="b"/>
-<feFlood flood-color="${style.shadow}" flood-opacity=".3"/><feComposite in2="b" operator="in" result="sh"/>
-<feOffset in="SourceAlpha" dx="${-rx * 3}" dy="${-ry * 3}" result="off"/><feComposite in="SourceAlpha" in2="off" operator="out" result="edge"/>
-<feGaussianBlur in="edge" stdDeviation=".7" result="edgeb"/>
-<feFlood flood-color="${style.rim}" flood-opacity="${style.rimOpacity}"/><feComposite in2="edgeb" operator="in" result="rim"/>
-<feColorMatrix in="SourceGraphic" type="saturate" values="${style.saturate}" result="g"/>
+<feGaussianBlur in="d" stdDeviation=".5"/><feOffset dy="2.2" result="b"/>
+<feFlood flood-color="${style.shadow}" flood-opacity=".32"/><feComposite in2="b" operator="in" result="sh"/>
+<feOffset in="SourceAlpha" dx="${-rx * 1.5}" dy="${-ry * 1.5}" result="off"/><feComposite in="SourceAlpha" in2="off" operator="out" result="edge"/>
+<feFlood flood-color="${style.rim}" flood-opacity="${style.rimOpacity}"/><feComposite in2="edge" operator="in" result="rim"/>
+<feColorMatrix in="SourceGraphic" type="saturate" values="${style.saturate}" result="sat"/>
+<feComponentTransfer in="sat" result="g"><feFuncR type="linear" slope="1.08" intercept="-.03"/><feFuncG type="linear" slope="1.08" intercept="-.03"/><feFuncB type="linear" slope="1.08" intercept="-.03"/></feComponentTransfer>
 <feMerge><feMergeNode in="sh"/><feMergeNode in="ol"/><feMergeNode in="g"/><feMergeNode in="rim"/></feMerge></filter>`;
     return { defs: this.defs.join('') + outline, filter: `o${uid++}` };
   }
@@ -238,13 +240,11 @@ function themeDecor(box: { x: number; y: number; width: number; height: number }
   if (theme === 'night') {
     // A small crescent moon and a twinkle at the top-right.
     const x = right - 6, y = top + 4;
-    return `<circle cx="${x}" cy="${y}" r="16" fill="#cfe4ff" opacity=".35"/>`
-      + `<path d="M${x} ${y - 11}A11 11 0 1 0 ${x + 9} ${y + 6}A8.5 8.5 0 1 1 ${x} ${y - 11}Z" fill="#fff2b0" stroke="#5a4a20" stroke-width="1.6"/>`
+    return `<path d="M${x} ${y - 11}A11 11 0 1 0 ${x + 9} ${y + 6}A8.5 8.5 0 1 1 ${x} ${y - 11}Z" fill="#fff2b0" stroke="#5a4a20" stroke-width="1.6"/>`
       + sparkleShape('star', x - 15, y + 13, 4.5, '#dff0ff') + sparkleShape('star', left + 4, bottom - 8, 3.5, '#dff0ff');
   }
   // A bright sun glint at the top-right and a warm sparkle low on the left.
-  return `<circle cx="${right - 4}" cy="${top + 2}" r="15" fill="#fff4b0" opacity=".45"/>`
-    + sparkleShape('sun', right - 4, top + 2, 11, '#ffe066') + sparkleShape('sun', left + 3, bottom - 8, 5, '#fff2a0');
+  return sparkleShape('sun', right - 4, top + 2, 11, '#ffe066') + sparkleShape('sun', left + 3, bottom - 8, 5, '#fff2a0');
 }
 
 let measurer: SVGSVGElement | null = null;
