@@ -476,3 +476,7 @@ export function genSvg(key, lv, size = 1024) {
 
 export const GENS = Object.keys(ELEMENTS);
 export const keyFor = (g, lv) => (lv > 1 ? `gen-${g}-${lv}` : `gen-${g}`);
+
+// Shared building blocks for items.mjs and monsters.mjs.
+export const resetUid = () => { uid = 0; };
+export { id, f1, METAL, IRON, PAPER, Svg, filters, path, hl, sparkle, gem, rivet, alchemy, crystal, rock, leaf };

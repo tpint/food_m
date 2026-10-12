@@ -18,14 +18,22 @@ Example `manifest.json` after adding `water-1.png` and `mon-slime.png`:
 ["water-1", "mon-slime"]
 ```
 
-## Generators
+## Painted set
 
-The grimoire generators (`gen-*`, all four elements, levels 1–10) are painted PNGs made by
-`scripts/art/paint-generators.mjs`, which builds a detailed SVG for each one, and
-`scripts/art/render-generators.mjs`, which renders them at 3× and downsamples to 384 px:
+These are painted PNGs (384 px) made by the scripts in `scripts/art/`:
+- the grimoire generators (`gen-*`, all four elements, levels 1–10),
+- the element items (`earth-*`, `water-*`, `wind-*`, `fire-*`, levels 1–7),
+- every monster (`mon-*`, the boss dragon included).
+
+Coins, mana and icons still use the code-drawn SVGs.
+
+`paint-generators.mjs`, `items.mjs` and `monsters.mjs` build a detailed SVG for each image.
+The render scripts draw it at 3× and downsample to 384 px.
 
 ```bash
-npm i -D sharp                                   # one-off; Playwright already comes with @playwright/test
-node scripts/art/render-generators.mjs public/art 384           # all 40
+npm i -D sharp                                            # one-off; Playwright already comes with @playwright/test
+node scripts/art/render-generators.mjs public/art 384           # all 40 generators
 node scripts/art/render-generators.mjs public/art 384 forge     # just one element
+node scripts/art/render-items-monsters.mjs public/art 384       # items and monsters
+ONLY=fire,mon-imp node scripts/art/render-items-monsters.mjs    # only keys starting with these
 ```
