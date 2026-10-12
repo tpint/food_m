@@ -1,6 +1,7 @@
-/* Arcane Merge: a bright, sunny wizard's study. Cream cards with honey frames,
-   white pill counters with dark numbers and a periwinkle-blue board, in the
-   vibrant style of casual merge games, so saturated items pop. */
+/* Sunny Spoon: a bright, cosy restaurant. Cream cards with honey frames,
+   white pill counters with dark numbers and a checked-tablecloth board with a
+   tomato-red frame, in the vibrant style of casual merge games, so saturated
+   food pops. */
 :root {
   --cell: 52px;
   --mon-extra: 0px;
@@ -16,12 +17,12 @@
   --gold-hi: #ffe9a0;
   --gold: #f6c04a;
   --gold-lo: #b07a1a;
-  --tile: #a9c2f6;
-  --tile-alt: #b3c9f8;
-  --board: #cddcfd;
-  --frame-hi: #9cc4ff;
-  --frame: #4f88e8;
-  --frame-lo: #2b5cbc;
+  --tile: #ffd9cf;
+  --tile-alt: #fff4ea;
+  --board: #fff0e4;
+  --frame-hi: #ff9a8a;
+  --frame: #e8584a;
+  --frame-lo: #b0302a;
   --chip-a: #ffffff;
   --chip-b: #e6efff;
   --chip-edge: #a3c0f2;
@@ -122,7 +123,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   border: 2px solid var(--chip-edge); background: linear-gradient(var(--chip-a), var(--chip-b)); color: var(--ink);
   box-shadow: 0 2px 0 rgba(40, 70, 140, .3);
 }
-.round:focus-visible, .btn:focus-visible, .cast:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 2px; }
+.round:focus-visible, .btn:focus-visible, .serve:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 2px; }
 
 #xpbar {
   position: relative; height: 14px; border-radius: 7px; overflow: hidden;
@@ -134,9 +135,9 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 }
 #xptext { position: absolute; inset: 0; font-size: 9px; display: grid; place-items: center; letter-spacing: .5px; }
 
-/* ------------------------------------------------------------ monsters */
+/* ------------------------------------------------------------ customers */
 
-#monsters-wrap { position: relative; flex: none; }
+#customers-wrap { position: relative; flex: none; }
 #btn-refresh {
   position: absolute; right: 2px; top: -9px; z-index: 3;
   display: flex; align-items: center; gap: 1px; height: 24px; padding: 0 8px 0 5px; border-radius: 12px; cursor: pointer;
@@ -153,74 +154,74 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 #btn-refresh.go .spin { animation: spin .5s ease; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-#monsters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; flex: none; }
+#customers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; flex: none; }
 
-/* Monsters stand on the board's edge like customers at a counter: a big picture with
+/* Customers stand on the board's edge like customers at a counter: a big picture with
    no card around it, small detail badges over it, and a tray in front holding the
-   items it is weak to. Tap the monster for its name and full rewards. */
-.monster {
+   items it is weak to. Tap the customer for its name and full rewards. */
+.customer {
   position: relative; min-width: 0;
   display: flex; flex-direction: column; align-items: center;
 }
-.monster.enter { animation: monster-in .5s cubic-bezier(.2, 1.6, .4, 1); }
-.monster.hit .portrait img { animation: hurt .4s ease; }
-.monster.dying .portrait img { animation: poof .55s ease forwards; }
+.customer.enter { animation: customer-in .5s cubic-bezier(.2, 1.6, .4, 1); }
+.customer.yum .portrait img { animation: yum .45s ease; }
+.customer.leaving .portrait img { animation: leave .55s ease forwards; }
 
-.monster .portrait {
+.customer .portrait {
   position: relative; width: 100%;
   height: calc(max(72px, var(--cell) * 1.75) + var(--mon-extra));
   display: flex; justify-content: center; align-items: flex-end; cursor: pointer;
 }
-/* A soft spotlight and floor shadow so the monster pops off the busy backdrop. */
-.monster .portrait::before {
+/* A soft spotlight and floor shadow so the customer pops off the busy backdrop. */
+.customer .portrait::before {
   content: ''; position: absolute; inset: 6% 0 8%; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(255, 255, 255, .8), rgba(255, 255, 255, .35) 60%, transparent);
 }
-.monster.boss .portrait::before { background: radial-gradient(closest-side, rgba(255, 220, 140, .95), rgba(255, 160, 80, .45) 60%, transparent); }
-.monster .portrait::after {
+.customer.critic .portrait::before { background: radial-gradient(closest-side, rgba(255, 220, 140, .95), rgba(255, 160, 80, .45) 60%, transparent); }
+.customer .portrait::after {
   content: ''; position: absolute; left: 18%; right: 18%; bottom: 2px; height: 10px; border-radius: 50%;
   background: rgba(20, 60, 140, .28);
 }
-.monster .portrait img {
+.customer .portrait img {
   position: relative; z-index: 1; height: 100%; width: 100%; object-fit: contain; object-position: 50% 100%;
   animation: bob 2.4s ease-in-out infinite; transform-origin: 50% 100%;
 }
 
-/* Detail badges floating over the monster's top-left. */
-.monster .tags {
+/* Detail badges floating over the customer's top-left. */
+.customer .tags {
   position: absolute; left: 0; top: 2px; z-index: 3; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
   pointer-events: none;
 }
-.monster .xp-badge {
+.customer .xp-badge {
   padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; line-height: 1.3; white-space: nowrap;
   background: linear-gradient(90deg, #3ed08a, #2fb8f0); border: 1.5px solid var(--violet-lo); box-shadow: 0 1px 0 rgba(0,0,0,.2);
 }
-.monster .reward {
+.customer .reward {
   display: flex; align-items: center; gap: 2px; padding: 1px 6px 1px 3px; border-radius: 10px;
   font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap;
   background: rgba(30, 40, 90, .6); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); backdrop-filter: blur(2px);
 }
-.monster .reward img { width: 15px; height: 15px; }
+.customer .reward img { width: 15px; height: 15px; }
 
-/* The items the monster is weak to sit in front of it, with no panel behind them;
-   a soft shadow keeps them readable over the monster and the backdrop. */
-.monster .tray {
+/* The items the customer is weak to sit in front of it, with no panel behind them;
+   a soft shadow keeps them readable over the customer and the backdrop. */
+.customer .tray {
   position: relative; z-index: 2; margin-top: calc(var(--cell) * -.32); padding: 3px 8px 4px;
   display: flex; justify-content: center;
 }
-.monster .needs { display: flex; gap: 2px; justify-content: center; }
-.monster .need { position: relative; width: calc(var(--cell) * .7); height: calc(var(--cell) * .7); }
-.monster .need img { width: 100%; height: 100%; filter: drop-shadow(0 2px 2px rgba(20, 40, 100, .45)) drop-shadow(0 0 3px rgba(255, 255, 255, .9)); }
+.customer .needs { display: flex; gap: 2px; justify-content: center; }
+.customer .need { position: relative; width: calc(var(--cell) * .7); height: calc(var(--cell) * .7); }
+.customer .need img { width: 100%; height: 100%; filter: drop-shadow(0 2px 2px rgba(20, 40, 100, .45)) drop-shadow(0 0 3px rgba(255, 255, 255, .9)); }
 .check {
   position: absolute; right: -3px; bottom: -3px; width: clamp(12px, calc(var(--cell) * .3), 16px); height: clamp(12px, calc(var(--cell) * .3), 16px); border-radius: 50%;
   background: linear-gradient(#7ee08e, var(--ok)); border: 1.5px solid var(--ok-lo); box-shadow: 0 0 0 1.5px #fff;
   display: grid; place-items: center;
 }
 .check::before { content: ''; width: 7px; height: 4px; margin-top: -2px; border-left: 2.2px solid #fff; border-bottom: 2.2px solid #fff; transform: rotate(-45deg); }
-.monster .need:not(.have) .check { display: none; }
+.customer .need:not(.have) .check { display: none; }
 
 /* Attack! pops up over the tray once every item is on the board. */
-.monster .cast {
+.customer .serve {
   position: absolute; left: 50%; bottom: calc(var(--cell) * .7 + 10px); z-index: 4; transform: translateX(-50%) scale(0);
   padding: 3px 14px 4px; border-radius: 12px; font: 700 14px var(--font); cursor: pointer;
   border: 2px solid var(--violet-lo);
@@ -228,7 +229,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   box-shadow: 0 3px 0 var(--violet-lo), 0 0 14px rgba(170, 120, 255, .9);
   transition: transform .25s cubic-bezier(.2, 1.6, .4, 1);
 }
-.monster.ready .cast { transform: translateX(-50%) scale(1); animation: pulse 1.2s ease-in-out infinite; }
+.customer.ready .serve { transform: translateX(-50%) scale(1); animation: pulse 1.2s ease-in-out infinite; }
 
 /* ------------------------------------------------------------ board */
 
@@ -262,7 +263,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -2px 0 rgba(50, 90, 180, .14);
 }
 .cell:nth-child(odd) { background: var(--tile-alt); }
-/* Items a monster wants sit on a fresh green tile. */
+/* Items a customer wants sit on a fresh green tile. */
 .cell:has(> .piece.want) { background: #c8f0a0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 -2px 0 rgba(60, 140, 40, .2); }
 .cell.hint { background: #e4f4ff; box-shadow: inset 0 0 0 2.5px #7fd0ff, 0 0 12px #8fd6ff; }
 .cell.selected { box-shadow: inset 0 0 0 3px var(--gold), 0 0 10px var(--gold); background: #fff6dc; }
@@ -337,26 +338,26 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #8a520a; }
 .hidden { display: none !important; }
 
-/* ------------------------------------------------------------ tower */
+/* ------------------------------------------------------------ diner */
 
-.tower-btn {
+.menu-btn {
   position: relative; flex: none; width: 38px; height: 38px; padding: 2px; cursor: pointer; border-radius: 12px;
   border: 2px solid var(--chip-edge); background: linear-gradient(var(--violet-hi), var(--violet)); box-shadow: 0 2px 0 rgba(0,0,0,.35);
 }
-.tower-btn img { width: 100%; height: 100%; }
+.menu-btn img { width: 100%; height: 100%; }
 .star-badge {
   position: absolute; right: -7px; bottom: -7px; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 10px;
   display: grid; place-items: center; font-size: 11px;
   background: linear-gradient(#ffe066, #f0a020); border: 1.5px solid #8a5a10;
 }
-.tower-btn.ready::after {
+.menu-btn.ready::after {
   content: '!'; position: absolute; left: -6px; top: -6px; width: 18px; height: 18px; border-radius: 50%;
   display: grid; place-items: center; font: 700 12px var(--font); color: #fff;
   background: var(--danger); border: 2px solid #fff; animation: bump 1s ease-in-out infinite;
 }
-.tower-btn.bump { animation: bump .35s ease; }
+.menu-btn.bump { animation: bump .35s ease; }
 
-/* One menu button gathers daily quests, the leaderboard and the tower to save HUD space.
+/* One menu button gathers daily quests, the leaderboard and the diner to save HUD space.
    It shows three stripes; the "!" appears when any of them has something ready. */
 .hud-menu { position: relative; flex: none; }
 #btn-menu { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; }
@@ -386,20 +387,20 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   background: var(--danger); border: 2px solid #fff; animation: bump 1s ease-in-out infinite;
 }
 
-#tower {
+#diner {
   position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
-  background: rgba(40, 90, 180, .55); backdrop-filter: blur(3px);
-  animation: tower-in .3s ease-out;
+  background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px);
+  animation: diner-in .3s ease-out;
 }
-.tower-inner {
+.sheet-inner {
   max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px;
   padding: max(10px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
 }
-.tower-head { display: flex; align-items: center; gap: 8px; }
-.tower-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.1; }
-.tower-title small { color: #e8d8ff; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; }
-.tower-title b { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tower-stars { flex: none; min-width: 74px; }
+.sheet-head { display: flex; align-items: center; gap: 8px; }
+.sheet-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.1; }
+.sheet-title small { color: #e8d8ff; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; }
+.sheet-title b { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.diner-stars { flex: none; min-width: 74px; }
 
 .room-frame {
   position: relative; border-radius: 18px; overflow: hidden; aspect-ratio: 400 / 320; max-width: 100%;
@@ -410,12 +411,12 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .room .rl.pop { transform-box: fill-box; transform-origin: 50% 70%; animation: room-pop .8s cubic-bezier(.2, 1.5, .4, 1); }
 #room-dark { transition: opacity 1.2s ease; }
 
-.tower-progress {
+.diner-progress {
   position: relative; height: 18px; border-radius: 9px; overflow: hidden;
   background: linear-gradient(#e4ecfb, #f4f8ff); border: 2px solid var(--chip-edge); box-shadow: inset 0 2px 3px rgba(0,0,0,.5);
 }
-#tower-fill { height: 100%; width: 0; transition: width .6s ease; background: linear-gradient(rgba(255,255,255,.4) 0 40%, transparent 41%), linear-gradient(90deg, #ffd23c, #ff9a3c); }
-#tower-progress-text { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; }
+#diner-fill { height: 100%; width: 0; transition: width .6s ease; background: linear-gradient(rgba(255,255,255,.4) 0 40%, transparent 41%), linear-gradient(90deg, #ffd23c, #ff9a3c); }
+#diner-progress-text { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; }
 
 #tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .task {
@@ -448,7 +449,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   border: 3px solid var(--wood); box-shadow: inset 0 0 0 2px var(--parch-hi), 0 5px 0 var(--wood-lo), 0 14px 30px rgba(0,0,0,.5);
   animation: story-in .35s cubic-bezier(.2, 1.4, .4, 1);
 }
-#story-owl { width: 96px; height: 96px; flex: none; margin-top: -48px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.3)); animation: bob 2.4s ease-in-out infinite; }
+#story-chef { width: 96px; height: 96px; flex: none; margin-top: -48px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.3)); animation: bob 2.4s ease-in-out infinite; }
 .story-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 #story-name { color: var(--violet-lo); font-size: 14px; letter-spacing: .3px; }
 #story-text { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.4; }
@@ -457,7 +458,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 /* ------------------------------------------------------------ leaderboard */
 
-#leaders { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(40, 90, 180, .55); backdrop-filter: blur(3px); animation: tower-in .3s ease-out; }
+#leaders { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 .tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 4px; border-radius: 14px; background: rgba(20, 50, 120, .35); border: 2px solid var(--chip-edge); }
@@ -500,49 +501,49 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .row-name small { color: var(--ink-soft); font-size: 11px; }
 .row-score { font-weight: 700; font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; }
 
-/* ------------------------------------------------------------ bag */
+/* ------------------------------------------------------------ fridge */
 
 #bottom { flex: none; display: flex; align-items: stretch; gap: 8px; }
 #bottom #info { flex: 1; min-width: 0; }
-#btn-bag {
+#btn-fridge {
   position: relative; flex: none; width: 72px; padding: 4px; border-radius: 18px; cursor: pointer;
   border: 3px solid var(--chip-edge); background: linear-gradient(#ffffff, #e6efff);
   box-shadow: 0 4px 0 var(--frame), 0 8px 14px rgba(30, 60, 140, .3);
   transition: transform .15s ease, box-shadow .15s ease;
 }
-#btn-bag img { width: 100%; height: 100%; object-fit: contain; }
-#btn-bag.target { transform: scale(1.12); box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(255, 200, 80, .9); }
-#btn-bag.bump { animation: bump .35s ease; }
-.bag-count {
+#btn-fridge img { width: 100%; height: 100%; object-fit: contain; }
+#btn-fridge.target { transform: scale(1.12); box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(255, 200, 80, .9); }
+#btn-fridge.bump { animation: bump .35s ease; }
+.fridge-count {
   position: absolute; right: -6px; top: -8px; min-width: 30px; height: 20px; padding: 0 5px; border-radius: 10px;
   display: grid; place-items: center; font-size: 11px;
   background: linear-gradient(var(--violet-hi), var(--violet)); border: 1.5px solid var(--violet-lo); box-shadow: 0 0 0 1.5px #fff;
 }
-.bag-count.full { background: linear-gradient(#ff8a7a, var(--danger)); border-color: #8a1e14; }
+.fridge-count.full { background: linear-gradient(#ff8a7a, var(--danger)); border-color: #8a1e14; }
 
-#bag { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(40, 90, 180, .55); backdrop-filter: blur(3px); animation: tower-in .3s ease-out; }
-.bag-grid {
+#fridge { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
+.fridge-grid {
   display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 10px; border-radius: 18px;
   background: linear-gradient(var(--parch-hi), var(--parch) 60%, var(--parch-lo)); border: 3px solid var(--wood); box-shadow: 0 3px 0 var(--wood-lo);
 }
-.bag-slot {
+.fridge-slot {
   position: relative; min-width: 0; aspect-ratio: 1; border-radius: 12px; border: 0; padding: 3px; cursor: pointer;
   background: var(--tile); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -2px 0 rgba(50, 90, 180, .14);
 }
-.bag-slot img { width: 100%; height: 100%; object-fit: contain; }
-.bag-slot:empty { cursor: default; background: var(--tile-alt); }
-.bag-slot.buy {
+.fridge-slot img { width: 100%; height: 100%; object-fit: contain; }
+.fridge-slot:empty { cursor: default; background: var(--tile-alt); }
+.fridge-slot.buy {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; cursor: pointer;
   background: repeating-linear-gradient(45deg, #e3ecfd 0 6px, #d6e2fb 6px 12px); color: var(--ink); font: 700 12px var(--font);
 }
-.bag-slot.buy b { font-size: 20px; line-height: 1; color: var(--violet); }
-.bag-slot.buy span { display: flex; align-items: center; gap: 1px; }
-.bag-slot.buy img { width: 14px; height: 14px; }
-.bag-hint { margin: 0; text-align: center; color: #fff; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 2px rgba(20, 40, 100, .6); }
+.fridge-slot.buy b { font-size: 20px; line-height: 1; color: var(--violet); }
+.fridge-slot.buy span { display: flex; align-items: center; gap: 1px; }
+.fridge-slot.buy img { width: 14px; height: 14px; }
+.fridge-hint { margin: 0; text-align: center; color: #fff; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 2px rgba(20, 40, 100, .6); }
 
 /* ------------------------------------------------------------ daily quests */
 
-#quests { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(40, 90, 180, .55); backdrop-filter: blur(3px); animation: tower-in .3s ease-out; }
+#quests { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
 #quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .quest-ico { flex: none; width: 40px; height: 40px; }
 .quest-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -560,7 +561,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 /* ------------------------------------------------------------ profile */
 
-#profile { position: fixed; inset: 0; z-index: 31; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(40, 90, 180, .55); backdrop-filter: blur(3px); animation: tower-in .3s ease-out; }
+#profile { position: fixed; inset: 0; z-index: 31; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
 .panel {
   display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: 16px;
   background: linear-gradient(var(--parch-hi), var(--parch) 60%, var(--parch-lo)); border: 3px solid var(--wood); box-shadow: 0 3px 0 var(--wood-lo);
@@ -598,100 +599,40 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 .floater { position: fixed; z-index: 55; pointer-events: none; font-size: 20px; animation: floatup 1s ease-out forwards; transform: translate(-50%, -50%); }
 
-#app.shake { animation: shake .45s ease-out; }
 
-/* Casting circle under an item while a spell charges. */
-.mcircle {
+/* The plate that draws itself under a dish while it is plated up. */
+.plate {
   position: absolute; z-index: 1; pointer-events: none; opacity: 0;
   transform: translate(-50%, -50%) scale(.5);
-  animation: mc-in .35s cubic-bezier(.2, 1.4, .4, 1) forwards;
-  /* Dark hairline outline first so pale lines read on the cream board, then the glow. */
-  filter: drop-shadow(0 0 .6px var(--ink)) drop-shadow(0 0 .6px var(--ink)) drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow));
+  animation: plate-in .35s cubic-bezier(.2, 1.4, .4, 1) forwards;
+  filter: drop-shadow(0 0 .6px var(--ink)) drop-shadow(0 2px 3px rgba(30, 40, 90, .35)) drop-shadow(0 0 8px var(--glow));
 }
-.mcircle svg { width: 100%; height: 100%; overflow: visible; stroke: var(--line); }
-.mcircle .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: mc-draw calc(var(--charge) * .7) ease-out forwards; }
-.mcircle .fade { opacity: 0; animation: mc-fade calc(var(--charge) * .5) ease-out calc(var(--charge) * .25) forwards; }
-.mcircle .dot { fill: var(--line); stroke: none; }
-.mcircle .spin { transform-box: view-box; transform-origin: 50% 50%; animation: mc-spin var(--dur) linear infinite; }
-.mcircle .spin.rev { animation-direction: reverse; }
-.mcircle.release { animation: mc-out .45s ease-out forwards; }
-.mpillar {
-  position: absolute; left: 50%; bottom: 50%; width: 34%; height: 260%; transform: translateX(-50%) scaleY(0); transform-origin: 50% 100%;
+.plate svg { width: 100%; height: 100%; overflow: visible; stroke: var(--glow); }
+.plate .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: plate-draw calc(var(--charge) * .7) ease-out forwards; }
+.plate .fade { opacity: 0; animation: plate-fade calc(var(--charge) * .5) ease-out calc(var(--charge) * .2) forwards; }
+.plate .dot { fill: var(--line); stroke: var(--ink); stroke-width: 1.2; }
+.plate .spin { transform-box: view-box; transform-origin: 50% 50%; animation: plate-spin var(--dur) linear infinite; }
+.plate .spin.rev { animation-direction: reverse; }
+.plate.release { animation: plate-out .45s ease-out forwards; }
+.spotlight {
+  position: absolute; left: 50%; bottom: 50%; width: 40%; height: 260%; transform: translateX(-50%) scaleY(0); transform-origin: 50% 100%;
   border-radius: 50% 50% 0 0 / 20% 20% 0 0;
-  background: linear-gradient(to top, var(--glow), rgba(255,255,255,.6) 40%, transparent);
-  mix-blend-mode: screen; opacity: .8;
-  animation: mc-pillar var(--charge) ease-in forwards;
+  background: linear-gradient(to top, rgba(255, 230, 140, .9), rgba(255, 255, 255, .55) 40%, transparent);
+  mix-blend-mode: screen; opacity: .85;
+  animation: spotlight var(--charge) ease-in forwards;
 }
 .piece.charging { z-index: 3; }
-.piece.dissolving { z-index: 3; }
-.piece.dissolving img { animation: dissolve var(--charge) ease-in forwards; }
+.piece.charging img { animation: plating .32s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px #fff) brightness(1.1); }
 
-/* Spell attack forms (blades, arrows, tornado, phoenix, serpent, beams...). */
-.spell-sprite { position: fixed; left: 0; top: 0; z-index: 46; pointer-events: none; }
-.spell-sprite svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.spell-sprite.glow.el-wind { filter: drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 10px #5fd0aa); }
-.spell-sprite.glow.el-fire { filter: drop-shadow(0 0 4px #ffe08a) drop-shadow(0 0 12px #ff6a1e); }
-.spell-sprite.glow.el-water { filter: drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 10px #3a98e8); }
-.spell-sprite.glow.el-earth { filter: drop-shadow(0 2px 2px rgba(40, 20, 5, .6)) drop-shadow(0 0 8px #e8b060); }
-.spell-sprite .flap { transform-box: view-box; transform-origin: 0 0; animation: flap .16s ease-in-out infinite alternate; }
-@keyframes flap { to { transform: scaleY(.35); } }
-.spell-beam {
-  position: fixed; left: 0; top: 0; z-index: 46; pointer-events: none; transform-origin: 0 50%; border-radius: 999px;
-  --b0: #5fd0aa; --b1: rgba(156, 232, 204, .9); --b2: #ffffff; --bg: rgba(120, 230, 190, .7);
-  background: linear-gradient(to bottom, transparent 0%, var(--b1) 25%, var(--b2) 42%, var(--b2) 58%, var(--b1) 75%, transparent 100%);
-  box-shadow: 0 0 18px var(--b0), 0 0 40px var(--bg);
-  animation: spell-beam var(--beam-ms) ease-out forwards;
+/* A dish flying to a customer, sitting on a little plate. */
+.dish { position: fixed; left: 0; top: 0; z-index: 46; pointer-events: none; }
+.dish::before {
+  content: ''; position: absolute; left: 4%; right: 4%; bottom: 0; height: 30%; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 40%, #fff 0 55%, #dfe6f6 60%, #fff 66%, #c8d2ea 100%);
+  box-shadow: 0 3px 6px rgba(30, 40, 90, .35);
 }
-.spell-beam.el-fire { --b0: #ff6a1e; --b1: rgba(255, 120, 40, .95); --b2: #fff1b0; --bg: rgba(255, 90, 20, .7); }
-.spell-beam.el-water { --b0: #3a98e8; --b1: rgba(110, 190, 248, .95); --b2: #f0faff; --bg: rgba(60, 150, 240, .7); }
-@keyframes spell-beam {
-  0% { clip-path: inset(0 100% 0 0); opacity: 1; }
-  25% { clip-path: inset(0 0 0 0); opacity: 1; }
-  70% { opacity: .9; filter: brightness(1.3); }
-  100% { clip-path: inset(0 0 0 0); opacity: 0; scale: 1 .2; }
-}
-
-/* An orb of element magic: forms over the casting circle, then flies. */
-.spell-orb {
-  position: fixed; left: 0; top: 0; z-index: 46; pointer-events: none;
-  width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
-}
-.spell-orb::before, .spell-orb::after { content: ''; position: absolute; border-radius: 50%; }
-.spell-orb::before { inset: 0; animation: orb-form var(--form) ease-out var(--form-delay) both, orb-pulse .35s ease-in-out infinite alternate; }
-.spell-orb::after { inset: -22%; animation: orb-form var(--form) ease-out var(--form-delay) both, orb-spin .5s linear infinite; }
-.spell-orb.el-fire::before {
-  background: radial-gradient(circle at 42% 40%, #fffbe0 0 14%, #ffd36a 30%, #ff7a2a 54%, rgba(232, 70, 30, 0) 72%);
-  box-shadow: 0 0 calc(var(--s) * .35) #ff6a2a, 0 0 calc(var(--s) * .8) rgba(255, 120, 40, .55);
-}
-.spell-orb.el-fire::after {
-  background: conic-gradient(from 0deg, transparent, rgba(255, 210, 90, .85) 12%, transparent 25%, rgba(255, 110, 40, .75) 45%, transparent 58%, rgba(255, 180, 60, .8) 75%, transparent 88%);
-  -webkit-mask: radial-gradient(circle, transparent 38%, #000 42%, #000 58%, transparent 64%); mask: radial-gradient(circle, transparent 38%, #000 42%, #000 58%, transparent 64%);
-}
-.spell-orb.el-water::before {
-  background: radial-gradient(circle at 38% 36%, #ffffff 0 12%, #bfeaff 28%, #3a98e8 56%, rgba(31, 111, 201, 0) 72%);
-  box-shadow: 0 0 calc(var(--s) * .35) #3a98e8, 0 0 calc(var(--s) * .8) rgba(80, 170, 255, .5);
-}
-.spell-orb.el-water::after { inset: -10%; border: 3px solid rgba(220, 245, 255, .85); border-radius: 46% 54% 52% 48% / 55% 45% 55% 45%; }
-.spell-orb.el-wind::before {
-  background: radial-gradient(circle at 45% 45%, #ffffff 0 12%, #e6fff4 28%, #5fd0aa 54%, rgba(47, 160, 128, 0) 72%);
-  box-shadow: 0 0 calc(var(--s) * .3) #5fd0aa, 0 0 calc(var(--s) * .7) rgba(120, 230, 190, .5);
-}
-.spell-orb.el-wind::after {
-  background: conic-gradient(from 0deg, transparent, rgba(255, 255, 255, .9) 8%, transparent 20%, rgba(200, 255, 240, .8) 33%, transparent 45%, rgba(255, 255, 255, .9) 58%, transparent 70%, rgba(200, 255, 240, .8) 83%, transparent 95%);
-  -webkit-mask: radial-gradient(circle, transparent 30%, #000 36%, #000 60%, transparent 68%); mask: radial-gradient(circle, transparent 30%, #000 36%, #000 60%, transparent 68%);
-  animation-duration: var(--form), .28s;
-}
-.spell-orb.el-earth::before {
-  background: radial-gradient(circle at 40% 38%, #fff6d0 0 12%, #f2c46a 30%, #b0702e 56%, rgba(110, 66, 30, 0) 72%);
-  box-shadow: 0 0 calc(var(--s) * .3) #d8962e, 0 0 calc(var(--s) * .7) rgba(220, 160, 70, .5);
-}
-.spell-orb.el-earth::after {
-  background:
-    radial-gradient(circle at 12% 50%, #8a6a4a 0 7%, transparent 8%), radial-gradient(circle at 88% 42%, #a8885a 0 8%, transparent 9%),
-    radial-gradient(circle at 50% 8%, #7e6a52 0 6%, transparent 7%), radial-gradient(circle at 46% 92%, #b8a286 0 7%, transparent 8%);
-  animation-duration: var(--form), .7s;
-}
-.piece.charging img { animation: levitate .5s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px #fff) brightness(1.15); }
+.dish img { position: relative; width: 100%; height: 100%; display: block; }
+.dish.glow img { filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 12px #ffd84a); }
 .flash {
   position: fixed; inset: 0; z-index: 39; pointer-events: none;
   background: radial-gradient(circle at 50% 25%, var(--flash), transparent 75%);
@@ -700,30 +641,14 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 /* ------------------------------------------------------------ keyframes */
 
-@keyframes shake {
-  0%, 100% { transform: translate(0, 0); }
-  15% { transform: translate(calc(var(--shake) * -1), calc(var(--shake) * .5)); }
-  30% { transform: translate(var(--shake), calc(var(--shake) * -.6)); }
-  45% { transform: translate(calc(var(--shake) * -.7), calc(var(--shake) * .3)); }
-  60% { transform: translate(calc(var(--shake) * .5), 0); }
-  80% { transform: translate(calc(var(--shake) * -.2), 0); }
-}
-@keyframes mc-in { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-@keyframes mc-out { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: brightness(2) drop-shadow(0 0 12px var(--glow)); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } }
-@keyframes mc-draw { to { stroke-dashoffset: 0; } }
-@keyframes mc-fade { to { opacity: 1; } }
-@keyframes mc-spin { to { transform: rotate(360deg); } }
-@keyframes mc-pillar { 0% { transform: translateX(-50%) scaleY(0); } 100% { transform: translateX(-50%) scaleY(1); } }
-@keyframes dissolve {
-  0% { transform: none; filter: none; opacity: 1; }
-  35% { transform: scale(1.12); filter: brightness(1.8) drop-shadow(0 0 8px #fff); opacity: 1; }
-  100% { transform: scale(.2); filter: brightness(3) blur(4px); opacity: 0; }
-}
-@keyframes orb-form { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-@keyframes orb-pulse { from { filter: brightness(1); } to { filter: brightness(1.25); } }
-@keyframes orb-spin { to { rotate: 360deg; } }
-@keyframes levitate { from { transform: translateY(0) scale(1); } to { transform: translateY(-14%) scale(1.12); } }
-@keyframes tower-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@keyframes plate-in { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes plate-out { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); } }
+@keyframes plate-draw { to { stroke-dashoffset: 0; } }
+@keyframes plate-fade { to { opacity: 1; } }
+@keyframes plate-spin { to { transform: rotate(360deg); } }
+@keyframes spotlight { 0% { transform: translateX(-50%) scaleY(0); } 100% { transform: translateX(-50%) scaleY(1); } }
+@keyframes plating { from { transform: translateY(0) scale(1) rotate(-4deg); } to { transform: translateY(-12%) scale(1.12) rotate(4deg); } }
+@keyframes diner-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 @keyframes story-in { from { opacity: 0; transform: translateY(30px) scale(.95); } to { opacity: 1; transform: none; } }
 @keyframes room-pop { 0% { transform: scale(.6); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 @keyframes flash { 0% { opacity: var(--flash-o); } 100% { opacity: 0; } }
@@ -734,14 +659,16 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 @keyframes bump { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 @keyframes bob { 0%, 100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(-3px) scale(1.03, .97); } }
 @keyframes pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
-@keyframes hurt {
-  0%, 100% { transform: translateX(0); filter: none; }
-  15% { transform: translateX(-6px) rotate(-6deg) scale(.95, 1.05); filter: brightness(1.6) sepia(1) hue-rotate(-40deg) saturate(4); }
-  45% { transform: translateX(6px) rotate(5deg); filter: brightness(1.3) sepia(.6) hue-rotate(-40deg) saturate(3); }
-  75% { transform: translateX(-3px); }
+/* A happy chomp when a dish arrives. */
+@keyframes yum {
+  0%, 100% { transform: none; }
+  20% { transform: scale(1.12, .88); }
+  45% { transform: translateY(-10%) scale(.94, 1.08) rotate(-4deg); }
+  70% { transform: scale(1.05, .95) rotate(3deg); }
 }
-@keyframes poof { 0% { transform: scale(1); filter: brightness(1); } 30% { transform: scale(1.2); filter: brightness(3) saturate(0); } 100% { transform: scale(0); opacity: 0; filter: brightness(3) saturate(0); } }
-@keyframes monster-in { 0% { transform: scale(0) translateY(-20px); } 100% { transform: scale(1); } }
+/* Full and happy: a little hop, then off they go. */
+@keyframes leave { 0% { transform: none; opacity: 1; } 35% { transform: translateY(-18%) scale(1.08); opacity: 1; } 100% { transform: translateY(-40%) scale(.4); opacity: 0; } }
+@keyframes customer-in { 0% { transform: scale(0) translateY(-20px); } 100% { transform: scale(1); } }
 @keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: .75; } }
 @keyframes floatup { 0% { opacity: 0; margin-top: 0; } 15% { opacity: 1; } 100% { opacity: 0; margin-top: -50px; } }
 

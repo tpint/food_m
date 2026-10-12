@@ -27,7 +27,7 @@ export const buildDefines = {
 /** Writes version.json next to the game so it can check for updates. */
 export function versionFile(): Plugin {
   return {
-    name: 'arcane-version-file',
+    name: 'sunny-spoon-version-file',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify(buildInfo) });
     },

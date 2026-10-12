@@ -1,16 +1,15 @@
 import './style.css';
-import { CHAINS, ElementId, GEN_LEVELS, GENERATORS, isElement, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
+import { CHAINS, GEN_LEVELS, GENERATORS, isFood, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
-  GameState, MERGE_COUNT, Monster, Piece, canUpgrade, currentTask, restore, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
-  newGame, refreshCost, refreshMonsters, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
-  BAG_MAX_SLOTS, bagSlotCost, bagSlots, buyBagSlot, storeInBag, takeFromBag,
+  GameState, MERGE_COUNT, Customer, Piece, canUpgrade, currentTask, restore, serve, collect, findOrder, genLevel, isWanted, load, movePiece, msToNextEnergy,
+  newGame, refreshCost, refreshCustomers, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
+  FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge,
   DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
 } from './game/state';
-import { generatorArt, iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
-import { burst, elementCharge, elementHit, puff, shower, trail } from './render/fx';
+import { generatorArt, iconArt, itemArt, loadArtOverrides, customerImg, pieceArt } from './render/art';
+import { burst, cookCharge, puff, shower, trail, yum } from './render/fx';
 import { sceneArt } from './render/scene';
-import { magicCircle } from './render/circle';
-import { spellAttack } from './render/spells';
+import { plateRing, serveDish } from './render/serve';
 import { roomAnchor, roomSvg, updateRoom } from './render/room';
 import { CHAPTERS, COMING_SOON, MENTOR } from './game/story';
 import { Board, Period, online, untilReset } from './online';
@@ -37,7 +36,7 @@ let saveTimer = 0;
  */
 function persist(changed = true) {
   if (changed) state.savedAt = Date.now();
-  updateBagCount();
+  updateFridgeCount();
   updateQuestBadge();
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
@@ -66,29 +65,7 @@ function floater(text: string, x: number, y: number) {
   setTimeout(() => f.remove(), 1000);
 }
 
-/**
- * An orb of pure element magic. It forms during the charge and is what flies
- * at the monster; bigger at higher levels.
- */
-function spellOrb(el: ElementId, level: number, cell: number, charge: number): HTMLElement {
-  const orb = document.createElement('div');
-  orb.className = `spell-orb el-${el}`;
-  const size = cell * (0.55 + level * 0.09);
-  orb.style.setProperty('--s', `${size}px`);
-  orb.style.setProperty('--form', `${charge * 0.65}ms`);
-  orb.style.setProperty('--form-delay', `${charge * 0.3}ms`);
-  document.body.appendChild(orb);
-  return orb;
-}
-
-/** Shake the whole game; `px` is the strongest offset. */
-function shake(px: number) {
-  const app = $('#app');
-  app.style.setProperty('--shake', `${px}px`);
-  restartAnim(app, 'shake');
-}
-
-/** Full-screen tinted flash for big spells. */
+/** Full-screen tinted flash for the biggest dishes. */
 function flash(color: string, level: number) {
   const f = document.createElement('div');
   f.className = 'flash';
@@ -105,18 +82,15 @@ function restartAnim(el: Element, cls: string) {
 }
 
 /** Fly an image along an arc from one point to another with a sparkle trail. */
-function fly(src: string, from: { x: number; y: number }, to: { x: number; y: number }, opts: { ms?: number; color?: string; size?: number; delay?: number; trailFn?: (x: number, y: number) => void; orb?: HTMLElement } = {}) {
-  const { ms = 550, color = '#fff', size, delay = 0, trailFn, orb } = opts;
+function fly(src: string, from: { x: number; y: number }, to: { x: number; y: number }, opts: { ms?: number; color?: string; size?: number; delay?: number } = {}) {
+  const { ms = 550, color = '#fff', size, delay = 0 } = opts;
   return new Promise<void>((resolve) => {
     setTimeout(() => {
-      // Either an image (coins, items) or a ready-made magic orb.
-      const el = orb ?? document.createElement('div');
-      if (!orb) {
-        el.className = 'flyer';
-        if (size) Object.assign(el.style, { width: `${size}px`, height: `${size}px`, margin: `${-size / 2}px 0 0 ${-size / 2}px` });
-        el.innerHTML = `<img src="${src}" alt="">`;
-        document.body.appendChild(el);
-      }
+      const el = document.createElement('div');
+      el.className = 'flyer';
+      if (size) Object.assign(el.style, { width: `${size}px`, height: `${size}px`, margin: `${-size / 2}px 0 0 ${-size / 2}px` });
+      el.innerHTML = `<img src="${src}" alt="">`;
+      document.body.appendChild(el);
       const start = performance.now();
       const lift = Math.min(120, Math.abs(to.y - from.y) * 0.35 + 40);
       const step = (now: number) => {
@@ -124,12 +98,10 @@ function fly(src: string, from: { x: number; y: number }, to: { x: number; y: nu
         const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
         const x = from.x + (to.x - from.x) * e;
         const y = from.y + (to.y - from.y) * e - Math.sin(Math.PI * t) * lift;
-        el.style.transform = orb
-          ? `translate(${x}px, ${y}px) scale(${1 + Math.sin(Math.PI * t) * 0.25})`
-          : `translate(${x}px, ${y}px) scale(${1 - t * 0.35}) rotate(${t * 20}deg)`;
+        el.style.transform = `translate(${x}px, ${y}px) scale(${1 - t * 0.35}) rotate(${t * 20}deg)`;
         el.style.left = '0';
         el.style.top = '0';
-        if (trailFn) trailFn(x, y); else trail(x, y, color);
+        trail(x, y, color);
         if (t < 1) requestAnimationFrame(step);
         else { el.remove(); resolve(); }
       };
@@ -146,14 +118,14 @@ const cellKeys: string[] = [];
 
 /**
  * Size the board cells to the largest that fit the space left between the
- * monsters and the info box, then give any spare height to the monster
+ * customers and the info box, then give any spare height to the customer
  * portraits. Re-run whenever the screen or a panel changes size.
  */
 function layout() {
   const wrap = $('#board-wrap');
   const root = document.documentElement.style;
   root.setProperty('--mon-extra', '0px');
-  // Bigger cells mean a bigger board and bigger monster cards (less room), so
+  // Bigger cells mean a bigger board and bigger customer cards (less room), so
   // whether a size fits only changes once: binary search for the largest.
   const fits = (size: number) => {
     root.setProperty('--cell', `${size}px`);
@@ -165,7 +137,7 @@ function layout() {
     if (fits(mid)) lo = mid; else hi = mid - 1;
   }
   fits(lo);
-  // Give leftover height to the monster portraits instead of a dead gap.
+  // Give leftover height to the customer portraits instead of a dead gap.
   const spare = wrap.clientHeight - boardEl.offsetHeight - 12;
   root.setProperty('--mon-extra', `${Math.max(0, Math.min(70, spare))}px`);
 }
@@ -232,7 +204,7 @@ function renderHud() {
   $('#xpfill').style.width = `${(state.xp / need) * 100}%`;
   $('#xptext').textContent = `${state.xp} / ${need} XP`;
   updateTimer();
-  updateTowerBadge();
+  updateDinerBadge();
   updateRefresh();
   // Keep the Upgrade button in sync with coins / level.
   if (selected >= 0 && state.board[selected]?.piece?.kind === 'gen') select(selected);
@@ -245,40 +217,40 @@ function updateTimer() {
   else t.textContent = `+1 in ${Math.ceil(ms / 1000)}s`;
 }
 
-// ------------------------------------------------------------------ monsters
+// ------------------------------------------------------------------ customers
 
-const monsterEls = new Map<number, HTMLElement>();
+const customerEls = new Map<number, HTMLElement>();
 const dyingIds = new Set<number>();
 
-function monsterCard(m: Monster): HTMLElement {
+function customerCard(m: Customer): HTMLElement {
   const el = document.createElement('div');
-  el.className = `monster enter${m.boss ? ' boss' : ''}`;
+  el.className = `customer enter${m.critic ? ' critic' : ''}`;
   el.dataset.id = String(m.id);
   el.innerHTML = `
-    <div class="portrait" aria-label="${m.name}"><img src="${monsterImg(m.kind)}" alt="${m.name}"></div>
+    <div class="portrait" aria-label="${m.name}"><img src="${customerImg(m.kind)}" alt="${m.name}"></div>
     <div class="tags">
-      <span class="xp-badge stroked" title="Experience for defeating it">+${m.xp} XP</span>
+      <span class="xp-badge stroked" title="Experience for serving them">+${m.xp} XP</span>
       <span class="reward"><img src="${iconArt.coin()}" alt="coins">${m.coins} <img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span>${m.gems ? ` <img src="${iconArt.gem()}" alt="gems">${m.gems}` : ''}</span>
     </div>
-    <div class="tray"><div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
-    <button class="cast stroked">Attack!</button>`;
-  el.querySelector('.cast')!.addEventListener('click', (e) => { e.stopPropagation(); doCast(m.id); });
-  el.querySelector('.portrait')!.addEventListener('click', () => showMonsterInfo(m));
+    <div class="tray"><div class="needs">${m.order.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
+    <button class="serve stroked">Serve!</button>`;
+  el.querySelector('.serve')!.addEventListener('click', (e) => { e.stopPropagation(); doServe(m.id); });
+  el.querySelector('.portrait')!.addEventListener('click', () => showCustomerInfo(m));
   setTimeout(() => el.classList.remove('enter'), 600);
   return el;
 }
 
-function renderMonsters() {
-  const wrap = $('#monsters');
-  const ids = new Set(state.monsters.map((m) => m.id));
-  for (const [id, el] of monsterEls) {
-    if (!ids.has(id) && !dyingIds.has(id)) { el.remove(); monsterEls.delete(id); }
+function renderCustomers() {
+  const wrap = $('#customers');
+  const ids = new Set(state.customers.map((m) => m.id));
+  for (const [id, el] of customerEls) {
+    if (!ids.has(id) && !dyingIds.has(id)) { el.remove(); customerEls.delete(id); }
   }
-  state.monsters.forEach((m, i) => {
-    let el = monsterEls.get(m.id);
+  state.customers.forEach((m, i) => {
+    let el = customerEls.get(m.id);
     if (!el) {
-      el = monsterCard(m);
-      monsterEls.set(m.id, el);
+      el = customerCard(m);
+      customerEls.set(m.id, el);
     }
     if (wrap.children[i] !== el && !dyingIds.size) wrap.insertBefore(el, wrap.children[i] ?? null);
     // Mark which needs are on the board.
@@ -289,7 +261,7 @@ function renderMonsters() {
       if (at >= 0) used.add(at);
       n.classList.toggle('have', at >= 0);
     });
-    el.classList.toggle('ready', !!findSpell(state, m));
+    el.classList.toggle('ready', !!findOrder(state, m));
     // Keep the star reward current (a chapter can add a bonus while cards are showing).
     const starN = el.querySelector('.star-n');
     if (starN) starN.textContent = String((m.stars ?? 1) + (state.starBonus ?? 0));
@@ -301,16 +273,16 @@ function updateRefresh() {
   const btn = $('#btn-refresh');
   btn.querySelector('.val')!.textContent = String(cost);
   btn.classList.toggle('off', state.coins < cost);
-  btn.setAttribute('aria-label', `New monsters for ${cost} coins`);
+  btn.setAttribute('aria-label', `New customers for ${cost} coins`);
 }
 
-/** Pay coins to swap all the monsters for new ones. */
+/** Pay coins to swap all the customers for new ones. */
 function doRefresh() {
-  if (dyingIds.size) return; // let a cast finish first
-  const r = refreshMonsters(state);
+  if (dyingIds.size) return; // let a serve finish first
+  const r = refreshCustomers(state);
   if (!r.ok) {
     sfx.error();
-    toast(`Need ${r.cost} coins for new monsters. Defeat one and the price resets!`);
+    toast(`Need ${r.cost} coins for new customers. Serve one and the price resets!`);
     return;
   }
   sfx.coin();
@@ -319,39 +291,39 @@ function doRefresh() {
   const at = center(btn);
   floater(`-${r.cost}`, at.x, at.y + 20);
   // The old cards poof, then the new ones bounce in.
-  const old = [...monsterEls.values()];
-  monsterEls.clear();
-  old.forEach((el) => el.classList.add('dying'));
+  const old = [...customerEls.values()];
+  customerEls.clear();
+  old.forEach((el) => el.classList.add('leaving'));
   setTimeout(() => {
     old.forEach((el) => el.remove());
-    renderMonsters();
+    renderCustomers();
     renderBoard();
   }, 450);
-  toast(`New monsters! The next refresh costs ${refreshCost(state)} coins.`);
+  toast(`New customers! The next refresh costs ${refreshCost(state)} coins.`);
   renderHud();
   persist();
 }
 $('#btn-refresh').addEventListener('click', (e) => { e.stopPropagation(); doRefresh(); });
 
-function showMonsterInfo(m: Monster) {
+function showCustomerInfo(m: Customer) {
   const stars = (m.stars ?? 1) + (state.starBonus ?? 0);
   const loot = [`${m.coins} coins`, `${m.xp} XP`, `${stars} star${stars === 1 ? '' : 's'}`, ...(m.gems ? [`${m.gems} gems`] : [])];
-  setInfo(monsterImg(m.kind), m.name, `Weak to: ${m.needs.map((n) => CHAINS[n.chain].levels[n.level - 1]).join(' + ')}. Defeat it for ${loot.join(', ')}.`);
+  setInfo(customerImg(m.kind), m.name, `Order: ${m.order.map((n) => CHAINS[n.chain].levels[n.level - 1]).join(' + ')}. Serve them for ${loot.join(', ')}.`);
 }
 
-async function doCast(id: number) {
-  const m = state.monsters.find((x) => x.id === id);
-  const el = monsterEls.get(id);
+async function doServe(id: number) {
+  const m = state.customers.find((x) => x.id === id);
+  const el = customerEls.get(id);
   if (!m || !el) return;
-  const cellsUsed = findSpell(state, m);
+  const cellsUsed = findOrder(state, m);
   if (!cellsUsed) return;
 
   // Capture art + positions before the state changes.
-  const flights = cellsUsed.map((i) => {
+  const dishes = cellsUsed.map((i) => {
     const p = state.board[i].piece as Extract<Piece, { kind: 'item' }>;
     return { src: pieceArt(p), from: center(cells[i]), color: pieceColor(p), chain: p.chain, level: p.level, cell: i };
   });
-  const res = cast(state, id);
+  const res = serve(state, id);
   if (!res) return;
   dyingIds.add(id);
   select(-1);
@@ -360,76 +332,63 @@ async function doCast(id: number) {
   const cell = cells[0].offsetWidth;
   const boardBox = boardEl.getBoundingClientRect();
   const frame = boardEl.clientLeft;
-  await Promise.all(flights.map((f, k) => new Promise<void>((done) => {
+  await Promise.all(dishes.map((f, k) => new Promise<void>((done) => {
     setTimeout(() => {
-      // Charge: an arcane circle draws itself under the item, which dissolves
-      // into element energy that gathers into an orb of magic.
-      const charge = 380 + f.level * 90;
+      // Plating: a plate draws itself under the item while it wiggles,
+      // steaming, then it flies over to the customer.
+      const charge = 320 + f.level * 70;
       const piece = cells[f.cell].firstElementChild as HTMLElement | null;
-      const circle = isElement(f.chain)
-        ? magicCircle(boardEl, f.chain, f.from.x - boardBox.left - frame, f.from.y - boardBox.top - frame, f.level, cell, charge)
+      const food = isFood(f.chain) ? f.chain : null;
+      const plate = food
+        ? plateRing(boardEl, food, f.from.x - boardBox.left - frame, f.from.y - boardBox.top - frame, f.level, cell, charge)
         : null;
-      let orb: HTMLElement | undefined;
-      if (isElement(f.chain)) {
-        piece?.style.setProperty('--charge', `${charge}ms`);
-        piece?.classList.add('dissolving');
-        elementCharge(f.chain, f.from.x, f.from.y, f.level, charge);
-        orb = spellOrb(f.chain, f.level, cell, charge);
-        orb.style.transform = `translate(${f.from.x}px, ${f.from.y}px)`;
-      } else {
-        piece?.classList.add('charging');
-      }
-      sfx.charge(f.level, charge, isElement(f.chain) ? f.chain : undefined);
+      piece?.classList.add('charging');
+      if (food) cookCharge(food, f.from.x, f.from.y, f.level, charge);
+      sfx.plate(f.level, charge);
       setTimeout(() => {
-        circle?.release();
+        plate?.release();
         renderCell(f.cell);
-        // Element spells take a different form at every level.
-        let attack: Promise<void>;
-        if (isElement(f.chain)) {
-          sfx.attack(f.chain, f.level);
-          attack = spellAttack(f.chain, f.level, f.from, target, cell, orb);
-        } else {
-          sfx.cast();
-          attack = fly(f.src, f.from, target, { ms: 520, color: f.color, orb, size: cell * (0.8 + f.level * 0.1) });
-        }
-        attack.then(() => {
-          if (isElement(f.chain)) {
-            const fx = elementHit(f.chain, target.x, target.y, f.level);
-            sfx.element(f.chain, f.level);
-            if (fx.shake) shake(fx.shake);
+        sfx.whoosh(f.level);
+        const trip = food
+          ? serveDish(food, f.level, f.src, f.from, target, cell)
+          : fly(f.src, f.from, target, { ms: 520, color: f.color, size: cell * (0.8 + f.level * 0.1) });
+        trip.then(() => {
+          if (food) {
+            const fx = yum(food, target.x, target.y, f.level);
+            sfx.yum(food, f.level);
             if (fx.flash) flash(fx.flash, f.level);
           } else {
             burst(target.x, target.y, f.color, 0.7);
           }
-          restartAnim(el, 'hit');
+          restartAnim(el, 'yum');
           done();
         });
       }, charge);
     }, k * 240);
   })));
-  // Let the biggest effect play out before the monster vanishes.
-  await new Promise((r) => setTimeout(r, 200 + Math.max(...flights.map((f) => f.level)) * 90));
+  // Let the biggest effect play out before the customer leaves.
+  await new Promise((r) => setTimeout(r, 200 + Math.max(...dishes.map((f) => f.level)) * 90));
 
-  // The monster's parting cry, then the victory jingle.
-  sfx.monsterCry(m.kind);
-  setTimeout(() => sfx.defeat(), m.boss ? 900 : ['ghost', 'imp', 'golem', 'wolf', 'treant', 'cyclops'].includes(m.kind) ? 600 : 350);
-  el.classList.add('dying');
-  shower(target.x, target.y, m.boss ? ['#ffcf4a', '#ff8a3c', '#fff'] : ['#ffd147', '#b98cff', '#fff']);
-  floater(`+${res.monster.coins}`, target.x, target.y - 20);
+  // The customer's happy thank-you, then the cash register jingle.
+  sfx.customerCheer(m.kind);
+  setTimeout(() => sfx.served(), m.critic ? 900 : 500);
+  el.classList.add('leaving');
+  shower(target.x, target.y, m.critic ? ['#ffcf4a', '#ff8a3c', '#fff'] : ['#ffd147', '#ff7fb8', '#fff']);
+  floater(`+${res.customer.coins}`, target.x, target.y - 20);
   setTimeout(() => {
     const xp = center($('#xpbar'));
-    floater(`+${res.monster.xp} XP`, xp.x, xp.y);
+    floater(`+${res.customer.xp} XP`, xp.x, xp.y);
   }, 300);
 
-  online.submit(state.defeated, state.level);
+  online.submit(state.served, state.level);
 
-  // A star flies to the Tower button.
+  // A star flies to the menu button (the restaurant lives there).
   fly(iconArt.gstar(), target, center($('#btn-menu')), { ms: 700, delay: 250, color: '#ffd23c', size: 30 })
-    .then(() => { restartAnim($('#btn-menu'), 'bump'); updateTowerBadge(); });
+    .then(() => { restartAnim($('#btn-menu'), 'bump'); updateDinerBadge(); });
 
   // Coins fly to the HUD.
   const hudCoin = center($('#hud-coins img'));
-  const n = Math.min(8, 3 + Math.floor(res.monster.coins / 10));
+  const n = Math.min(8, 3 + Math.floor(res.customer.coins / 10));
   for (let k = 0; k < n; k++) {
     fly(iconArt.coin(), { x: target.x + (Math.random() - 0.5) * 40, y: target.y }, hudCoin, { ms: 600, delay: 150 + k * 60, color: '#ffd147', size: 26 })
       .then(() => { if (k % 2 === 0) sfx.coin(); });
@@ -438,14 +397,14 @@ async function doCast(id: number) {
     renderHud();
     dyingIds.delete(id);
     el.remove();
-    monsterEls.delete(id);
-    renderMonsters();
+    customerEls.delete(id);
+    renderCustomers();
     renderBoard();
     if (res.levelUp) {
       sfx.levelUp();
-      toast(`✨ Level ${state.level}! ✨\nMana refilled, +3 gems`, true, 2200);
+      toast(`✨ Level ${state.level}! ✨\nEnergy refilled, +3 gems`, true, 2200);
       const lv = center($('#hud-level'));
-      shower(lv.x, lv.y, ['#7fd0ff', '#b98cff', '#fff']);
+      shower(lv.x, lv.y, ['#7fd0ff', '#ff9ec8', '#fff']);
     }
   }, 750);
   persist();
@@ -485,7 +444,7 @@ function select(i: number) {
   if (selected >= 0) cells[selected]?.classList.remove('selected');
   selected = i;
   if (i < 0) {
-    setInfo(iconArt.hat(), 'Defeat the monsters!', 'Merge items to brew the magic each monster is weak to.');
+    setInfo(iconArt.toque(), 'Serve the customers!', 'Merge ingredients into the dishes each customer orders.');
     return;
   }
   cells[i].classList.add('selected');
@@ -500,8 +459,8 @@ function select(i: number) {
     const gl = genLevel(p);
     const lv = GEN_LEVELS[gl - 1];
     const top = CHAINS[def.chain].levels[lv.odds.length - 1];
-    const free = lv.freeChance ? ` ${Math.round(lv.freeChance * 100)}% free conjure.` : '';
-    const desc = `Tap again to conjure (⚡${SPAWN_COST}). Drops up to ${top}.${free}`;
+    const free = lv.freeChance ? ` ${Math.round(lv.freeChance * 100)}% chance it's free.` : '';
+    const desc = `Tap again to cook (⚡${SPAWN_COST}). Makes up to ${top}.${free}`;
     const up = canUpgrade(state, i);
     if (!up.ok && up.reason === 'max') return setInfo(pieceArt(p), `${def.name} · Lv ${gl} (max)`, desc);
     const cost = up.ok ? up.cost : up.cost!;
@@ -515,11 +474,11 @@ function select(i: number) {
   const title = `${name} · Lv ${p.level}`;
   if (def.collect) {
     const amt = def.collect.amounts[p.level - 1];
-    const what = def.collect.resource === 'coins' ? `${amt} coins` : `${amt} mana`;
+    const what = def.collect.resource === 'coins' ? `${amt} coins` : `${amt} energy`;
     return setInfo(pieceArt(p), title, `${next}. Tap again to collect ${what}.`, { label: 'Collect', fn: () => doCollect(i) });
   }
   const v = sellValue(p);
-  setInfo(pieceArt(p), title, `${next}.${isWanted(state, p) ? ' A monster is weak to this!' : ''}`, v ? { label: `Sell +${v}`, fn: () => doSell(i) } : undefined);
+  setInfo(pieceArt(p), title, `${next}.${isWanted(state, p) ? ' A customer ordered this!' : ''}`, v ? { label: `Sell +${v}`, fn: () => doSell(i) } : undefined);
 }
 
 // ------------------------------------------------------------------ actions
@@ -529,7 +488,7 @@ function doSpawn(i: number) {
   if (!r.ok) {
     sfx.error();
     restartAnim(cells[i].firstElementChild!, 'squish');
-    toast(r.reason === 'energy' ? 'Out of mana! Wait or collect Mana items.' : 'The board is full! Merge or sell items.');
+    toast(r.reason === 'energy' ? 'Out of energy! Wait or collect Energy items.' : 'The board is full! Merge or sell items.');
     return;
   }
   sfx.spawn();
@@ -543,7 +502,7 @@ function doSpawn(i: number) {
     cellKeys[r.at] = '';
     renderCell(r.at, 'pop');
     puff(to.x, to.y, pieceColor(p));
-    renderMonsters();
+    renderCustomers();
   });
   renderHud();
   persist();
@@ -554,7 +513,7 @@ function doUpgrade(i: number) {
   if (!r.ok) {
     sfx.error();
     if (r.reason === 'level') toast(`Reach player level ${r.req} to upgrade.`);
-    else if (r.reason === 'coins') toast(`Need ${r.cost} coins. Defeat monsters to earn more!`);
+    else if (r.reason === 'coins') toast(`Need ${r.cost} coins. Serve customers to earn more!`);
     return;
   }
   const pt = center(cells[i]);
@@ -594,7 +553,7 @@ function doSell(i: number) {
   select(-1);
   renderCell(i);
   renderHud();
-  renderMonsters();
+  renderCustomers();
   persist();
 }
 
@@ -602,7 +561,7 @@ function onTap(i: number) {
   const c = state.board[i];
   if (!c.piece) { select(-1); return; }
   if (c.piece.kind === 'gen') {
-    // First tap selects (free, shows Upgrade); tapping the selected generator conjures.
+    // First tap selects (free, shows Upgrade); tapping the selected station cooks.
     if (selected === i) doSpawn(i);
     else { sfx.pick(); restartAnim(cells[i].firstElementChild!, 'squish'); select(i); }
     return;
@@ -650,7 +609,7 @@ function onDrop(from: number, to: number) {
       if (r.results.length > 1) floater('Bonus x2!', target.x, target.y - 24);
       sfx.merge(lvl);
       renderBoard();
-      renderMonsters();
+      renderCustomers();
       select(to);
     });
     persist();
@@ -661,7 +620,7 @@ function onDrop(from: number, to: number) {
     renderCell(to, 'squish');
     select(to);
   }
-  renderMonsters();
+  renderCustomers();
   renderBoard();
   persist();
 }
@@ -711,7 +670,7 @@ addEventListener('pointermove', (e) => {
   }
   drag.ghost!.style.left = `${e.clientX}px`;
   drag.ghost!.style.top = `${e.clientY}px`;
-  bagBtn.classList.toggle('target', overBag(e.clientX, e.clientY));
+  fridgeBtn.classList.toggle('target', overFridge(e.clientX, e.clientY));
   const over = cellAt(e.clientX, e.clientY);
   if (over !== drag.over) {
     if (drag.over >= 0) cells[drag.over].classList.remove('drop');
@@ -728,8 +687,8 @@ function endDrag(e: PointerEvent) {
   d.ghost?.remove();
   cells[d.from].firstElementChild?.classList.remove('dragging-src');
   clearHints();
-  bagBtn.classList.remove('target');
-  if (overBag(e.clientX, e.clientY)) { doStore(d.from); return; }
+  fridgeBtn.classList.remove('target');
+  if (overFridge(e.clientX, e.clientY)) { doStore(d.from); return; }
   const to = cellAt(e.clientX, e.clientY);
   if (to >= 0 && to !== d.from) onDrop(d.from, to);
   else renderCell(d.from, 'squish');
@@ -740,7 +699,7 @@ addEventListener('pointercancel', (e) => {
   drag.ghost?.remove();
   cells[drag.from].firstElementChild?.classList.remove('dragging-src');
   clearHints();
-  bagBtn.classList.remove('target');
+  fridgeBtn.classList.remove('target');
   drag = null;
 });
 
@@ -751,13 +710,13 @@ $('#btn-sound').textContent = sfx.muted ? '🔇' : '🔊';
 
 // Debug helpers for playtesting from the console.
 Object.assign(window, {
-  arcane: {
+  kitchen: {
     reset() { state = newGame(); save(state); location.reload(); },
     energy(n = 100) { state.energy += n; renderHud(); persist(); },
     get state() { return state; },
-    /** Play any sound from the console, e.g. arcane.sfx.monsterCry('dragon'). */
+    /** Play any sound from the console, e.g. kitchen.sfx.customerCheer('critic'). */
     sfx,
-    /** Tower chapters (read-only reference for testing). */
+    /** Diner chapters (read-only reference for testing). */
     chapters: CHAPTERS,
   },
 });
@@ -772,9 +731,9 @@ function setMenu(open: boolean) {
   menuBtn.setAttribute('aria-expanded', String(open));
 }
 
-/** The menu button wears a "!" when quests or the tower have something ready. */
+/** The menu button wears a "!" when quests or the diner have something ready. */
 function updateMenuBadge() {
-  menuBtn.classList.toggle('ready', $('#btn-quests').classList.contains('ready') || $('#btn-tower').classList.contains('ready'));
+  menuBtn.classList.toggle('ready', $('#btn-quests').classList.contains('ready') || $('#btn-diner').classList.contains('ready'));
 }
 
 menuBtn.addEventListener('click', (e) => {
@@ -788,15 +747,15 @@ document.addEventListener('pointerdown', (e) => {
   if (!menuEl.classList.contains('hidden') && !(e.target as Element).closest('.hud-menu')) setMenu(false);
 });
 
-// ------------------------------------------------------------------ tower
+// ------------------------------------------------------------------ diner
 
-const towerEl = $('#tower');
+const dinerEl = $('#diner');
 let roomFor = '';
 
-function updateTowerBadge() {
+function updateDinerBadge() {
   $('#star-badge').textContent = String(state.stars);
   const t = currentTask(state);
-  $('#btn-tower').classList.toggle('ready', !!t && state.stars >= t.cost);
+  $('#btn-diner').classList.toggle('ready', !!t && state.stars >= t.cost);
   updateMenuBadge();
 }
 
@@ -808,19 +767,19 @@ function updateScene() {
   document.documentElement.style.setProperty('--scene', sceneArt(CHAPTERS[viewChapter()].id));
 }
 
-function renderTower(fresh?: string, chapterIdx = viewChapter()) {
+function renderDiner(fresh?: string, chapterIdx = viewChapter()) {
   const idx = chapterIdx;
   const ch = CHAPTERS[idx];
   const allDone = state.chapter > idx;
-  $('#tower-chapter').textContent = `Chapter ${idx + 1}`;
-  $('#tower-name').textContent = ch.name;
-  $('#tower-stars').textContent = String(state.stars);
+  $('#diner-chapter').textContent = `Chapter ${idx + 1}`;
+  $('#diner-name').textContent = ch.name;
+  $('#diner-stars').textContent = String(state.stars);
   const room = $('#room');
   if (roomFor !== ch.id) { room.innerHTML = roomSvg(ch.id); roomFor = ch.id; }
   const done = ch.tasks.filter((t) => state.tasksDone.includes(t.id)).map((t) => t.id);
   updateRoom(room.querySelector('svg')!, done, ch.tasks.length, fresh);
-  $('#tower-fill').style.width = `${(done.length / ch.tasks.length) * 100}%`;
-  $('#tower-progress-text').textContent = allDone ? (state.chapter >= CHAPTERS.length ? 'Fully restored! More rooms coming soon' : 'Fully restored!') : `${done.length} / ${ch.tasks.length} restored`;
+  $('#diner-fill').style.width = `${(done.length / ch.tasks.length) * 100}%`;
+  $('#diner-progress-text').textContent = allDone ? (state.chapter >= CHAPTERS.length ? 'Fully restored! More rooms coming soon' : 'Fully restored!') : `${done.length} / ${ch.tasks.length} restored`;
   const cur = currentTask(state);
   $('#tasks').innerHTML = ch.tasks.map((t, k) => {
     const isDone = done.includes(t.id);
@@ -836,27 +795,27 @@ function renderTower(fresh?: string, chapterIdx = viewChapter()) {
   }).join('');
 }
 
-function openTower() {
+function openDiner() {
   sfx.pick();
-  towerEl.classList.remove('hidden');
-  renderTower();
+  dinerEl.classList.remove('hidden');
+  renderDiner();
 }
 
-function closeTower() {
-  towerEl.classList.add('hidden');
+function closeDiner() {
+  dinerEl.classList.add('hidden');
 }
 
 function doRestore() {
   const r = restore(state);
   if (!r.ok) {
     sfx.error();
-    if (r.reason === 'stars') toast(`Need ${r.cost} stars. Defeat monsters to earn more!`);
+    if (r.reason === 'stars') toast(`Need ${r.cost} stars. Serve customers to earn more!`);
     return;
   }
   sfx.levelUp();
   // Keep showing the room this task belongs to, even if the chapter just ended.
   const shown = r.chapterDone ? state.chapter - 1 : state.chapter;
-  renderTower(r.task.id, shown);
+  renderDiner(r.task.id, shown);
   const svg = $('#room svg');
   const box = svg.getBoundingClientRect();
   const [ax, ay] = roomAnchor(CHAPTERS[shown].id, r.task.id);
@@ -872,11 +831,11 @@ function doRestore() {
       text: `Chapter complete: ${r.chapterDone.name}!`,
       extra: `Reward: ${r.chapterDone.rewardText}.`,
       // Move to the next room once the chapter's story is over.
-      then: () => renderTower(),
+      then: () => renderDiner(),
     });
     if (!online.code && !state.storySeen.includes('code-tip')) {
       state.storySeen.push('code-tip');
-      lines.push({ text: 'Hoo, one more thing! Tap your level star to make a recovery code. Then your progress is safe even if you switch devices.' });
+      lines.push({ text: 'Squeak, one more thing! Tap your level star to make a recovery code. Then your progress is safe even if you switch devices.' });
     }
     if (next) {
       state.storySeen.push(`${next.id}-intro`);
@@ -887,15 +846,15 @@ function doRestore() {
     renderBoard();
     for (const i of r.upgraded) renderCell(i, 'merge');
     for (const i of r.placed) renderCell(i, 'pop');
-    renderMonsters();
+    renderCustomers();
   }
   setTimeout(() => tell(lines), 700);
   renderHud();
   persist();
 }
 
-$('#btn-tower').addEventListener('click', openTower);
-$('#btn-back').addEventListener('click', closeTower);
+$('#btn-diner').addEventListener('click', openDiner);
+$('#btn-back').addEventListener('click', closeDiner);
 $('#tasks').addEventListener('click', (e) => {
   if ((e.target as HTMLElement).closest('[data-restore]')) doRestore();
 });
@@ -918,31 +877,31 @@ function boardMessage(text: string, retry = false) {
 function renderMe(b: Board | null) {
   $('#me-name').textContent = b?.me?.name ?? online.name;
   $('#me-rank').textContent = b?.me?.rank ? `#${b.me.rank}` : '–';
-  $('#me-score').textContent = String(b?.me?.score ?? (period === 'week' ? 0 : period === 'level' ? state.level : state.defeated));
-  $('#me-unit').textContent = period === 'level' ? 'level' : 'monsters';
+  $('#me-score').textContent = String(b?.me?.score ?? (period === 'week' ? 0 : period === 'level' ? state.level : state.served));
+  $('#me-unit').textContent = period === 'level' ? 'level' : 'customers';
 }
 
 async function loadBoard() {
   const req = ++boardReq;
-  $('#leaders-sub').textContent = period === 'week' ? `Monsters defeated · resets in ${untilReset()}`
-    : period === 'level' ? 'Highest level' : 'Monsters defeated · all time';
+  $('#leaders-sub').textContent = period === 'week' ? `Customers served · resets in ${untilReset()}`
+    : period === 'level' ? 'Highest level' : 'Customers served · all time';
   renderMe(null);
   $('#board-list').innerHTML = '';
-  boardMessage('Summoning the scores...');
+  boardMessage('Fetching the scores...');
   try {
     const b = await online.board(period);
     if (req !== boardReq) return;
     renderMe(b);
-    boardMessage(b.top.length ? '' : period === 'week' ? 'No monsters defeated yet this week. Be the first on the board!' : 'No scores yet. Be the first on the board!');
+    boardMessage(b.top.length ? '' : period === 'week' ? 'No customers served yet this week. Be the first on the board!' : 'No scores yet. Be the first on the board!');
     $('#board-list').innerHTML = b.top.map((r) => {
       const medal = r.rank <= 3 ? ` medal r${r.rank}` : '';
       return `<li class="row${r.me ? ' me' : ''}"><span class="row-rank${medal}">${r.rank}</span>`
-        + `<span class="row-name"><b>${escapeHtml(r.name)}${r.me ? ' (you)' : ''}</b><small>${period === 'level' ? `${r.defeated ?? 0} monsters defeated` : `Level ${r.level}`}</small></span>`
+        + `<span class="row-name"><b>${escapeHtml(r.name)}${r.me ? ' (you)' : ''}</b><small>${period === 'level' ? `${r.served ?? 0} customers served` : `Level ${r.level}`}</small></span>`
         + `<span class="row-score">${period === 'level' ? `Lv ${r.score}` : r.score}</span></li>`;
     }).join('');
   } catch {
     if (req !== boardReq) return;
-    boardMessage("Can't reach the leaderboard right now. Check your internet connection. (It only works on the game's website.)", true);
+    boardMessage("Can't reach the leaderboard right now. Check your internet connection.", true);
   }
 }
 
@@ -988,80 +947,80 @@ $('#rename-form').addEventListener('submit', async (e) => {
   }
 });
 
-// ------------------------------------------------------------------ bag
+// ------------------------------------------------------------------ fridge
 
-const bagBtn = $('#btn-bag');
-const bagEl = $('#bag');
+const fridgeBtn = $('#btn-fridge');
+const fridgeEl = $('#fridge');
 
-function overBag(x: number, y: number) {
-  const r = bagBtn.getBoundingClientRect();
+function overFridge(x: number, y: number) {
+  const r = fridgeBtn.getBoundingClientRect();
   return x >= r.left - 6 && x <= r.right + 6 && y >= r.top - 6 && y <= r.bottom + 6;
 }
 
-function updateBagCount() {
-  const n = state.bag?.length ?? 0, max = bagSlots(state);
-  const el = $('#bag-count');
+function updateFridgeCount() {
+  const n = state.fridge?.length ?? 0, max = fridgeSlots(state);
+  const el = $('#fridge-count');
   el.textContent = `${n}/${max}`;
   el.classList.toggle('full', n >= max);
 }
 
-/** Drop the dragged piece into the bag. */
+/** Drop the dragged piece into the fridge. */
 function doStore(i: number) {
   const p = state.board[i].piece;
-  const r = storeInBag(state, i);
+  const r = storeInFridge(state, i);
   if (!r.ok) {
     sfx.error();
     renderCell(i, 'squish');
-    toast(r.reason === 'full' ? 'Your bag is full! Take something out or buy another slot.' : "That can't go in the bag.");
+    toast(r.reason === 'full' ? 'Your fridge is full! Take something out or buy another slot.' : "That can't go in the fridge.");
     return;
   }
   sfx.pick();
   if (selected === i) select(-1);
   renderCell(i);
-  fly(pieceArt(p!), center(cells[i]), center(bagBtn), { ms: 300, size: 40 }).then(() => restartAnim(bagBtn, 'bump'));
-  renderMonsters();
+  fly(pieceArt(p!), center(cells[i]), center(fridgeBtn), { ms: 300, size: 40 }).then(() => restartAnim(fridgeBtn, 'bump'));
+  renderCustomers();
   renderBoard();
   persist();
 }
 
-function renderBag() {
-  const bag = state.bag ?? [], max = bagSlots(state);
-  $('#bag-sub').textContent = `${bag.length} of ${max} slots used`;
+function renderFridge() {
+  const fridge = state.fridge ?? [], max = fridgeSlots(state);
+  $('#fridge-sub').textContent = `${fridge.length} of ${max} slots used`;
   let html = '';
   for (let k = 0; k < max; k++) {
-    const p = bag[k];
+    const p = fridge[k];
     html += p
-      ? `<button class="bag-slot" data-slot="${k}" aria-label="Take out ${pieceName(p)}${p.kind === 'gen' ? ` (level ${genLevel(p)})` : ''}"><img src="${pieceArt(p)}" alt=""></button>`
-      : '<div class="bag-slot"></div>';
+      ? `<button class="fridge-slot" data-slot="${k}" aria-label="Take out ${pieceName(p)}${p.kind === 'gen' ? ` (level ${genLevel(p)})` : ''}"><img src="${pieceArt(p)}" alt=""></button>`
+      : '<div class="fridge-slot"></div>';
   }
-  if (max < BAG_MAX_SLOTS) {
-    html += `<button class="bag-slot buy" data-buy aria-label="Buy another slot for ${bagSlotCost(state)} gems"><b>+</b><span><img src="${iconArt.gem()}" alt="gems">${bagSlotCost(state)}</span></button>`;
+  if (max < FRIDGE_MAX_SLOTS) {
+    html += `<button class="fridge-slot buy" data-buy aria-label="Buy another slot for ${fridgeSlotCost(state)} gems"><b>+</b><span><img src="${iconArt.gem()}" alt="gems">${fridgeSlotCost(state)}</span></button>`;
   }
-  $('#bag-grid').innerHTML = html;
+  $('#fridge-grid').innerHTML = html;
 }
 
-function openBag() {
+function openFridge() {
   sfx.pick();
-  bagEl.classList.remove('hidden');
-  renderBag();
+  fridgeEl.classList.remove('hidden');
+  renderFridge();
 }
 
-bagBtn.addEventListener('click', openBag);
-$('#btn-bag-back').addEventListener('click', () => bagEl.classList.add('hidden'));
-$('#bag-grid').addEventListener('click', (e) => {
+fridgeBtn.addEventListener('click', openFridge);
+$('#btn-fridge-back').addEventListener('click', () => fridgeEl.classList.add('hidden'));
+$('#fridge-grid').addEventListener('click', (e) => {
   const btn = (e.target as Element).closest<HTMLButtonElement>('button');
   if (!btn) return;
   if (btn.dataset.buy !== undefined) {
-    const r = buyBagSlot(state);
+    const r = buyFridgeSlot(state);
     if (!r.ok) {
       sfx.error();
-      toast(r.reason === 'gems' ? `Need ${r.cost} gems for another slot.` : 'Your bag is as big as it gets!');
+      toast(r.reason === 'gems' ? `Need ${r.cost} gems for another slot.` : 'Your fridge is as big as it gets!');
       return;
     }
     sfx.levelUp();
-    toast(`New bag slot! (−${r.cost} gems)`);
+    toast(`New fridge slot! (−${r.cost} gems)`);
   } else {
-    const r = takeFromBag(state, Number(btn.dataset.slot));
+    const r = takeFromFridge(state, Number(btn.dataset.slot));
     if (!r.ok) {
       sfx.error();
       toast(r.reason === 'full' ? 'The board is full! Merge or sell something first.' : "Couldn't take that out.");
@@ -1069,10 +1028,10 @@ $('#bag-grid').addEventListener('click', (e) => {
     }
     sfx.spawn();
     renderCell(r.at, 'pop');
-    renderMonsters();
+    renderCustomers();
     renderBoard();
   }
-  renderBag();
+  renderFridge();
   renderHud();
   persist();
 });
@@ -1085,19 +1044,19 @@ let questsReady = -1;
 
 function questText(q: Quest): string {
   switch (q.kind) {
-    case 'defeat': return `Defeat ${q.target} monsters`;
+    case 'serve': return `Serve ${q.target} customers`;
     case 'merge': return `Merge ${q.target} times`;
-    case 'conjure': return `Conjure ${q.target} items`;
+    case 'cook': return `Cook ${q.target} ingredients`;
     case 'mergeHigh': return `Merge any item up to level ${q.level}`;
   }
 }
 
 function questIcon(q: Quest): string {
   switch (q.kind) {
-    case 'defeat': return monsterImg('bat');
-    case 'merge': return itemArt('water', 3);
-    case 'conjure': return generatorArt('forge', 1);
-    case 'mergeHigh': return itemArt('earth', q.level ?? 4);
+    case 'serve': return customerImg('cat');
+    case 'merge': return itemArt('drinks', 3);
+    case 'cook': return generatorArt('bbq', 1);
+    case 'mergeHigh': return itemArt('dessert', q.level ?? 4);
   }
 }
 
@@ -1112,14 +1071,14 @@ function updateQuestBadge() {
   updateMenuBadge();
   if (questsReady >= 0 && n > questsReady && questsEl.classList.contains('hidden')) {
     restartAnim($('#btn-menu'), 'bump');
-    toast('📜 Quest complete! Claim your reward.');
+    toast('📝 Quest complete! Claim your reward.');
   }
   questsReady = n;
 }
 
 const reward = (coins: number, gems: number, energy = 0) =>
   `<span class="quest-reward">${coins ? `<img src="${iconArt.coin()}" alt="coins">${coins} ` : ''}`
-  + `${gems ? `<img src="${iconArt.gem()}" alt="gems">${gems} ` : ''}${energy ? `<img src="${iconArt.energy()}" alt="mana">${energy}` : ''}</span>`;
+  + `${gems ? `<img src="${iconArt.gem()}" alt="gems">${gems} ` : ''}${energy ? `<img src="${iconArt.energy()}" alt="energy">${energy}` : ''}</span>`;
 
 function renderQuests() {
   const d = state.daily;
@@ -1161,7 +1120,7 @@ questsEl.addEventListener('click', (e) => {
     const b = claimDailyBonus(state);
     if (!b) return;
     shower(at.x, at.y, ['#ff6fb8', '#ffd147', '#fff']);
-    toast(`Daily chest! +${b.gems} gems, +${b.energy} mana`, true, 2000);
+    toast(`Daily chest! +${b.gems} gems, +${b.energy} energy`, true, 2000);
   }
   sfx.levelUp();
   renderQuests();
@@ -1180,11 +1139,11 @@ function replaceState(next: GameState) {
   state = next;
   tickEnergy(state);
   save(state);
-  monsterEls.forEach((el) => el.remove());
-  monsterEls.clear();
+  customerEls.forEach((el) => el.remove());
+  customerEls.clear();
   buildBoard();
   renderBoard();
-  renderMonsters();
+  renderCustomers();
   renderHud();
   select(-1);
   layout();
@@ -1193,7 +1152,7 @@ function replaceState(next: GameState) {
   ensureDaily(state);
   questsReady = claimableQuests(state);
   updateQuestBadge();
-  updateBagCount();
+  updateFridgeCount();
 }
 
 function ago(ms: number) {
@@ -1207,7 +1166,7 @@ function ago(ms: number) {
 function renderCloudStatus() {
   const c = online.cloud;
   $('#cloud-status').textContent = c.error
-    ? "Couldn't reach the cloud. Your progress is safe on this device and will upload when you're back online. (Cloud save only works on the game's website.)"
+    ? "Couldn't reach the cloud. Your progress is safe on this device and will upload when you're back online."
     : c.savedAt ? `Saved to the cloud ${ago(c.savedAt)}.` : 'Your progress uploads to the cloud automatically as you play.';
 }
 online.onCloudChange = () => { if (!profileEl.classList.contains('hidden')) renderCloudStatus(); };
@@ -1238,7 +1197,7 @@ async function makeCode() {
     toast(`Your recovery code: ${code}`, false, 2200);
   } catch {
     sfx.error();
-    toast("Couldn't create a code. Check your connection; this works on the game's website.");
+    toast("Couldn't create a code. Check your connection and try again.");
   }
 }
 
@@ -1278,8 +1237,8 @@ $('#restore-form').addEventListener('submit', (e) => {
     toast('Recovery codes have 16 letters and numbers, like ABCD-EFGH-JKLM-NPQR.');
     return;
   }
-  $('#restore-loss').textContent = state.defeated > 0 || state.tasksDone.length
-    ? `Your current game here (level ${state.level}, ${state.defeated} monsters defeated) will be replaced.`
+  $('#restore-loss').textContent = state.served > 0 || state.tasksDone.length
+    ? `Your current game here (level ${state.level}, ${state.served} customers served) will be replaced.`
     : '';
   $('#restore-confirm').classList.remove('hidden');
 });
@@ -1296,12 +1255,12 @@ $('#btn-restore-yes').addEventListener('click', async () => {
     toast(next ? `Welcome back, ${online.name}!` : `Linked to ${online.name}. No cloud save was found yet.`, true, 2200);
   } catch (err) {
     sfx.error();
-    toast(err instanceof Error && err.message.includes('not found') ? 'That recovery code was not found. Check it and try again.' : "Couldn't restore. Check your connection; this works on the game's website.");
+    toast(err instanceof Error && err.message.includes('not found') ? 'That recovery code was not found. Check it and try again.' : "Couldn't restore. Check your connection and try again.");
   }
 });
 
 $('#btn-reset').addEventListener('click', () => {
-  $('#reset-loss').textContent = `level ${state.level}, ${state.defeated} monsters defeated, chapter ${Math.min(state.chapter + 1, CHAPTERS.length)}`;
+  $('#reset-loss').textContent = `level ${state.level}, ${state.served} customers served, chapter ${Math.min(state.chapter + 1, CHAPTERS.length)}`;
   $('#reset-code-note').textContent = online.code
     ? `Your old game stays in the cloud: recovery code ${online.code} still brings it back.`
     : "You have no recovery code, so the old game can't be brought back.";
@@ -1339,7 +1298,7 @@ async function syncFromCloud() {
 const VERSION_LABEL = `v${__APP_VERSION__} · ${__APP_BUILD__}`;
 
 $('#version-tag').textContent = VERSION_LABEL;
-$('#about-version').textContent = `Arcane Merge ${VERSION_LABEL}`;
+$('#about-version').textContent = `Sunny Spoon ${VERSION_LABEL}`;
 $('#about-built').textContent = `Released ${new Date(__APP_DATE__).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`;
 
 /**
@@ -1375,7 +1334,7 @@ interface StoryLine { text: string; extra?: string; then?: () => void }
 const storyQueue: StoryLine[] = [];
 let storyThen: (() => void) | undefined;
 
-/** Queue lines for Professor Hoot to say, one card at a time. */
+/** Queue lines for Chef Pip to say, one card at a time. */
 function tell(lines: (string | StoryLine)[]) {
   for (const l of lines) storyQueue.push(typeof l === 'string' ? { text: l } : l);
   if ($('#story').classList.contains('hidden')) nextStory();
@@ -1409,10 +1368,10 @@ $('#story-next').addEventListener('click', nextStory);
 
 // Tapping empty space on a full-screen panel (the dimmed backdrop, the gaps between
 // cards, the header) works like its back button. Taps on cards and controls don't.
-for (const [panel, back] of [['#tower', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#bag', '#btn-bag-back']]) {
+for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#fridge', '#btn-fridge-back']]) {
   $(panel).addEventListener('click', (e) => {
     const t = e.target as Element;
-    if (t === e.currentTarget || t.matches('.tower-inner, .tower-head, .tower-title, .tower-title > *, .bag-hint')) $(back).click();
+    if (t === e.currentTarget || t.matches('.sheet-inner, .sheet-head, .sheet-title, .sheet-title > *, .fridge-hint')) $(back).click();
   });
 }
 
@@ -1426,7 +1385,7 @@ async function boot() {
   buildBoard();
   renderBoard();
   renderHud();
-  renderMonsters();
+  renderCustomers();
   select(-1);
   layout();
   // Relayout when the screen changes (rotation, browser toolbars) or a panel changes height.
@@ -1438,7 +1397,7 @@ async function boot() {
   ensureDaily(state);
   questsReady = claimableQuests(state);
   updateQuestBadge();
-  updateBagCount();
+  updateFridgeCount();
 
   setInterval(() => {
     // Energy refilling on its own is not a player change.
@@ -1455,10 +1414,10 @@ async function boot() {
 
   syncFromCloud();
 
-  // Catch up on monsters defeated while offline.
-  if (state.defeated > 0) online.submit(state.defeated, state.level);
+  // Catch up on customers served while offline.
+  if (state.served > 0) online.submit(state.served, state.level);
 
-  $<HTMLImageElement>('#story-owl').src = iconArt.owl();
+  $<HTMLImageElement>('#story-chef').src = iconArt.chef();
   // Play the current chapter's intro once (also for players who finished
   // the previous chapter before this one existed).
   const ch = CHAPTERS[state.chapter];

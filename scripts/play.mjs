@@ -1,68 +1,75 @@
-// Scripted playtest: merge, spawn, cast. Saves screenshots to the given dir.
+// Scripted playtest: serve a customer, then open the restaurant, leaderboard,
+// quests and fridge. Saves screenshots to the given dir.
+// Usage: node scripts/play.mjs [url] [dir]   (with `npm run dev` running)
 import { chromium } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
 
-/** Click through Professor Hoot's story cards if any are showing. */
-async function skipStory(p) {
+const [url = 'http://localhost:5173/', dir = 'shots'] = process.argv.slice(2);
+mkdirSync(dir, { recursive: true });
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+const errors = [];
+p.on('pageerror', (e) => errors.push(e.message));
+p.on('console', (m) => m.type() === 'error' && !m.text().includes('404') && errors.push(m.text()));
+
+/** Click through Chef Pip's story cards if any are showing. */
+async function skipStory() {
   await p.waitForTimeout(700);
-  for (let i = 0; i < 10 && await p.locator('#story:not(.hidden)').count(); i++) {
+  for (let i = 0; i < 12 && await p.locator('#story:not(.hidden)').count(); i++) {
     await p.locator('#story-next').click();
     await p.waitForTimeout(150);
   }
 }
 
-const [url = 'http://localhost:5173/', dir = 'shots'] = process.argv.slice(2);
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: false });
-const errors = [];
-p.on('pageerror', (e) => errors.push(e.message));
 await p.goto(url);
-await p.evaluate(() => localStorage.clear());
-await p.reload();
-await p.waitForTimeout(600); await skipStory(p);
-await p.screenshot({ path: `${dir}/p1.png` });
+await skipStory();
 
-const cellCenter = async (i) => {
-  const r = await p.locator(`.cell[data-i="${i}"]`).boundingBox();
-  return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-};
-const dragCells = async (a, z) => {
-  const s = await cellCenter(a), e = await cellCenter(z);
-  await p.mouse.move(s.x, s.y); await p.mouse.down();
-  await p.mouse.move(s.x + 10, s.y + 10, { steps: 3 });
-  await p.mouse.move(e.x, e.y, { steps: 8 });
-  await p.mouse.up();
-};
-// Two shards alone won't merge; the third (cell 54) completes the set.
-await dragCells(36, 37);
-await p.waitForTimeout(300);
-console.log('two-only toast:', await p.locator('#toast').textContent());
-await dragCells(54, 37);
-await p.waitForTimeout(120);
-await p.screenshot({ path: `${dir}/p2-merge.png` });
-await p.waitForTimeout(500);
-// Tap generators a bunch.
-for (let k = 0; k < 6; k++) { const c = await cellCenter(60); await p.mouse.click(c.x, c.y); await p.waitForTimeout(80); }
-for (let k = 0; k < 6; k++) { const c = await cellCenter(56); await p.mouse.click(c.x, c.y); await p.waitForTimeout(80); }
-await p.waitForTimeout(500);
-await p.screenshot({ path: `${dir}/p3-spawn.png` });
-// Make every monster castable by placing needed items via state, then cast the first.
+// Put the first customer's whole order on the board, then serve them.
 await p.evaluate(() => {
-  const s = window.arcane.state; const m = s.monsters[0];
-  m.needs.forEach((n, k) => { s.board[21 + 7 + k].piece = { kind: 'item', chain: n.chain, level: n.level }; });
+  const k = window.kitchen;
+  const s = k.state;
+  s.customers[0].order.forEach((n, i) => { s.board[14 + i].piece = { kind: 'item', chain: n.chain, level: Math.max(n.level, 1) }; });
+  s.customers[0].order = s.customers[0].order.map((n) => ({ ...n, level: Math.max(n.level, 1) }));
+  localStorage.setItem('food-merge-save-v1', JSON.stringify(s));
 });
-await p.evaluate(() => window.dispatchEvent(new Event('resize')));
-// Force re-render by a no-op drag-tap on empty cell
-const c = await cellCenter(30); await p.mouse.click(c.x, c.y);
-await p.waitForTimeout(300);
-const ready = await p.locator('.monster.ready .cast').count();
-console.log('ready monsters', ready);
-if (ready) {
-  await p.locator('.monster.ready .cast').first().click();
-  await p.waitForTimeout(450);
-  await p.screenshot({ path: `${dir}/p4-cast.png` });
-  await p.waitForTimeout(1200);
+await p.reload();
+await skipStory();
+await p.screenshot({ path: `${dir}/1-ready.png` });
+await p.locator('.customer.ready .serve').first().click();
+await p.waitForTimeout(450);
+await p.screenshot({ path: `${dir}/2-plating.png` });
+await p.waitForTimeout(500);
+await p.screenshot({ path: `${dir}/3-serving.png` });
+await p.waitForTimeout(2000);
+await p.screenshot({ path: `${dir}/4-served.png` });
+
+// Restaurant, with a few tasks done.
+await p.evaluate(() => { window.kitchen.state.stars = 20; });
+await p.locator('#btn-menu').click();
+await p.locator('#btn-diner').click();
+for (let i = 0; i < 3; i++) {
+  await p.locator('[data-restore]').click();
+  await p.waitForTimeout(900);
+  await skipStory();
 }
-await p.screenshot({ path: `${dir}/p5-after.png` });
-console.log('state', await p.evaluate(() => JSON.stringify({ c: window.arcane.state.coins, e: window.arcane.state.energy, xp: window.arcane.state.xp, d: window.arcane.state.defeated })));
-console.log('errors', errors);
+await p.screenshot({ path: `${dir}/5-restaurant.png` });
+await p.locator('#btn-back').click();
+
+await p.locator('#btn-menu').click();
+await p.locator('#btn-leaders').click();
+await p.waitForTimeout(1200);
+await p.screenshot({ path: `${dir}/6-leaderboard.png` });
+await p.locator('#btn-leaders-back').click();
+
+await p.locator('#btn-menu').click();
+await p.locator('#btn-quests').click();
+await p.waitForTimeout(400);
+await p.screenshot({ path: `${dir}/7-quests.png` });
+await p.locator('#btn-quests-back').click();
+
+await p.locator('#btn-fridge').click();
+await p.waitForTimeout(400);
+await p.screenshot({ path: `${dir}/8-fridge.png` });
+
+console.log(errors.length ? `ERRORS:\n${errors.join('\n')}` : 'no page errors');
 await b.close();

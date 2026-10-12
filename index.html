@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#3b2a55" />
+  <meta name="theme-color" content="#e8584a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
-  <title>Arcane Merge</title>
+  <title>Sunny Spoon</title>
 </head>
 <body>
   <div id="scene"></div>
@@ -20,22 +20,22 @@
       <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
       <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
       <div class="hud-menu">
-        <button class="tower-btn" id="btn-menu" aria-label="Menu: daily quests, leaderboard and tower" aria-expanded="false" aria-controls="menu">
+        <button class="menu-btn" id="btn-menu" aria-label="Menu: daily quests, leaderboard and restaurant" aria-expanded="false" aria-controls="menu">
           <span class="burger" aria-hidden="true"><i></i><i></i><i></i></span>
         </button>
         <div id="menu" class="menu hidden" role="menu">
-          <button class="menu-item" id="btn-quests" role="menuitem"><img data-icon="scroll" alt="" /><span>Daily quests</span></button>
+          <button class="menu-item" id="btn-quests" role="menuitem"><img data-icon="pad" alt="" /><span>Daily quests</span></button>
           <button class="menu-item" id="btn-leaders" role="menuitem"><img data-icon="trophy" alt="" /><span>Leaderboard</span></button>
-          <button class="menu-item" id="btn-tower" role="menuitem"><img data-icon="tower" alt="" /><span>Tower</span><span class="star-badge stroked" id="star-badge">0</span></button>
+          <button class="menu-item" id="btn-diner" role="menuitem"><img data-icon="diner" alt="" /><span>Restaurant</span><span class="star-badge stroked" id="star-badge">0</span></button>
         </div>
       </div>
     </header>
 
     <div id="xpbar"><div id="xpfill"></div><span id="xptext" class="stroked"></span></div>
 
-    <div id="monsters-wrap">
-      <section id="monsters" aria-label="Monsters"></section>
-      <button id="btn-refresh" class="stroked" aria-label="New monsters"><span class="spin">⟳</span><img data-icon="coin" alt="coins" /><span class="val">10</span></button>
+    <div id="customers-wrap">
+      <section id="customers" aria-label="Customers"></section>
+      <button id="btn-refresh" class="stroked" aria-label="New customers"><span class="spin">⟳</span><img data-icon="coin" alt="coins" /><span class="val">10</span></button>
     </div>
 
     <main id="board-wrap">
@@ -43,12 +43,12 @@
     </main>
 
     <div id="bottom">
-    <button id="btn-bag" aria-label="Open the bag. Drag items here to store them"><img data-icon="bag" alt="" /><span class="bag-count stroked" id="bag-count">0/5</span></button>
+    <button id="btn-fridge" aria-label="Open the fridge. Drag items here to store them"><img data-icon="fridge" alt="" /><span class="fridge-count stroked" id="fridge-count">0/5</span></button>
     <footer id="info">
       <div id="info-frame"><img id="info-img" alt="" /></div>
       <div id="info-text">
-        <b id="info-title">Welcome, apprentice!</b>
-        <span id="info-desc">Tap a grimoire, then tap again to conjure items. Merge three of a kind!</span>
+        <b id="info-title">Welcome, chef!</b>
+        <span id="info-desc">Tap a kitchen station, then tap again to cook. Merge three of a kind!</span>
       </div>
       <button id="info-action" class="btn stroked hidden"></button>
       <span id="version-tag" class="version-tag" aria-label="Game version"></span>
@@ -56,29 +56,29 @@
     </div>
   </div>
 
-  <section id="tower" class="hidden" aria-label="Tower">
-    <div class="tower-inner">
-      <header class="tower-head">
+  <section id="diner" class="hidden" aria-label="Restaurant">
+    <div class="sheet-inner">
+      <header class="sheet-head">
         <button class="round" id="btn-back" aria-label="Back to the board">←</button>
-        <div class="tower-title">
-          <small id="tower-chapter">Chapter 1</small>
-          <b id="tower-name" class="stroked">The Dusty Library</b>
+        <div class="sheet-title">
+          <small id="diner-chapter">Chapter 1</small>
+          <b id="diner-name" class="stroked">The Dusty Dining Room</b>
         </div>
-        <div class="pill tower-stars"><img data-icon="gstar" alt="" /><span class="val stroked" id="tower-stars">0</span></div>
+        <div class="pill diner-stars"><img data-icon="gstar" alt="" /><span class="val stroked" id="diner-stars">0</span></div>
         <button class="round" id="btn-sound" aria-label="Toggle sound">🔊</button>
       </header>
       <div class="room-frame" id="room"></div>
-      <div class="tower-progress"><div id="tower-fill"></div><span id="tower-progress-text" class="stroked">0 / 6 restored</span></div>
+      <div class="diner-progress"><div id="diner-fill"></div><span id="diner-progress-text" class="stroked">0 / 6 restored</span></div>
       <ol id="tasks"></ol>
     </div>
   </section>
 
   <section id="leaders" class="hidden" aria-label="Leaderboard">
-    <div class="tower-inner">
-      <header class="tower-head">
+    <div class="sheet-inner">
+      <header class="sheet-head">
         <button class="round" id="btn-leaders-back" aria-label="Back to the board">←</button>
-        <div class="tower-title">
-          <small id="leaders-sub">Monsters defeated</small>
+        <div class="sheet-title">
+          <small id="leaders-sub">Customers served</small>
           <b class="stroked">Leaderboard</b>
         </div>
       </header>
@@ -91,14 +91,14 @@
         <div class="me-rank stroked" id="me-rank">–</div>
         <div class="me-main">
           <small>You</small>
-          <b id="me-name">Apprentice</b>
+          <b id="me-name">Chef</b>
           <form id="rename-form" class="hidden">
             <label for="rename-input" class="sr">Display name</label>
             <input id="rename-input" maxlength="16" autocomplete="nickname" />
             <button class="btn stroked" type="submit">Save</button>
           </form>
         </div>
-        <div class="me-score"><span class="stroked" id="me-score">0</span><small id="me-unit">monsters</small></div>
+        <div class="me-score"><span class="stroked" id="me-score">0</span><small id="me-unit">customers</small></div>
         <button class="round" id="btn-rename" aria-label="Change your name">✎</button>
       </div>
       <button class="link-btn" id="btn-profile-from-board">Keep your progress safe: profile &amp; recovery code →</button>
@@ -107,25 +107,25 @@
     </div>
   </section>
 
-  <section id="bag" class="hidden" aria-label="Bag">
-    <div class="tower-inner">
-      <header class="tower-head">
-        <button class="round" id="btn-bag-back" aria-label="Back to the board">←</button>
-        <div class="tower-title">
-          <small id="bag-sub">0 of 5 slots used</small>
-          <b class="stroked">Bag</b>
+  <section id="fridge" class="hidden" aria-label="Fridge">
+    <div class="sheet-inner">
+      <header class="sheet-head">
+        <button class="round" id="btn-fridge-back" aria-label="Back to the board">←</button>
+        <div class="sheet-title">
+          <small id="fridge-sub">0 of 5 slots used</small>
+          <b class="stroked">Fridge</b>
         </div>
       </header>
-      <div class="bag-grid" id="bag-grid"></div>
-      <p class="bag-hint">Drag an item or grimoire onto the bag to store it. Tap a stored one to put it back on the board.</p>
+      <div class="fridge-grid" id="fridge-grid"></div>
+      <p class="fridge-hint">Drag an item or kitchen station onto the fridge to store it. Tap a stored one to put it back on the board.</p>
     </div>
   </section>
 
   <section id="quests" class="hidden" aria-label="Daily quests">
-    <div class="tower-inner">
-      <header class="tower-head">
+    <div class="sheet-inner">
+      <header class="sheet-head">
         <button class="round" id="btn-quests-back" aria-label="Back to the board">←</button>
-        <div class="tower-title">
+        <div class="sheet-title">
           <small id="quests-sub">New quests in 12h</small>
           <b class="stroked">Daily quests</b>
         </div>
@@ -136,12 +136,12 @@
   </section>
 
   <section id="profile" class="hidden" aria-label="Profile">
-    <div class="tower-inner">
-      <header class="tower-head">
+    <div class="sheet-inner">
+      <header class="sheet-head">
         <button class="round" id="btn-profile-back" aria-label="Back to the board">←</button>
-        <div class="tower-title">
-          <small>Your apprentice</small>
-          <b class="stroked" id="profile-name">Apprentice</b>
+        <div class="sheet-title">
+          <small>Your chef profile</small>
+          <b class="stroked" id="profile-name">Chef</b>
         </div>
       </header>
 
@@ -175,12 +175,12 @@
 
       <div class="panel">
         <h2>About</h2>
-        <p><b id="about-version">Arcane Merge</b><br /><span id="about-built"></span></p>
+        <p><b id="about-version">Sunny Spoon</b><br /><span id="about-built"></span></p>
         <p id="update-status">Checking for updates...</p>
         <button class="btn stroked" id="btn-check-update">Check for updates</button>
         <button class="link-btn danger" id="btn-reset">Start over with a new account</button>
         <div id="reset-confirm" class="hint warn hidden">
-          This deletes your progress on this device (<span id="reset-loss"></span>) and starts a brand new game as a new apprentice.
+          This deletes your progress on this device (<span id="reset-loss"></span>) and starts a brand new game as a new chef.
           <span id="reset-code-note"></span>
           <div class="confirm-row"><button class="btn stroked" id="btn-reset-yes">Delete and start over</button><button class="link-btn inline" id="btn-reset-no">Cancel</button></div>
         </div>
@@ -190,9 +190,9 @@
 
   <div id="story" class="hidden" role="dialog" aria-modal="true" aria-labelledby="story-name">
     <div class="story-card">
-      <img id="story-owl" alt="" />
+      <img id="story-chef" alt="" />
       <div class="story-body">
-        <b id="story-name">Professor Hoot</b>
+        <b id="story-name">Chef Pip</b>
         <p id="story-text"></p>
         <button class="btn stroked" id="story-next">Continue</button>
       </div>

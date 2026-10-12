@@ -1,24 +1,164 @@
-// Online features (Supabase): leaderboard, cloud save and recovery codes.
-// Each device has a random secret token; the server stores only its hash.
-// A player can link more devices with a recovery code. All calls go to
-// database functions, which validate input and cap how fast a leaderboard
-// score can grow, so an edited save cannot jump to the top.
+// Online features: leaderboard, cloud save and recovery codes.
+//
+// For now these run against a MOCK backend that lives in this browser's
+// localStorage (with a seeded set of rival chefs on the leaderboard), so the
+// whole game works offline. To go live, implement `Backend` with real
+// database calls (e.g. Supabase RPCs) and swap it in where `backend` is set
+// below; nothing else in the game needs to change.
 
-const API = 'https://hdeywsbduhzvuthcvakk.supabase.co/rest/v1/rpc/';
-// Publishable key: safe to ship in the browser (it can only call the functions above).
-const KEY = 'sb_publishable_nekzHm_EjEPsPvdwyyuSfA_hC7btEgx';
-const STORE = 'arcane-player-v1';
+const STORE = 'food-player-v1';
 
-/** 'week' and 'all' rank monsters defeated; 'level' ranks player level. */
+/** 'week' and 'all' rank customers served; 'level' ranks player level. */
 export type Period = 'week' | 'all' | 'level';
 
-export interface BoardRow { rank: number; name: string; score: number; level: number; me: boolean; defeated?: number }
+export interface BoardRow { rank: number; name: string; score: number; level: number; me: boolean; served?: number }
 export interface Board {
   period: Period;
   week_start: string;
   top: BoardRow[];
   me: { rank: number | null; score: number; name: string } | null;
 }
+
+/** Everything the game asks of the server. `token` identifies this device's player. */
+export interface Backend {
+  register(token: string, name: string): Promise<{ name: string }>;
+  submit(token: string, served: number, level: number): Promise<{ throttled?: boolean }>;
+  board(token: string | null, period: Period): Promise<Board>;
+  cloudSave(token: string, save: unknown, saveAt: number): Promise<void>;
+  cloudLoad(token: string): Promise<{ save: unknown; save_at: number | null } | null>;
+  newCode(token: string): Promise<{ code: string }>;
+  recover(code: string, token: string): Promise<{ name: string; save: unknown; save_at: number | null }>;
+}
+
+// ------------------------------------------------------------------ mock backend
+
+const MOCK_DB = 'food-mock-server-v1';
+
+interface MockPlayer { name: string; served: number; weekServed: number; week: string; level: number; save?: unknown; saveAt?: number | null; code?: string }
+interface MockDb { players: Record<string, MockPlayer> }
+
+const RIVALS = [
+  'Chef Mango', 'Waffle Queen', 'Sir Pancake', 'Noodle Ninja', 'Captain Crumble', 'Lady Latte', 'Tofu Tom',
+  'Sushi Sam', 'Muffin Mia', 'Biscuit Bob', 'Pretzel Pat', 'Cocoa Kai', 'Taco Tina', 'Ramen Ray', 'Gelato Gigi',
+  'Dumpling Dan', 'Bagel Bea', 'Curry Cole', 'Paella Pia', 'Brownie Ben', 'Mochi Max', 'Churro Chloe',
+];
+
+/** Monday 00:00 UTC of the current week, as a date string. */
+function weekStart(now = new Date()): string {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+function loadDb(): MockDb {
+  try {
+    const db = JSON.parse(localStorage.getItem(MOCK_DB) ?? 'null') as MockDb | null;
+    if (db?.players) return db;
+  } catch { /* storage unavailable */ }
+  // Seed rival chefs so the leaderboard has something to show.
+  const players: Record<string, MockPlayer> = {};
+  let k = 7;
+  const rnd = () => ((k = (k * 16807) % 2147483647) - 1) / 2147483646;
+  RIVALS.forEach((name, i) => {
+    const served = Math.round(20 + rnd() * 600 * (1 - i / RIVALS.length));
+    players[`rival-${i}`] = { name, served, weekServed: Math.round(rnd() * Math.min(served, 80)), week: weekStart(), level: 2 + Math.floor(served / 25) };
+  });
+  return { players };
+}
+
+function storeDb(db: MockDb) {
+  try { localStorage.setItem(MOCK_DB, JSON.stringify(db)); } catch { /* storage unavailable */ }
+}
+
+/** A short pause so the UI's loading states behave like they will online. */
+const lag = () => new Promise((r) => setTimeout(r, 150 + Math.random() * 200));
+
+function codeOf(raw: string) {
+  return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+const mockBackend: Backend = {
+  async register(token, name) {
+    await lag();
+    const clean = name.trim().replace(/\s+/g, ' ');
+    if (clean.length < 1 || clean.length > 16) throw new Error('Names must be 1 to 16 characters.');
+    const db = loadDb();
+    db.players[token] ??= { name: clean, served: 0, weekServed: 0, week: weekStart(), level: 1 };
+    db.players[token].name = clean;
+    storeDb(db);
+    return { name: clean };
+  },
+  async submit(token, served, level) {
+    await lag();
+    const db = loadDb();
+    const p = db.players[token];
+    if (!p) throw new Error('Unknown player');
+    if (p.week !== weekStart()) { p.week = weekStart(); p.weekServed = 0; }
+    if (served > p.served) p.weekServed += served - p.served;
+    p.served = Math.max(p.served, served);
+    p.level = Math.max(p.level, level);
+    storeDb(db);
+    return {};
+  },
+  async board(token, period) {
+    await lag();
+    const db = loadDb();
+    const week = weekStart();
+    const score = (p: MockPlayer) => (period === 'level' ? p.level : period === 'week' ? (p.week === week ? p.weekServed : 0) : p.served);
+    const ranked = Object.entries(db.players)
+      .filter(([, p]) => score(p) > 0)
+      .sort(([, a], [, b]) => score(b) - score(a))
+      .map(([id, p], i) => ({ id, row: { rank: i + 1, name: p.name, score: score(p), level: p.level, me: id === token, served: p.served } }));
+    const mine = ranked.find((r) => r.id === token);
+    const me = token && db.players[token]
+      ? { rank: mine?.row.rank ?? null, score: score(db.players[token]), name: db.players[token].name }
+      : null;
+    return { period, week_start: week, top: ranked.slice(0, 50).map((r) => r.row), me };
+  },
+  async cloudSave(token, save, saveAt) {
+    await lag();
+    const db = loadDb();
+    const p = db.players[token];
+    if (!p) throw new Error('Unknown player');
+    if ((p.saveAt ?? 0) <= saveAt) { p.save = save; p.saveAt = saveAt; }
+    storeDb(db);
+  },
+  async cloudLoad(token) {
+    await lag();
+    const p = loadDb().players[token];
+    return p ? { save: p.save ?? null, save_at: p.saveAt ?? null } : null;
+  },
+  async newCode(token) {
+    await lag();
+    const db = loadDb();
+    const p = db.players[token];
+    if (!p) throw new Error('Unknown player');
+    // No 0/O or 1/I, so codes are easy to read back.
+    const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const raw = Array.from(bytes, (b) => abc[b % abc.length]).join('');
+    p.code = raw;
+    storeDb(db);
+    return { code: raw.match(/.{4}/g)!.join('-') };
+  },
+  async recover(code, token) {
+    await lag();
+    const db = loadDb();
+    const raw = codeOf(code);
+    const entry = Object.entries(db.players).find(([, p]) => p.code === raw);
+    if (!entry) throw new Error('Recovery code not found');
+    const [, p] = entry;
+    // Link this device to the same player record.
+    db.players[token] = p;
+    storeDb(db);
+    return { name: p.name, save: p.save ?? null, save_at: p.saveAt ?? null };
+  },
+};
+
+const backend: Backend = mockBackend;
+
+// ------------------------------------------------------------------ this device's player
 
 interface Player { token: string; name: string; registered: boolean; code?: string }
 
@@ -34,7 +174,7 @@ function newPlayer(): Player {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
   const token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-  return { token, name: `Apprentice ${1000 + Math.floor(Math.random() * 9000)}`, registered: false };
+  return { token, name: `Chef ${1000 + Math.floor(Math.random() * 9000)}`, registered: false };
 }
 
 let player = loadPlayer();
@@ -43,23 +183,9 @@ function storePlayer() {
   try { localStorage.setItem(STORE, JSON.stringify(player)); } catch { /* storage unavailable */ }
 }
 
-async function rpc<T>(fn: string, body: Record<string, unknown>, keepalive = false): Promise<T> {
-  const res = await fetch(API + fn, {
-    method: 'POST',
-    headers: { apikey: KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    keepalive,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { message?: string };
-    throw new Error(err.message || `Leaderboard error (${res.status})`);
-  }
-  return res.json() as Promise<T>;
-}
-
 async function ensureRegistered() {
   if (player.registered) return;
-  await rpc('arcane_register', { p_token: player.token, p_name: player.name });
+  await backend.register(player.token, player.name);
   player.registered = true;
   storePlayer();
 }
@@ -73,7 +199,7 @@ const queued: { save?: () => void; score?: () => void } = {};
 export const online = {
   get name() { return player.name; },
   get registered() { return player.registered; },
-  /** The recovery code made on this device, if any (the server only keeps its hash). */
+  /** The recovery code made on this device, if any. */
   get code() { return player.code ?? null; },
   get cloud(): CloudStatus { return { ...cloud }; },
   set onCloudChange(fn: (s: CloudStatus) => void) { onCloud = fn; },
@@ -82,12 +208,12 @@ export const online = {
   cloudSave: (() => {
     let timer = 0;
     let latest: { json: unknown; at: number } | null = null;
-    const flush = async (keepalive = false) => {
+    const flush = async () => {
       if (!latest) return;
       const { json, at } = latest;
       try {
         await ensureRegistered();
-        await rpc('arcane_cloud_save', { p_token: player.token, p_save: json, p_save_at: at }, keepalive);
+        await backend.cloudSave(player.token, json, at);
         cloud.savedAt = Date.now();
         cloud.error = false;
         if (latest?.at === at) latest = null;
@@ -100,7 +226,7 @@ export const online = {
     return (save: { savedAt?: number }, now = false) => {
       latest = { json: save, at: save.savedAt ?? Date.now() };
       clearTimeout(timer);
-      if (now) flush(true);
+      if (now) flush();
       else timer = window.setTimeout(() => flush(), 6000);
     };
   })(),
@@ -108,13 +234,13 @@ export const online = {
   /** The cloud copy of this player's save, if there is one. */
   async cloudLoad(): Promise<{ save: unknown; save_at: number | null } | null> {
     if (!player.registered) return null;
-    return rpc('arcane_cloud_load', { p_token: player.token });
+    return backend.cloudLoad(player.token);
   },
 
   /** Make a new recovery code (the old one stops working). */
   async newCode(): Promise<string> {
     await ensureRegistered();
-    const res = await rpc<{ code: string }>('arcane_new_code', { p_token: player.token });
+    const res = await backend.newCode(player.token);
     player.code = res.code;
     storePlayer();
     return res.code;
@@ -122,19 +248,19 @@ export const online = {
 
   /** Link this device to the player that owns `code`; returns their cloud save. */
   async recover(code: string): Promise<{ save: unknown; save_at: number | null }> {
-    const res = await rpc<{ name: string; save: unknown; save_at: number | null }>('arcane_recover', { p_code: code, p_token: player.token });
+    const res = await backend.recover(code, player.token);
     player.name = res.name;
     player.registered = true;
-    const raw = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const raw = codeOf(code);
     player.code = raw.length === 16 ? raw.match(/.{4}/g)!.join('-') : undefined;
     storePlayer();
     return res;
   },
 
   /**
-   * Forget this device's player and start as a new apprentice. The old
-   * player's cloud save and leaderboard entry stay on the server, so a
-   * recovery code made before the reset can still bring them back.
+   * Forget this device's player and start as a new chef. The old player's
+   * cloud save and leaderboard entry stay on the server, so a recovery code
+   * made before the reset can still bring them back.
    */
   reset() {
     queued.save?.();
@@ -147,34 +273,33 @@ export const online = {
 
   /** Change the display name (1-16 characters). Throws with a readable message if refused. */
   async rename(name: string) {
-    const clean = name.trim().replace(/\s+/g, ' ');
-    const res = await rpc<{ name: string }>('arcane_register', { p_token: player.token, p_name: clean });
+    const res = await backend.register(player.token, name);
     player.name = res.name;
     player.registered = true;
     storePlayer();
   },
 
   async board(period: Period): Promise<Board> {
-    return rpc<Board>('arcane_board', { p_token: player.registered ? player.token : null, p_period: period });
+    return backend.board(player.registered ? player.token : null, period);
   },
 
-  /** Report the running monster total. Debounced; failures are retried on the next report. */
+  /** Report the running total of customers served. Debounced; failures are retried on the next report. */
   submit: (() => {
     let timer = 0;
-    let pending: { defeated: number; level: number } | null = null;
+    let pending: { served: number; level: number } | null = null;
     const flush = async () => {
       if (!pending) return;
-      const { defeated, level } = pending;
+      const { served, level } = pending;
       try {
         await ensureRegistered();
-        const res = await rpc<{ throttled?: boolean }>('arcane_submit', { p_token: player.token, p_defeated: defeated, p_level: level });
+        const res = await backend.submit(player.token, served, level);
         if (res.throttled) { timer = window.setTimeout(flush, 4000); return; }
-        if (pending?.defeated === defeated) pending = null;
+        if (pending?.served === served) pending = null;
       } catch { /* offline or blocked: try again with the next report */ }
     };
     queued.score = () => { pending = null; clearTimeout(timer); };
-    return (defeated: number, level: number) => {
-      pending = { defeated, level };
+    return (served: number, level: number) => {
+      pending = { served, level };
       clearTimeout(timer);
       timer = window.setTimeout(flush, 3500);
     };

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canUpgrade, cast, collect, mergeYield, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
-  upgradeGen, GameState, currentTask, restore, load, save, refreshCost, refreshMonsters,
-  makeMonster, validateSave, storeInBag, takeFromBag, buyBagSlot, bagSlots, bagSlotCost, BAG_START_SLOTS, BAG_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
+  canUpgrade, serve, collect, mergeYield, findOrder, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
+  upgradeGen, GameState, currentTask, restore, load, save, refreshCost, refreshCustomers,
+  makeCustomer, validateSave, storeInFridge, takeFromFridge, buyFridgeSlot, fridgeSlots, fridgeSlotCost, FRIDGE_START_SLOTS, FRIDGE_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
 } from '../src/game/state';
-import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, MONSTERS, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
+import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
 import { untilReset } from '../src/online';
 
@@ -21,22 +21,22 @@ function empty(): GameState {
 describe('board moves', () => {
   it('needs three matching items to merge', () => {
     const s = empty();
-    s.board[0].piece = item('water', 1);
-    s.board[1].piece = item('water', 1);
+    s.board[0].piece = item('drinks', 1);
+    s.board[1].piece = item('drinks', 1);
     expect(movePiece(s, 0, 1).type).toBe('need3');
-    expect(s.board[0].piece).toEqual(item('water', 1));
-    expect(s.board[1].piece).toEqual(item('water', 1));
+    expect(s.board[0].piece).toEqual(item('drinks', 1));
+    expect(s.board[1].piece).toEqual(item('drinks', 1));
   });
 
   it('merges three touching items into one of the next level on the drop cell', () => {
     const s = empty();
-    s.board[0].piece = item('water', 1);
-    s.board[1].piece = item('water', 1);
-    s.board[2].piece = item('water', 1);
-    s.board[20].piece = item('water', 1);
+    s.board[0].piece = item('drinks', 1);
+    s.board[1].piece = item('drinks', 1);
+    s.board[2].piece = item('drinks', 1);
+    s.board[20].piece = item('drinks', 1);
     const r = movePiece(s, 20, 1);
     expect(r.type).toBe('merge');
-    expect(s.board[1].piece).toEqual(item('water', 2));
+    expect(s.board[1].piece).toEqual(item('drinks', 2));
     // Four crystals were involved: three are used, one is left over.
     expect(s.board[20].piece).toBeNull();
     expect([0, 2].filter((i) => s.board[i].piece).length).toBe(1);
@@ -45,55 +45,54 @@ describe('board moves', () => {
 
   it('turns five touching items into two', () => {
     const s = empty();
-    for (const i of [0, 1, 2, 3]) s.board[i].piece = item('earth', 2);
-    s.board[30].piece = item('earth', 2);
+    for (const i of [0, 1, 2, 3]) s.board[i].piece = item('bakery', 2);
+    s.board[30].piece = item('bakery', 2);
     const r = movePiece(s, 30, 0);
     expect(r.type === 'merge' && r.results.length).toBe(2);
     expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.level === 3)).toHaveLength(2);
     expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.level === 2)).toHaveLength(0);
-    expect(s.board[0].piece).toEqual(item('earth', 3));
+    expect(s.board[0].piece).toEqual(item('bakery', 3));
   });
 
   it('merges when an item is moved next to two matches', () => {
     const s = empty();
-    s.board[0].piece = item('fire', 1);
-    s.board[1].piece = item('fire', 1);
-    s.board[30].piece = item('fire', 1);
+    s.board[0].piece = item('grill', 1);
+    s.board[1].piece = item('grill', 1);
+    s.board[30].piece = item('grill', 1);
     const r = movePiece(s, 30, 2);
     expect(r.type).toBe('merge');
-    expect(s.board[2].piece).toEqual(item('fire', 2));
+    expect(s.board[2].piece).toEqual(item('grill', 2));
     expect(s.board[0].piece).toBeNull();
   });
 
   it('swaps different items and moves into empty cells', () => {
     const s = empty();
-    s.board[0].piece = item('water', 1);
-    s.board[1].piece = item('earth', 1);
+    s.board[0].piece = item('drinks', 1);
+    s.board[1].piece = item('bakery', 1);
     expect(movePiece(s, 0, 1).type).toBe('swap');
-    expect(s.board[0].piece).toEqual(item('earth', 1));
+    expect(s.board[0].piece).toEqual(item('bakery', 1));
     expect(movePiece(s, 0, 5).type).toBe('move');
-    expect(s.board[5].piece).toEqual(item('earth', 1));
+    expect(s.board[5].piece).toEqual(item('bakery', 1));
   });
 
   it('does not merge max level items', () => {
     const s = empty();
-    s.board[0].piece = item('mana', 3);
-    s.board[1].piece = item('mana', 3);
-    s.board[2].piece = item('mana', 3);
+    s.board[0].piece = item('energy', 3);
+    s.board[1].piece = item('energy', 3);
+    s.board[2].piece = item('energy', 3);
     expect(movePiece(s, 0, 1).type).toBe('swap');
   });
 
-  it('has no locked tiles: new games start open and old saves open theirs', () => {
-    const g = newGame(seeded(), 0);
-    expect(g.board.every((c) => !('lock' in c))).toBe(true);
-    expect(g.board.slice(0, 2 * g.cols).every((c) => c.piece === null)).toBe(true);
-    const old = JSON.parse(JSON.stringify(empty()));
-    old.board[3] = { piece: item('earth', 3), lock: 2 };
-    old.board[4] = { piece: item('earth', 3), lock: 1 };
-    const s = validateSave(old)!;
-    expect(s.board[3]).toEqual({ piece: item('earth', 3) });
-    expect(s.board[4]).toEqual({ piece: item('earth', 3) });
-    expect(movePiece(s, 3, 3 * s.cols).type).toBe('move');
+});
+
+describe('saves', () => {
+  it('accepts its own saves and rejects anything else', () => {
+    const g = newGame(seeded(3), 0);
+    expect(validateSave(JSON.parse(JSON.stringify(g)))).toEqual(g);
+    expect(validateSave({ ...g, v: 2 })).toBeNull();
+    expect(validateSave({ ...g, customers: undefined })).toBeNull();
+    expect(validateSave({ ...g, board: g.board.slice(1) })).toBeNull();
+    expect(validateSave(null)).toBeNull();
   });
 });
 
@@ -106,15 +105,15 @@ describe('mergeYield', () => {
   });
 });
 
-describe('generators and energy', () => {
+describe('kitchen stations and energy', () => {
   it('spawns next to the generator and spends energy', () => {
     const s = empty();
     const g = 3 * s.cols + 3;
-    s.board[g].piece = gen('forge');
+    s.board[g].piece = gen('bbq');
     const r = spawnFrom(s, g, () => 0);
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.piece).toEqual(item('fire', 1));
+      expect(r.piece).toEqual(item('grill', 1));
       expect(nearestEmpty(s, g)).not.toBe(r.at);
     }
     expect(s.energy).toBe(MAX_ENERGY - 1);
@@ -122,7 +121,7 @@ describe('generators and energy', () => {
 
   it('refuses to spawn without energy', () => {
     const s = empty();
-    s.board[0].piece = gen('geode');
+    s.board[0].piece = gen('oven');
     s.energy = 0;
     expect(spawnFrom(s, 0)).toEqual({ ok: false, reason: 'energy' });
   });
@@ -135,10 +134,10 @@ describe('generators and energy', () => {
     expect(s.energy).toBe(13);
   });
 
-  it('collects coin and mana items', () => {
+  it('collects coin and energy items', () => {
     const s = empty();
     s.board[0].piece = item('coin', 2);
-    s.board[1].piece = item('mana', 1);
+    s.board[1].piece = item('energy', 1);
     const coins = s.coins, energy = s.energy;
     expect(collect(s, 0)).toEqual({ resource: 'coins', amount: 6 });
     expect(collect(s, 1)).toEqual({ resource: 'energy', amount: 5 });
@@ -147,75 +146,75 @@ describe('generators and energy', () => {
   });
 });
 
-describe('monsters', () => {
-  it('casts a spell when all needs are on the board', () => {
+describe('customers', () => {
+  it('serves a customer when their whole order is on the board', () => {
     const s = empty();
-    const m = s.monsters[0];
-    expect(findSpell(s, m)).toBeNull();
-    m.needs.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
+    const m = s.customers[0];
+    expect(findOrder(s, m)).toBeNull();
+    m.order.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
     const coins = s.coins;
-    const r = cast(s, m.id, seeded(3));
+    const r = serve(s, m.id, seeded(3));
     expect(r).not.toBeNull();
     expect(s.coins).toBe(coins + m.coins);
-    expect(s.monsters.find((x) => x.id === m.id)).toBeUndefined();
-    expect(s.monsters).toHaveLength(3);
-    m.needs.forEach((_, i) => expect(s.board[10 + i].piece).toBeNull());
+    expect(s.customers.find((x) => x.id === m.id)).toBeUndefined();
+    expect(s.customers).toHaveLength(3);
+    m.order.forEach((_, i) => expect(s.board[10 + i].piece).toBeNull());
   });
 
 });
 
-describe('monster refresh', () => {
-  it('costs coins, rerolls every monster and gets pricier each time', () => {
+describe('customer refresh', () => {
+  it('costs coins, rerolls every customer and gets pricier each time', () => {
     const s = empty();
     s.coins = 1000;
-    const before = s.monsters.map((m) => ({ ...m }));
-    const next = s.nextMonsterId;
-    const r = refreshMonsters(s, seeded(7));
+    const before = s.customers.map((m) => ({ ...m }));
+    const next = s.nextCustomerId;
+    const r = refreshCustomers(s, seeded(7));
     expect(r).toEqual({ ok: true, cost: REFRESH_BASE_COST, old: before });
     expect(s.coins).toBe(1000 - REFRESH_BASE_COST);
-    expect(s.monsters).toHaveLength(3);
-    expect(s.monsters.map((m) => m.id)).toEqual(before.map((m) => m.id));
-    expect(s.monsters).not.toEqual(before);
-    expect(s.nextMonsterId).toBe(next);
+    expect(s.customers).toHaveLength(3);
+    expect(s.customers.map((m) => m.id)).toEqual(before.map((m) => m.id));
+    expect(s.customers).not.toEqual(before);
+    expect(s.nextCustomerId).toBe(next);
     expect(refreshCost(s)).toBe(REFRESH_BASE_COST * REFRESH_COST_GROWTH);
-    refreshMonsters(s, seeded(8));
+    refreshCustomers(s, seeded(8));
     expect(refreshCost(s)).toBe(REFRESH_BASE_COST * REFRESH_COST_GROWTH ** 2);
   });
 
-  it('keeps a boss a boss', () => {
+  it('keeps a critic a critic', () => {
     const s = empty();
     s.coins = 1000;
-    s.monsters[1].boss = true;
-    refreshMonsters(s, seeded(2));
-    expect(s.monsters.map((m) => m.boss)).toEqual([false, true, false]);
+    s.customers[1].critic = true;
+    refreshCustomers(s, seeded(2));
+    expect(s.customers.map((m) => m.critic)).toEqual([false, true, false]);
   });
 
   it('refuses without enough coins', () => {
     const s = empty();
     s.coins = REFRESH_BASE_COST - 1;
-    const before = s.monsters;
-    expect(refreshMonsters(s)).toEqual({ ok: false, reason: 'coins', cost: REFRESH_BASE_COST });
-    expect(s.monsters).toBe(before);
+    const before = s.customers;
+    expect(refreshCustomers(s)).toEqual({ ok: false, reason: 'coins', cost: REFRESH_BASE_COST });
+    expect(s.customers).toBe(before);
     expect(s.coins).toBe(REFRESH_BASE_COST - 1);
   });
 
-  it('resets the cost when a monster is defeated', () => {
+  it('resets the cost when a customer is served', () => {
     const s = empty();
     s.coins = 1000;
-    refreshMonsters(s, seeded(4));
-    refreshMonsters(s, seeded(5));
+    refreshCustomers(s, seeded(4));
+    refreshCustomers(s, seeded(5));
     expect(refreshCost(s)).toBeGreaterThan(REFRESH_BASE_COST);
-    const m = s.monsters[0];
-    m.needs.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
-    cast(s, m.id, seeded(3));
+    const m = s.customers[0];
+    m.order.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
+    serve(s, m.id, seeded(3));
     expect(refreshCost(s)).toBe(REFRESH_BASE_COST);
   });
 });
 
-describe('generator upgrades', () => {
+describe('station upgrades', () => {
   it('costs coins, needs player level and raises the generator level', () => {
     const s = empty();
-    s.board[0].piece = gen('geode');
+    s.board[0].piece = gen('oven');
     s.coins = 1000;
     s.level = 1;
     expect(canUpgrade(s, 0)).toMatchObject({ ok: false, reason: 'level', req: 2 });
@@ -228,10 +227,10 @@ describe('generator upgrades', () => {
   it('refuses without coins and at max level', () => {
     const s = empty();
     s.level = 99;
-    s.board[0].piece = gen('forge');
+    s.board[0].piece = gen('bbq');
     s.coins = 0;
     expect(canUpgrade(s, 0)).toMatchObject({ ok: false, reason: 'coins' });
-    s.board[0].piece = gen('forge', GEN_LEVELS.length);
+    s.board[0].piece = gen('bbq', GEN_LEVELS.length);
     s.coins = 1e6;
     expect(canUpgrade(s, 0)).toEqual({ ok: false, reason: 'max' });
   });
@@ -249,39 +248,39 @@ describe('generator upgrades', () => {
 
   it('upgrades from level 5 to 6 and level 10 can drop level 5 items', () => {
     const s = empty();
-    s.board[0].piece = gen('well', 5);
+    s.board[0].piece = gen('fountain', 5);
     s.coins = 1e6;
     s.level = GEN_LEVELS[4].upgradeReq! - 1;
     expect(canUpgrade(s, 0)).toMatchObject({ ok: false, reason: 'level' });
     s.level++;
     expect(upgradeGen(s, 0)).toMatchObject({ ok: true });
     expect(genLevel(s.board[0].piece!)).toBe(6);
-    s.board[0].piece = gen('well', 10);
+    s.board[0].piece = gen('fountain', 10);
     const r = spawnFrom(s, 0, () => 0.999);
-    expect(r.ok && r.piece).toEqual(item('water', 5));
+    expect(r.ok && r.piece).toEqual(item('drinks', 5));
   });
 
-  it('higher levels can drop higher level items and conjure for free', () => {
+  it('higher levels can drop higher level items and cook for free', () => {
     const s = empty();
-    s.board[0].piece = gen('windmill', 5);
+    s.board[0].piece = gen('mixer', 5);
     const r = spawnFrom(s, 0, () => 0.999);
-    expect(r.ok && r.piece).toEqual(item('wind', 4));
+    expect(r.ok && r.piece).toEqual(item('dessert', 4));
     const r2 = spawnFrom(s, 0, () => 0.01);
     expect(r2.ok && r2.free).toBe(true);
     expect(s.energy).toBe(MAX_ENERGY - 1);
   });
 
   it('treats generators from old saves as level 1', () => {
-    expect(genLevel({ kind: 'gen', gen: 'geode' })).toBe(1);
+    expect(genLevel({ kind: 'gen', gen: 'oven' })).toBe(1);
   });
 });
 
-describe('tower restoration', () => {
-  it('monsters drop stars', () => {
+describe('restaurant restoration', () => {
+  it('customers drop stars', () => {
     const s = empty();
-    const m = s.monsters[0];
-    m.needs.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
-    cast(s, m.id, seeded(5));
+    const m = s.customers[0];
+    m.order.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
+    serve(s, m.id, seeded(5));
     expect(s.stars).toBe(m.stars);
     expect(m.stars).toBeGreaterThan(0);
   });
@@ -304,9 +303,9 @@ describe('tower restoration', () => {
     const coins = s.coins, gems = s.gems;
     let last;
     for (let i = 0; i < CHAPTERS[0].tasks.length; i++) last = restore(s);
-    expect(last!.ok && last!.chapterDone?.id).toBe('library');
+    expect(last!.ok && last!.chapterDone?.id).toBe('dining');
     const placed = last!.ok ? last!.placed : [];
-    expect(placed.map((i) => s.board[i].piece)).toEqual([item('coin', 3), item('mana', 2)]);
+    expect(placed.map((i) => s.board[i].piece)).toEqual([item('coin', 3), item('energy', 2)]);
     expect(s.coins).toBe(coins + CHAPTERS[0].reward.coins);
     expect(s.gems).toBe(gems + CHAPTERS[0].reward.gems);
     expect(s.chapter).toBe(1);
@@ -319,17 +318,17 @@ describe('tower restoration', () => {
     const upTo = (n: number) => CHAPTERS.slice(0, n).reduce((t, c) => t + c.tasks.length, 0);
     let last;
     for (let i = 0; i < upTo(3); i++) last = restore(s);
-    expect(last!.ok && last!.chapterDone?.id).toBe('observatory');
+    expect(last!.ok && last!.chapterDone?.id).toBe('patio');
     expect(last!.ok && last!.placed.length).toBe(2);
-    expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.chain === 'mana' && c.piece.level === 3)).toHaveLength(2);
+    expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.chain === 'energy' && c.piece.level === 3)).toHaveLength(2);
     for (let i = upTo(3); i < upTo(4); i++) last = restore(s);
-    expect(last!.ok && last!.chapterDone?.id).toBe('greenhouse');
+    expect(last!.ok && last!.chapterDone?.id).toBe('parlor');
     expect(s.starBonus).toBe(1);
-    // Monsters now drop one extra star.
-    const m = s.monsters[0];
-    m.needs.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
+    // Customers now drop one extra star.
+    const m = s.customers[0];
+    m.order.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
     const before = s.stars;
-    cast(s, m.id, seeded(9));
+    serve(s, m.id, seeded(9));
     expect(s.stars).toBe(before + m.stars + 1);
   });
 
@@ -340,22 +339,22 @@ describe('tower restoration', () => {
     expect(restore(s)).toEqual({ ok: false, reason: 'none' });
   });
 
-  it('chapter 2 gives every grimoire a level', () => {
+  it('chapter 2 gives every kitchen station a level', () => {
     const s = empty();
-    s.board[0].piece = gen('forge', 2);
-    s.board[1].piece = gen('well', GEN_LEVELS.length);
+    s.board[0].piece = gen('bbq', 2);
+    s.board[1].piece = gen('fountain', GEN_LEVELS.length);
     s.stars = 999;
     const all = CHAPTERS[0].tasks.length + CHAPTERS[1].tasks.length;
     let last;
     for (let i = 0; i < all; i++) last = restore(s);
-    expect(last!.ok && last!.chapterDone?.id).toBe('lab');
+    expect(last!.ok && last!.chapterDone?.id).toBe('kitchen');
     expect(last!.ok && last!.upgraded).toEqual([0]);
     expect(genLevel(s.board[0].piece!)).toBe(3);
     expect(genLevel(s.board[1].piece!)).toBe(GEN_LEVELS.length);
     expect(s.chapter).toBe(2);
   });
 
-  it('loads older saves without tower fields', () => {
+  it('loads saves without restaurant fields', () => {
     const s = empty() as Partial<GameState>;
     delete s.stars; delete s.chapter; delete s.tasksDone; delete s.storySeen;
     const store: Record<string, string> = {};
@@ -391,40 +390,24 @@ describe('daily quests', () => {
     expect(msToNextDay(noon)).toBe(12 * 3600_000);
   });
 
-  it('counts merges, conjures and defeats', () => {
+  it('counts merges, cooking and customers served', () => {
     const s = empty();
-    s.daily = { day: dayKey(noon), bonusClaimed: false, quests: [makeQuest(s, 'merge'), makeQuest(s, 'conjure')] };
-    s.board[0].piece = item('water', 1);
-    s.board[1].piece = item('water', 1);
-    s.board[20].piece = item('water', 1);
+    s.daily = { day: dayKey(noon), bonusClaimed: false, quests: [makeQuest(s, 'merge'), makeQuest(s, 'cook')] };
+    s.board[0].piece = item('drinks', 1);
+    s.board[1].piece = item('drinks', 1);
+    s.board[20].piece = item('drinks', 1);
     movePiece(s, 20, 2);
-    s.board[30].piece = gen('well');
+    s.board[30].piece = gen('fountain');
     spawnFrom(s, 30, seeded());
     s.board[40].piece = item('coin', 2);
     collect(s, 40);
     expect(s.daily.quests.map((q) => q.progress)).toEqual([1, 1]);
 
-    s.daily.quests = [makeQuest(s, 'defeat')];
-    const m = s.monsters[0];
-    m.needs.forEach((n, k) => { s.board[k].piece = item(n.chain, n.level); });
-    cast(s, m.id, seeded());
+    s.daily.quests = [makeQuest(s, 'serve')];
+    const m = s.customers[0];
+    m.order.forEach((n, k) => { s.board[k].piece = item(n.chain, n.level); });
+    serve(s, m.id, seeded());
     expect(s.daily.quests[0].progress).toBe(1);
-  });
-
-  it('never offers the removed collect-coins quest, and replaces one in an old save', () => {
-    for (let seed = 1; seed < 30; seed++) {
-      const s = empty();
-      ensureDaily(s, noon, seeded(seed));
-      expect(s.daily!.quests.map((q) => q.kind)).not.toContain('coins');
-    }
-    const s = empty();
-    s.daily = JSON.parse(JSON.stringify({ day: dayKey(noon), bonusClaimed: false, quests: [
-      makeQuest(s, 'merge'), makeQuest(s, 'defeat'), { kind: 'coins', target: 25, progress: 25, claimed: true, coins: 25, gems: 2 },
-    ] }));
-    expect(ensureDaily(s, noon)).toBe(false);
-    const q = s.daily!.quests[2];
-    expect(['conjure', 'mergeHigh']).toContain(q.kind);
-    expect(q.claimed && q.progress === q.target).toBe(true);
   });
 
   it('only counts merges that reach the level a mergeHigh quest asks for', () => {
@@ -432,9 +415,9 @@ describe('daily quests', () => {
     const q = makeQuest(s, 'mergeHigh');
     s.daily = { day: dayKey(noon), bonusClaimed: false, quests: [q] };
     const merge3 = (level: number) => {
-      s.board[0].piece = item('fire', level);
-      s.board[1].piece = item('fire', level);
-      s.board[20].piece = item('fire', level);
+      s.board[0].piece = item('grill', level);
+      s.board[1].piece = item('grill', level);
+      s.board[20].piece = item('grill', level);
       movePiece(s, 20, 2);
       s.board[2].piece = null;
     };
@@ -469,69 +452,69 @@ describe('daily quests', () => {
   });
 });
 
-describe('monster roster', () => {
+describe('customer roster', () => {
   const kindsAt = (level: number) => {
     const s = empty();
     s.level = level;
-    s.monsters = [];
-    s.nextMonsterId = 1;
+    s.customers = [];
+    s.nextCustomerId = 1;
     const rng = seeded(7);
     const seen = new Set<string>();
     for (let k = 0; k < 400; k++) {
-      if (s.nextMonsterId % 6 === 0) s.nextMonsterId++; // skip bosses
-      seen.add(makeMonster(s, rng).kind);
+      if (s.nextCustomerId % 6 === 0) s.nextCustomerId++; // skip critics
+      seen.add(makeCustomer(s, rng).kind);
     }
     return seen;
   };
 
-  it('unlocks the new monsters as the player levels up', () => {
-    expect([...kindsAt(1)].sort()).toEqual(['bat', 'mushroom', 'slime']);
-    expect(kindsAt(2).has('spider')).toBe(true);
-    expect(kindsAt(7).has('treant')).toBe(false);
-    expect(kindsAt(10)).toEqual(new Set(MONSTERS.map((m) => m.kind)));
+  it('unlocks the new customers as the player levels up', () => {
+    expect([...kindsAt(1)].sort()).toEqual(['bear', 'bunny', 'cat']);
+    expect(kindsAt(2).has('fox')).toBe(true);
+    expect(kindsAt(7).has('raccoon')).toBe(false);
+    expect(kindsAt(10)).toEqual(new Set(CUSTOMERS.map((m) => m.kind)));
   });
 });
 
-describe('inventory bag', () => {
+describe('inventory fridge', () => {
   it('stores items and generators, and refuses empty cells', () => {
     const s = empty();
-    s.board[3].piece = item('fire', 4);
-    s.board[4].piece = gen('well', 3);
-    expect(storeInBag(s, 3)).toEqual({ ok: true, piece: item('fire', 4) });
-    expect(storeInBag(s, 4).ok).toBe(true);
+    s.board[3].piece = item('grill', 4);
+    s.board[4].piece = gen('fountain', 3);
+    expect(storeInFridge(s, 3)).toEqual({ ok: true, piece: item('grill', 4) });
+    expect(storeInFridge(s, 4).ok).toBe(true);
     expect(s.board[3].piece).toBeNull();
-    expect(s.bag).toEqual([item('fire', 4), gen('well', 3)]);
-    expect(storeInBag(s, 3)).toEqual({ ok: false, reason: 'invalid' });
+    expect(s.fridge).toEqual([item('grill', 4), gen('fountain', 3)]);
+    expect(storeInFridge(s, 3)).toEqual({ ok: false, reason: 'invalid' });
   });
 
   it('is full at its slot count', () => {
     const s = empty();
-    for (let i = 0; i < BAG_START_SLOTS + 1; i++) s.board[i].piece = item('water', 1);
-    for (let i = 0; i < BAG_START_SLOTS; i++) expect(storeInBag(s, i).ok).toBe(true);
-    expect(storeInBag(s, BAG_START_SLOTS)).toEqual({ ok: false, reason: 'full' });
+    for (let i = 0; i < FRIDGE_START_SLOTS + 1; i++) s.board[i].piece = item('drinks', 1);
+    for (let i = 0; i < FRIDGE_START_SLOTS; i++) expect(storeInFridge(s, i).ok).toBe(true);
+    expect(storeInFridge(s, FRIDGE_START_SLOTS)).toEqual({ ok: false, reason: 'full' });
   });
 
   it('puts items back on the nearest free cell, or says the board is full', () => {
     const s = empty();
-    s.bag = [item('wind', 2), item('earth', 5)];
-    const r = takeFromBag(s, 1, 10);
-    expect(r).toEqual({ ok: true, at: 10, piece: item('earth', 5) });
-    expect(s.bag).toEqual([item('wind', 2)]);
-    s.board.forEach((c) => { c.piece = item('fire', 1); });
-    expect(takeFromBag(s, 0)).toEqual({ ok: false, reason: 'full' });
-    expect(s.bag).toHaveLength(1);
+    s.fridge = [item('dessert', 2), item('bakery', 5)];
+    const r = takeFromFridge(s, 1, 10);
+    expect(r).toEqual({ ok: true, at: 10, piece: item('bakery', 5) });
+    expect(s.fridge).toEqual([item('dessert', 2)]);
+    s.board.forEach((c) => { c.piece = item('grill', 1); });
+    expect(takeFromFridge(s, 0)).toEqual({ ok: false, reason: 'full' });
+    expect(s.fridge).toHaveLength(1);
   });
 
   it('sells extra slots for gems, pricier each time, up to the maximum', () => {
     const s = empty();
     s.gems = 1000;
-    expect(bagSlotCost(s)).toBe(10);
-    expect(buyBagSlot(s)).toEqual({ ok: true, cost: 10 });
-    expect(bagSlots(s)).toBe(BAG_START_SLOTS + 1);
-    expect(bagSlotCost(s)).toBe(15);
-    while (bagSlots(s) < BAG_MAX_SLOTS) buyBagSlot(s);
-    expect(buyBagSlot(s)).toEqual({ ok: false, reason: 'max' });
-    s.bagSlots = BAG_START_SLOTS; s.gems = 0;
-    expect(buyBagSlot(s)).toEqual({ ok: false, reason: 'gems', cost: 10 });
+    expect(fridgeSlotCost(s)).toBe(10);
+    expect(buyFridgeSlot(s)).toEqual({ ok: true, cost: 10 });
+    expect(fridgeSlots(s)).toBe(FRIDGE_START_SLOTS + 1);
+    expect(fridgeSlotCost(s)).toBe(15);
+    while (fridgeSlots(s) < FRIDGE_MAX_SLOTS) buyFridgeSlot(s);
+    expect(buyFridgeSlot(s)).toEqual({ ok: false, reason: 'max' });
+    s.fridgeSlots = FRIDGE_START_SLOTS; s.gems = 0;
+    expect(buyFridgeSlot(s)).toEqual({ ok: false, reason: 'gems', cost: 10 });
   });
 });

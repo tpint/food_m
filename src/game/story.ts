@@ -1,14 +1,14 @@
 import type { ChainId } from './config';
 
-// Tower restoration: chapters, tasks and the story told by Professor Hoot.
-// Each chapter is one room of the Archmage's tower. Tasks are done in order
-// and paid for with Stars, which monsters drop.
+// Restaurant restoration: chapters, tasks and the story told by Chef Pip.
+// Each chapter is one room of Grandma Rosa's old restaurant. Tasks are done in
+// order and paid for with Stars, which happy customers give.
 
 export interface TaskDef {
   id: string;
   name: string;
   cost: number;
-  /** Shown by Professor Hoot right after the task is done. */
+  /** Shown by Chef Pip right after the task is done. */
   story: string;
 }
 
@@ -26,130 +26,130 @@ export interface ChapterDef {
     upgradeGens?: boolean;
     /** Items placed on free board cells. */
     items?: { chain: ChainId; level: number; count: number }[];
-    /** Extra Stars every monster drops from now on. */
+    /** Extra Stars every customer gives from now on. */
     starBonus?: number;
   };
 }
 
-export const MENTOR = 'Professor Hoot';
+export const MENTOR = 'Chef Pip';
 
 export const CHAPTERS: ChapterDef[] = [
   {
-    id: 'library',
-    name: 'The Dusty Library',
+    id: 'dining',
+    name: 'The Dusty Dining Room',
     intro: [
-      'Hoo! You came back, apprentice! I was beginning to think the whole tower had been forgotten.',
-      'The night the Shadow Hex struck, Archmage Elowen vanished and the four elemental seals shattered. Monsters have been creeping in ever since.',
-      'Defeat them with elemental magic and they leave Stars behind. Spend those Stars to bring this tower back to life. We start with the library.',
+      'Squeak! You must be Rosa\'s grandchild! I\'m Pip. I have looked after this kitchen ever since your grandma went off on her world tasting tour.',
+      'The Sunny Spoon used to be the busiest restaurant in town. Then the doors closed, the dust moved in, and Grandma\'s four secret recipe cards went missing.',
+      'Customers are already peeking through the window! Cook what they order and they will leave Stars for good service. Spend those Stars to fix the place up. Let\'s start with the dining room.',
     ],
     tasks: [
-      { id: 'cobwebs', name: 'Sweep away the cobwebs', cost: 1, story: 'Much better! I could hardly see my own feathers under all that dust.' },
-      { id: 'candles', name: 'Light the reading candles', cost: 2, story: 'Ah, candlelight. Elowen read here every night. Her notes must still be somewhere on these shelves.' },
-      { id: 'shelf', name: 'Mend the great bookshelf', cost: 2, story: 'Look at this, a page from her journal. "The Hex feeds on silence. Keep the tower singing." Curious...' },
-      { id: 'window', name: 'Restore the moon window', cost: 3, story: 'Moonlight! The window was enchanted to show the sky above the seals. One of them still glimmers, far to the east.' },
-      { id: 'hearth', name: 'Rekindle the hearth', cost: 3, story: 'Warmth at last. The monsters always gather where the tower is cold. That is why they keep coming back.' },
-      { id: 'grimoire', name: 'Awaken the Great Grimoire', cost: 4, story: 'The Great Grimoire is awake! It remembers every spell Elowen ever cast, and it is pointing us downstairs.' },
+      { id: 'dust', name: 'Dust off the tables', cost: 1, story: 'Achoo! Much better. I could hardly see my own whiskers under all that dust.' },
+      { id: 'cloths', name: 'Lay fresh tablecloths', cost: 2, story: 'Red and white checks, just like Rosa liked them. She always said a happy table makes a happy tummy.' },
+      { id: 'lamps', name: 'Hang the pendant lamps', cost: 2, story: 'Oh, look at that warm glow! I found a note tucked in a lampshade: "The first card is where the bread is born." Curious...' },
+      { id: 'window', name: 'Wash the big front window', cost: 3, story: 'Sunshine! And more customers waving at us from the street. Word is getting around.' },
+      { id: 'flowers', name: 'Put flowers on every table', cost: 3, story: 'Daisies in little jam jars. Rosa grew these in the patio garden, so the garden must still be out there somewhere.' },
+      { id: 'sign', name: 'Relight the Sunny Spoon sign', cost: 4, story: 'The sign is shining again! Everyone in town can see we are open. Now, about that note: bread is born in the kitchen!' },
     ],
     outro: [
-      'The library breathes again, and the tower feels a little less afraid.',
-      'The Grimoire showed me the Alchemy Lab below us. Elowen sealed something there before she vanished. We will need stronger magic for that, so keep merging!',
+      'The dining room looks lovely, and the customers keep coming back for more.',
+      'The kitchen is through those swinging doors. It has not been cooked in for years, but the first recipe card must be hiding in there. Keep cooking!',
     ],
-    rewardText: '100 coins, 10 gems, a Coin Pouch and a Mana Vial',
-    reward: { coins: 100, gems: 10, items: [{ chain: 'coin', level: 3, count: 1 }, { chain: 'mana', level: 2, count: 1 }] },
+    rewardText: '100 coins, 10 gems, a Tip Jar and a Lunch Box',
+    reward: { coins: 100, gems: 10, items: [{ chain: 'coin', level: 3, count: 1 }, { chain: 'energy', level: 2, count: 1 }] },
   },
   {
-    id: 'lab',
-    name: 'The Alchemy Lab',
+    id: 'kitchen',
+    name: 'The Old Kitchen',
     intro: [
-      'Mind the steps, apprentice. This is where Elowen brewed her greatest elixirs, and where she was working the night the Hex struck.',
-      'Everything is smashed. Something came down here looking for... hoo, I do not know what. Whatever it was, Elowen locked it in her vault first.',
-      'The monsters down here are hungrier, so you will need more Stars. Let us get this lab bubbling again.',
+      'Mind the slippery tiles! This is where Rosa cooked every single day for forty years.',
+      'Pots everywhere, a cold oven, and the pantry door is stuck. Hmm, the pantry... Rosa never let anyone in there.',
+      'Orders are getting bigger, so you will need more Stars. Let\'s get this kitchen sizzling again!',
     ],
     tasks: [
-      { id: 'cauldron', name: 'Scrub the great cauldron', cost: 3, story: 'Listen to it bubble! Elowen always said a happy cauldron makes a happy tower.' },
-      { id: 'potions', name: 'Restock the potion shelves', cost: 3, story: 'Calming draughts, glow tonics, a bottle labelled "do NOT open"... I will leave that one where it is.' },
-      { id: 'alembic', name: 'Repair the brass alembic', cost: 4, story: 'It is distilling again. Wait, it is dripping all four colours at once: earth, water, wind and fire. It is trying to tell us something.' },
-      { id: 'charts', name: 'Hang the star charts', cost: 4, story: 'These are maps of the four seals! One is marked right here in the tower, behind the vault door.' },
-      { id: 'crystals', name: 'Calm the floating crystals', cost: 5, story: 'The crystals are humming in tune. Hear that? The vault lock hums the same note.' },
-      { id: 'vault', name: "Open Elowen's sealed vault", cost: 6, story: 'Hoo... a shard of the Earth Seal! She hid it so the Hex could never take all four. The tower trembles, the good kind of tremble.' },
+      { id: 'pots', name: 'Scrub the pots and pans', cost: 3, story: 'Sparkling! I can see my reflection in the big soup pot. Hello, handsome.' },
+      { id: 'tiles', name: 'Mop the checkered floor', cost: 3, story: 'No more sticky paws. Er, feet. You know what I mean.' },
+      { id: 'herbs', name: 'Hang the herb bundles', cost: 4, story: 'Basil, thyme and rosemary. The whole kitchen smells like Rosa\'s Sunday lunch.' },
+      { id: 'stove', name: 'Fix the old iron stove', cost: 4, story: 'It roars! Four burners, all working. Rosa named them Huey, Dewey, Louie and Bob.' },
+      { id: 'oven', name: 'Fire up the brick oven', cost: 5, story: 'The brick oven is warm! Wait... I hear something rattling behind the pantry door.' },
+      { id: 'pantry', name: 'Open the secret pantry', cost: 6, story: 'Squeak! The first recipe card: "Rosa\'s Golden Bread". She hid it in the flour tin! Three more to find.' },
     ],
     outro: [
-      'With the shard back in the light, your grimoires feel it too. Their pages are glowing brighter than ever.',
-      'The star charts show the next seal high above us, in the Observatory. The stairs up there have not been climbed in years...',
+      'With Rosa\'s bread recipe back in the kitchen, every station in your kitchen feels it too. Everything cooks a little better!',
+      'The card has a doodle on the back: a sun, an umbrella and a lemon. That must be the patio out back!',
     ],
-    rewardText: '200 coins, 15 gems, and every grimoire gains a level',
+    rewardText: '200 coins, 15 gems, and every kitchen station gains a level',
     reward: { coins: 200, gems: 15, upgradeGens: true },
   },
   {
-    id: 'observatory',
-    name: 'The Observatory',
+    id: 'patio',
+    name: 'The Sunny Patio',
     intro: [
-      'Up, up, up! Mind the loose steps. Elowen came here every night to read the winds.',
-      'The roof caved in when the Hex struck. Since then the winds around the tower have gone wild, and the Wind Seal is somewhere in this mess.',
-      'The monsters up here ride the storms, so they are tougher. We will need plenty of Stars.',
+      'Out we go, into the sunshine! On summer evenings this patio used to be full of laughter and clinking glasses.',
+      'Now the umbrellas are torn, the lemon tree is thirsty and the lemonade stand is falling over. The second card must be out here.',
+      'Patio customers are thirsty and picky, so we will need plenty of Stars.',
     ],
     tasks: [
-      { id: 'beams', name: 'Clear the fallen roof beams', cost: 4, story: 'Oof. Beams cleared. Look at the floor: a star map is painted under all that rubble!' },
-      { id: 'telescope', name: 'Raise the great telescope', cost: 4, story: 'Still in one piece! Elowen used it to watch the seals from afar. The lens is cloudy, but it points due north... toward the storm.' },
-      { id: 'orrery', name: 'Restart the orrery', cost: 5, story: 'Tick, tick, whirr. The little planets turn again. When they line up, the Wind Seal is said to sing.' },
-      { id: 'dome', name: 'Open the star dome', cost: 5, story: 'The night sky! I had almost forgotten how many stars there are. The winds are calming already.' },
-      { id: 'chimes', name: 'Tune the wind chimes', cost: 6, story: 'Hear that? Each chime matches a planet. The orrery and the chimes are playing the same song.' },
-      { id: 'windseal', name: 'Free the Wind Seal', cost: 7, story: 'The Wind Seal! It was caught in the dome all along, spinning too fast for anyone to see. Two seals home, two to go.' },
+      { id: 'weeds', name: 'Pull up the weeds', cost: 4, story: 'Weeds gone! And look, a path of painted tiles leads straight to the lemon tree.' },
+      { id: 'umbrellas', name: 'Open the striped umbrellas', cost: 4, story: 'Shade! The customers love it. One of them asked if we serve lemonade. Not yet...' },
+      { id: 'lights', name: 'String up the fairy lights', cost: 5, story: 'Twinkle twinkle! Rosa used to hold dances out here under these lights.' },
+      { id: 'tree', name: 'Water the lemon tree', cost: 5, story: 'Lemons! Big, sunny, sour lemons. Now we just need somewhere to squeeze them.' },
+      { id: 'stand', name: 'Rebuild the lemonade stand', cost: 6, story: 'Freshly painted and ready to pour. There is a little drawer under the counter that will not open.' },
+      { id: 'drinkcard', name: 'Find the second recipe card', cost: 7, story: 'Got it! "Rosa\'s Sunshine Lemonade", taped under the drawer. Two cards home, two to go!' },
     ],
     outro: [
-      'The skies are clear and the tower stands a little taller. I swear I can see all the way to the sea.',
-      'The Wind Seal whispered something: "beneath the moonflowers". That must be the greenhouse in the east wing.',
+      'The patio is buzzing, and the lemonade is the talk of the town.',
+      'The lemonade card has a sticky pink smudge on it. Strawberry? That smells like the ice cream parlor next door!',
     ],
-    rewardText: '300 coins, 20 gems, and two Mana Flasks appear on your board',
-    reward: { coins: 300, gems: 20, items: [{ chain: 'mana', level: 3, count: 2 }] },
+    rewardText: '300 coins, 20 gems, and two Picnic Baskets appear on your board',
+    reward: { coins: 300, gems: 20, items: [{ chain: 'energy', level: 3, count: 2 }] },
   },
   {
-    id: 'greenhouse',
-    name: 'The Moonlit Greenhouse',
+    id: 'parlor',
+    name: 'The Ice Cream Parlor',
     intro: [
-      'The east wing greenhouse. Elowen grew moonflowers here, flowers that only bloom when the tower is safe.',
-      'The glass is shattered and the pond has run dry. Without water the Water Seal cannot rest, and without the seal there is no water. A sad little circle.',
-      'Let us break it. The monsters here are slippery, but every one you beat brings us closer.',
+      'Rosa\'s little ice cream parlor! Kids used to line up around the block for a scoop.',
+      'The freezer is warm, the glass counter is cracked and the jukebox has gone quiet. Without dessert, a meal is just... dinner.',
+      'Dessert lovers are the happiest customers of all. Every one you serve brings us closer to the third card.',
     ],
     tasks: [
-      { id: 'glass', name: 'Sweep up the shattered glass', cost: 5, story: 'Careful of your paws... I mean feet. All swept! The moon can shine in properly now.' },
-      { id: 'rain', name: 'Repair the rain pipes', cost: 5, story: 'Drip, drip, splash! The pipes still carry rainwater from the roof. Listen to that lovely patter.' },
-      { id: 'flowers', name: 'Replant the moonflower beds', cost: 6, story: 'They are opening! Moonflowers only bloom when the tower feels safe. That means it trusts us now.' },
-      { id: 'lanterns', name: 'Rehang the firefly lanterns', cost: 6, story: 'The fireflies came back the moment the lanterns were up. Elowen used to read their glow like a map.' },
-      { id: 'pond', name: 'Refill the koi pond', cost: 7, story: 'The koi! They were sleeping in the mud the whole time. Something is glowing under the water...' },
-      { id: 'waterseal', name: 'Raise the Water Seal', cost: 8, story: 'The Water Seal rises! The koi guarded it all this time. Three seals home. Only Fire remains, and the Hex knows it.' },
+      { id: 'counter', name: 'Fix the glass counter', cost: 5, story: 'Shiny and new! Now we need something sweet to put in it.' },
+      { id: 'freezer', name: 'Defrost the big freezer', cost: 5, story: 'Brrr! Cold and humming again. I may have eaten a forgotten tub of vanilla. For science.' },
+      { id: 'stools', name: 'Polish the spinning stools', cost: 6, story: 'Wheee! I spun around six times. The customers spin even faster.' },
+      { id: 'jukebox', name: 'Repair the jukebox', cost: 6, story: 'Music! Rosa\'s favorite song is still loaded on track seven. Everyone is dancing.' },
+      { id: 'cones', name: 'Stack the waffle cones', cost: 7, story: 'A tower of crunchy cones. Wait, there is a card rolled up inside the bottom one!' },
+      { id: 'sweetcard', name: 'Unroll the third recipe card', cost: 8, story: '"Rosa\'s Strawberry Dream Cake"! Three cards home. Only one left, and it is the most famous of all.' },
     ],
     outro: [
-      'The greenhouse is singing with water and light. With three seals glowing, the monsters are weaker, and you will find more Stars on every one you defeat.',
-      'The last seal is in the Archmage\'s Sanctum at the very top of the tower. That is where Elowen was when the Hex struck. Be brave, apprentice.',
+      'The parlor is full of giggles and brain freezes. Customers are so happy they leave an extra Star every time!',
+      'The last card is Rosa\'s legendary grill recipe. She cooked it on the rooftop terrace for the grand opening, fifty years ago...',
     ],
-    rewardText: '400 coins, 25 gems, and every monster drops 1 extra Star from now on',
+    rewardText: '400 coins, 25 gems, and every customer gives 1 extra Star from now on',
     reward: { coins: 400, gems: 25, starBonus: 1 },
   },
   {
-    id: 'sanctum',
-    name: "The Archmage's Sanctum",
+    id: 'rooftop',
+    name: 'The Rooftop Terrace',
     intro: [
-      'This is it, the Sanctum. Shadow vines everywhere, and a cold that no fire should allow. The Hex lives here now.',
-      'Look, in the great mirror. Is that... Elowen? She is trapped inside! The Hex sealed her in her own looking-glass.',
-      'Restore the Sanctum, rekindle the Fire Seal, and we can break that mirror. The monsters will fight hardest here. I believe in you.',
+      'All the way to the top! The rooftop terrace has the best view in town. It\'s where Rosa threw her famous parties.',
+      'Today it is a jungle of old crates and a rusty grill. But I just got a postcard: Rosa is coming home for a Grand Reopening!',
+      'Let\'s make the rooftop shine before she arrives. The fanciest customers dine up here, so give it everything you\'ve got!',
     ],
     tasks: [
-      { id: 'vines', name: 'Burn away the shadow vines', cost: 6, story: 'The vines are shrinking back! They hate the light. The room feels warmer already.' },
-      { id: 'braziers', name: 'Relight the twin braziers', cost: 6, story: 'Twin flames for the twin guardians of the Sanctum. The shadows are hiding in the corners now.' },
-      { id: 'desk', name: "Restore Elowen's desk", cost: 7, story: 'Her last note: "If the mirror takes me, the four seals together can break it." She planned for this!' },
-      { id: 'runes', name: 'Redraw the rune circle', cost: 7, story: 'The circle glows gold. Earth, water and wind seals are already in their places. Only the fire point is empty.' },
-      { id: 'fireseal', name: 'Rekindle the Fire Seal', cost: 8, story: 'The Fire Seal blazes! All four seals shine together, and look at the mirror: it is cracking!' },
-      { id: 'mirror', name: 'Shatter the Shadow Mirror', cost: 10, story: 'ELOWEN! She is free! "Thank you, apprentice. And you, Hoot, you dear old feather-duster."' },
+      { id: 'crates', name: 'Clear away the old crates', cost: 6, story: 'Crates gone! There is room for a long party table now.' },
+      { id: 'grill', name: 'Restore the big grill', cost: 6, story: 'The grill is hot! The smell is drifting all over town. People on the street are looking up and sniffing.' },
+      { id: 'table', name: 'Set the long party table', cost: 7, story: 'Plates, glasses, napkins folded like swans. Rosa will be so proud of you.' },
+      { id: 'lanterns', name: 'Hang the paper lanterns', cost: 7, story: 'Pink, yellow and blue lanterns, swaying in the breeze. It looks like a festival!' },
+      { id: 'grillcard', name: 'Find the fourth recipe card', cost: 8, story: 'Under the grill\'s warming rack: "Rosa\'s Sunday Roast"! All four cards are home at last!' },
+      { id: 'reopening', name: 'Throw the Grand Reopening!', cost: 10, story: 'GRANDMA ROSA! She\'s here! "Oh, sweetheart, look at my Sunny Spoon. And Pip, you dear old crumb-snatcher!"' },
     ],
     outro: [
-      'Elowen: "The Hex is broken, but not destroyed. It fled into the Shadow Wood below the tower. It will be back."',
-      'Elowen: "Until then, my tower is yours to tend. Your grimoires have earned a power I can finally share."',
+      'Rosa: "You found all four cards and brought my restaurant back to life. I could not have done it better myself."',
+      'Rosa: "The Sunny Spoon is yours now. And I have one last secret for you: those four recipes make every station cook better!"',
     ],
-    rewardText: '600 coins, 40 gems, and every grimoire gains another level',
+    rewardText: '600 coins, 40 gems, and every kitchen station gains another level',
     reward: { coins: 600, gems: 40, upgradeGens: true },
   },
 ];
 
 /** Shown once every chapter written so far is done. */
-export const COMING_SOON = 'Chapter 6: The Shadow Wood is coming soon. Until then, keep defeating monsters and climbing the leaderboard!';
+export const COMING_SOON = 'Chapter 6: The Food Truck is coming soon. Until then, keep serving customers and climbing the leaderboard!';

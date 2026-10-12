@@ -1,12 +1,12 @@
-// Static game data: merge chains, generators and monsters.
+// Static game data: merge chains, kitchen stations and customers.
 
-export type ChainId = 'earth' | 'water' | 'wind' | 'fire' | 'coin' | 'mana';
-export type GenId = 'geode' | 'well' | 'windmill' | 'forge';
-/** The four elements players brew spells from. */
-export type ElementId = 'earth' | 'water' | 'wind' | 'fire';
-export type MonsterKind =
-  | 'slime' | 'bat' | 'ghost' | 'mushroom' | 'imp' | 'golem' | 'dragon'
-  | 'spider' | 'crab' | 'wolf' | 'treant' | 'cyclops';
+export type ChainId = 'bakery' | 'drinks' | 'dessert' | 'grill' | 'coin' | 'energy';
+export type GenId = 'oven' | 'fountain' | 'mixer' | 'bbq';
+/** The four kinds of food customers order. */
+export type FoodId = 'bakery' | 'drinks' | 'dessert' | 'grill';
+export type CustomerKind =
+  | 'bunny' | 'cat' | 'bear' | 'fox' | 'penguin' | 'pig' | 'frog'
+  | 'panda' | 'dog' | 'raccoon' | 'lion' | 'critic';
 
 export interface ChainDef {
   id: ChainId;
@@ -20,48 +20,48 @@ export interface ChainDef {
 }
 
 export const CHAINS: Record<ChainId, ChainDef> = {
-  earth: {
-    id: 'earth',
-    name: 'Earth',
-    levels: ['Pebble', 'Acorn', 'Rock Cairn', 'Clay Urn', 'Standing Stone', 'Mountain Peak', 'Floating Isle'],
-    color: '#c79056',
+  bakery: {
+    id: 'bakery',
+    name: 'Bakery',
+    levels: ['Wheat', 'Flour Sack', 'Dough', 'Bread Roll', 'Croissant', 'Baguette', 'Bread Basket'],
+    color: '#d99a4e',
   },
-  water: {
-    id: 'water',
-    name: 'Water',
-    levels: ['Bubbles', 'Seashell', 'Splash', 'Tide Orb', 'Fountain', 'Trident', 'Great Wave'],
+  drinks: {
+    id: 'drinks',
+    name: 'Drinks',
+    levels: ['Water', 'Lemonade', 'Coffee', 'Hot Cocoa', 'Milkshake', 'Bubble Tea', 'Party Punch'],
     color: '#4aa8f0',
   },
-  wind: {
-    id: 'wind',
-    name: 'Wind',
-    levels: ['Wisp', 'Dandelion', 'Pinwheel', 'Kite', 'Wind Chime', 'Tornado', 'Storm Cloud'],
-    color: '#6fdcb8',
+  dessert: {
+    id: 'dessert',
+    name: 'Desserts',
+    levels: ['Candy', 'Cookie', 'Cupcake', 'Donut', 'Sundae', 'Strawberry Cake', 'Wedding Cake'],
+    color: '#ff7fb8',
   },
-  fire: {
-    id: 'fire',
-    name: 'Fire',
-    levels: ['Ember', 'Candle', 'Candelabra', 'Lantern', 'Brazier', 'Phoenix Feather', 'Dragon Egg'],
-    color: '#ff8a3c',
+  grill: {
+    id: 'grill',
+    name: 'Grill',
+    levels: ['Egg', 'Fried Egg', 'Sausage', 'Kebab', 'Burger', 'Pizza', 'Roast Chicken'],
+    color: '#ff7a3c',
   },
   coin: {
     id: 'coin',
-    name: 'Gold',
-    levels: ['Gold Coin', 'Coin Stack', 'Coin Pouch', 'Treasure Chest'],
+    name: 'Coins',
+    levels: ['Coin', 'Coin Stack', 'Tip Jar', 'Cash Register'],
     color: '#ffc93c',
     collect: { resource: 'coins', amounts: [2, 6, 15, 40] },
   },
-  mana: {
-    id: 'mana',
-    name: 'Mana',
-    levels: ['Mana Drop', 'Mana Vial', 'Mana Flask'],
-    color: '#ff7fc8',
+  energy: {
+    id: 'energy',
+    name: 'Energy',
+    levels: ['Energy Bar', 'Lunch Box', 'Picnic Basket'],
+    color: '#a77cf0',
     collect: { resource: 'energy', amounts: [5, 15, 40] },
   },
 };
 
-export const MAGIC_CHAINS: ElementId[] = ['earth', 'water', 'wind', 'fire'];
-export const isElement = (c: ChainId): c is ElementId => (MAGIC_CHAINS as ChainId[]).includes(c);
+export const FOOD_CHAINS: FoodId[] = ['bakery', 'drinks', 'dessert', 'grill'];
+export const isFood = (c: ChainId): c is FoodId => (FOOD_CHAINS as ChainId[]).includes(c);
 
 export interface GenDef {
   id: GenId;
@@ -70,16 +70,16 @@ export interface GenDef {
 }
 
 export const GENERATORS: Record<GenId, GenDef> = {
-  geode: { id: 'geode', name: 'Grimoire of Earth', chain: 'earth' },
-  well: { id: 'well', name: 'Grimoire of Water', chain: 'water' },
-  windmill: { id: 'windmill', name: 'Grimoire of Wind', chain: 'wind' },
-  forge: { id: 'forge', name: 'Grimoire of Fire', chain: 'fire' },
+  oven: { id: 'oven', name: 'Bread Oven', chain: 'bakery' },
+  fountain: { id: 'fountain', name: 'Drink Fountain', chain: 'drinks' },
+  mixer: { id: 'mixer', name: 'Dessert Mixer', chain: 'dessert' },
+  bbq: { id: 'bbq', name: 'BBQ Grill', chain: 'grill' },
 };
 
 export interface GenLevel {
   /** Weight of spawning an item of level 1, 2, 3, 4. */
   odds: number[];
-  /** Chance a conjure costs no mana. */
+  /** Chance cooking costs no energy. */
   freeChance: number;
   /** Coins to upgrade to the next level (absent at max level). */
   upgradeCost?: number;
@@ -87,7 +87,7 @@ export interface GenLevel {
   upgradeReq?: number;
 }
 
-/** Shared by every generator; index 0 = generator level 1. */
+/** Shared by every station; index 0 = station level 1. */
 export const GEN_LEVELS: GenLevel[] = [
   { odds: [85, 15], freeChance: 0, upgradeCost: 40, upgradeReq: 2 },
   { odds: [70, 25, 5], freeChance: 0.05, upgradeCost: 120, upgradeReq: 3 },
@@ -102,36 +102,37 @@ export const GEN_LEVELS: GenLevel[] = [
   { odds: [6, 24, 34, 26, 10], freeChance: 0.35 },
 ];
 
-export interface MonsterDef {
-  kind: MonsterKind;
+export interface CustomerDef {
+  kind: CustomerKind;
   name: string;
   minLevel: number;
 }
 
-export const MONSTERS: MonsterDef[] = [
-  { kind: 'slime', name: 'Gloop Slime', minLevel: 1 },
-  { kind: 'bat', name: 'Dusk Bat', minLevel: 1 },
-  { kind: 'mushroom', name: 'Grumpshroom', minLevel: 1 },
-  { kind: 'ghost', name: 'Wisp Ghost', minLevel: 3 },
-  { kind: 'imp', name: 'Cinder Imp', minLevel: 4 },
-  { kind: 'golem', name: 'Moss Golem', minLevel: 5 },
-  { kind: 'spider', name: 'Shadow Spider', minLevel: 2 },
-  { kind: 'crab', name: 'Tide Crab', minLevel: 4 },
-  { kind: 'wolf', name: 'Frost Wolf', minLevel: 6 },
-  { kind: 'treant', name: 'Gnarlroot', minLevel: 8 },
-  { kind: 'cyclops', name: 'Grumble Cyclops', minLevel: 10 },
+export const CUSTOMERS: CustomerDef[] = [
+  { kind: 'bunny', name: 'Bonnie Bunny', minLevel: 1 },
+  { kind: 'cat', name: 'Mittens', minLevel: 1 },
+  { kind: 'bear', name: 'Bruno Bear', minLevel: 1 },
+  { kind: 'penguin', name: 'Pablo Penguin', minLevel: 3 },
+  { kind: 'pig', name: 'Penny Pig', minLevel: 4 },
+  { kind: 'panda', name: 'Bao Panda', minLevel: 5 },
+  { kind: 'fox', name: 'Felix Fox', minLevel: 2 },
+  { kind: 'frog', name: 'Freddie Frog', minLevel: 4 },
+  { kind: 'dog', name: 'Biscuit Pup', minLevel: 6 },
+  { kind: 'raccoon', name: 'Rocco Raccoon', minLevel: 8 },
+  { kind: 'lion', name: 'Leo the Lion', minLevel: 10 },
 ];
 
-export const BOSS: MonsterDef = { kind: 'dragon', name: 'Ember Wyrmling', minLevel: 1 };
+/** Every few customers a food critic drops by: a bigger order, bigger rewards. */
+export const CRITIC: CustomerDef = { kind: 'critic', name: 'Sir Walrus, Food Critic', minLevel: 1 };
 
 export const BOARD_COLS = 7;
 export const BOARD_ROWS = 9;
 export const MAX_ENERGY = 100;
 export const ENERGY_REGEN_MS = 20_000;
 export const SPAWN_COST = 1;
-export const ACTIVE_MONSTERS = 3;
-export const BOSS_EVERY = 6;
-/** Rerolling the monsters costs this many coins, doubling with each reroll until one is defeated. */
+export const ACTIVE_CUSTOMERS = 3;
+export const CRITIC_EVERY = 6;
+/** New customers cost this many coins, doubling with each refresh until one is served. */
 export const REFRESH_BASE_COST = 10;
 export const REFRESH_COST_GROWTH = 2;
 

@@ -1,10 +1,10 @@
 {
-  "name": "Arcane Merge",
-  "short_name": "Arcane",
+  "name": "Sunny Spoon",
+  "short_name": "Sunny Spoon",
   "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#2c2142",
-  "theme_color": "#3b2a55",
+  "background_color": "#fff0e4",
+  "theme_color": "#e8584a",
   "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }

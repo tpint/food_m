@@ -1,24 +1,23 @@
 // Canvas particle layer for merge bursts, sparkles, shockwave rings and the
-// element spell effects (fire, water, wind, earth).
+// cooking and serving effects (steam, bubbles, sprinkles, sparks and hearts).
 
-import type { ElementId } from '../game/config';
+import type { FoodId } from '../game/config';
 
 interface Particle {
   x: number; y: number; vx: number; vy: number;
   life: number; max: number; size: number; color: string;
-  kind: 'dot' | 'star' | 'ring' | 'flame' | 'drop' | 'rock' | 'streak' | 'ripple' | 'crack';
+  kind: 'dot' | 'star' | 'ring' | 'flame' | 'drop' | 'streak' | 'ripple' | 'heart';
   spin: number; rot: number; grav: number;
   /** Frames to wait before appearing. */
   delay: number;
-  /** Additive glow (default) or normal paint for solid things like rocks and dust. */
+  /** Additive glow (default) or normal paint for solid things like hearts and sprinkles. */
   normal?: boolean;
   /** Colors a flame passes through over its life. */
   colors?: string[];
-  /** Orbit around a moving center (wind vortex). */
+  /** Orbit around a moving center (swirls). */
   orbit?: { cx: number; cy: number; ang: number; angV: number; r: number; rV: number; rise: number };
-  /** Ripple height/width ratio, or crack path points. */
+  /** Ripple height/width ratio. */
   squash?: number;
-  path?: number[];
   drag?: number;
 }
 
@@ -102,21 +101,19 @@ function draw(p: Particle, t: number) {
       ctx.restore();
       break;
     }
-    case 'rock': {
+    case 'heart': {
+      const r = p.size * (t < 0.15 ? t / 0.15 : 1);
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rot);
       ctx.beginPath();
-      const r = p.size;
-      ctx.moveTo(-r, -r * 0.4); ctx.lineTo(-r * 0.3, -r); ctx.lineTo(r * 0.8, -r * 0.6);
-      ctx.lineTo(r, r * 0.3); ctx.lineTo(r * 0.2, r); ctx.lineTo(-r * 0.8, r * 0.6);
-      ctx.closePath();
+      ctx.moveTo(0, r * 0.9);
+      ctx.bezierCurveTo(-r * 1.4, -r * 0.1, -r * 0.7, -r * 1.2, 0, -r * 0.45);
+      ctx.bezierCurveTo(r * 0.7, -r * 1.2, r * 1.4, -r * 0.1, 0, r * 0.9);
       ctx.fill();
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = 'rgba(50,30,15,.8)';
+      ctx.strokeStyle = 'rgba(120,20,60,.6)';
       ctx.stroke();
-      ctx.fillStyle = 'rgba(255,240,220,.35)';
-      ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.35, r * 0.3, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
       break;
     }
@@ -128,17 +125,6 @@ function draw(p: Particle, t: number) {
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(p.x - (p.vx / sp) * len, p.y - (p.vy / sp) * len);
-      ctx.stroke();
-      break;
-    }
-    case 'crack': {
-      const pts = p.path ?? [];
-      const n = Math.max(2, Math.floor((pts.length / 2) * Math.min(1, t * 3)));
-      ctx.lineWidth = p.size;
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(pts[0], pts[1]);
-      for (let k = 1; k < n; k++) ctx.lineTo(pts[k * 2], pts[k * 2 + 1]);
       ctx.stroke();
       break;
     }
@@ -209,7 +195,7 @@ export function puff(x: number, y: number, color: string) {
   }
 }
 
-/** Trail sparkles, e.g. behind items flying to a monster. */
+/** Trail sparkles, e.g. behind items flying across the board. */
 export function trail(x: number, y: number, color: string) {
   add({ x: x + (Math.random() - 0.5) * 10, y: y + (Math.random() - 0.5) * 10, vy: -0.5, size: 3 + Math.random() * 3, color, max: 24 });
   if (Math.random() < 0.3) add({ x, y, kind: 'star', size: 5, color: '#fffbe0', max: 20, spin: 0.2 });
@@ -223,175 +209,98 @@ export function shower(x: number, y: number, colors: string[]) {
   add({ x, y, kind: 'ring', size: 90, max: 40, color: colors[0] });
 }
 
-// ------------------------------------------------------------------ element spells
+// ------------------------------------------------------------------ cooking and serving
 
 const R = (a: number, b: number) => a + Math.random() * (b - a);
 
-export const ELEMENT_COLORS: Record<ElementId, string[]> = {
-  fire: ['#ffd36a', '#ff8a2a', '#e8461e', '#8a1e10'],
-  water: ['#d8f2ff', '#7cc8f8', '#3a98e8', '#1f6fc9'],
-  wind: ['#e6fff4', '#9ce8cc', '#5fd0aa', '#2fa080'],
-  earth: ['#f4dcb0', '#c79056', '#8a5a2c', '#553218'],
+export const FOOD_COLORS: Record<FoodId, string[]> = {
+  bakery: ['#fff2c8', '#f2c46a', '#d99a4e', '#9a5a22'],
+  drinks: ['#e8f8ff', '#9ad8ff', '#4aa8f0', '#1f6fc9'],
+  dessert: ['#ffe6f2', '#ff9ec8', '#ff5a9a', '#c0246a'],
+  grill: ['#fff0c0', '#ffb04a', '#ff7a3c', '#c8401a'],
 };
 
+const SPRINKLES = ['#ff5a8a', '#4ac8ff', '#ffe066', '#7ee08e', '#b98cff', '#ffffff'];
+const STEAM = ['rgba(255,255,255,.75)', 'rgba(255,255,255,.5)', 'rgba(255,255,255,.15)'];
+
+/** One wisp of steam drifting up from (x, y). */
+function steamPuff(x: number, y: number, k: number, delay = 0) {
+  add({ x: x + R(-8, 8), y, vx: R(-0.4, 0.4), vy: R(-1.6, -0.8), kind: 'flame', normal: true, size: R(7, 12) * k, colors: STEAM, max: R(40, 60), drag: 0.99, delay });
+}
+
 /**
- * Element energy spiralling inward to (x, y) over `ms`, as the item dissolves
- * into magic. More, wider and longer streams at higher levels.
+ * The dish being plated up at (x, y) over `ms`: steam rising off it, plus
+ * bubbles (drinks), sprinkles (desserts), sparks (grill) or a dusting of
+ * flour (bakery) swirling in. More of everything at higher levels.
  */
-export function elementCharge(el: ElementId, x: number, y: number, level: number, ms: number) {
-  const c = ELEMENT_COLORS[el];
+export function cookCharge(food: FoodId, x: number, y: number, level: number, ms: number) {
+  const c = FOOD_COLORS[food];
   const frames = Math.max(12, Math.round((ms / 1000) * 60 * 0.75));
-  const n = 14 + level * 6;
+  const k = 0.7 + level * 0.1;
+  for (let i = 0; i < 3 + level; i++) steamPuff(x, y - 8, k, Math.floor(R(0, frames * 0.8)));
+  const n = 10 + level * 4;
   for (let i = 0; i < n; i++) {
-    const r0 = R(28, 44) + level * 5;
+    const r0 = R(26, 40) + level * 4;
     const life = Math.round(R(0.55, 0.85) * frames);
-    const base = { x, y, max: life, delay: Math.floor(R(0, frames - life)), color: c[Math.floor(R(0, 3))],
-      orbit: { cx: x, cy: y, ang: R(0, 6.28), angV: R(0.12, 0.22) * (i % 2 ? 1 : -1), r: r0, rV: -r0 / life, rise: 0 } };
-    if (el === 'fire') add({ ...base, kind: 'flame', size: R(5, 9), colors: c });
-    else if (el === 'water') add({ ...base, kind: 'drop', size: R(1.6, 3) });
-    else if (el === 'wind') add({ ...base, kind: 'streak', size: R(2, 4), color: c[Math.floor(R(0, 2))] });
-    else add({ ...base, kind: i % 3 ? 'dot' : 'rock', normal: i % 3 === 0, size: R(2, 4), color: c[Math.floor(R(1, 4))] });
+    const base = { x, y, max: life, delay: Math.floor(R(0, frames - life)),
+      orbit: { cx: x, cy: y, ang: R(0, 6.28), angV: R(0.1, 0.18) * (i % 2 ? 1 : -1), r: r0, rV: -r0 / life, rise: 0 } };
+    if (food === 'drinks') add({ ...base, kind: 'ring', size: R(3, 5), color: c[0] });
+    else if (food === 'dessert') add({ ...base, kind: 'streak', normal: true, size: R(2, 3), color: SPRINKLES[i % SPRINKLES.length] });
+    else if (food === 'grill') add({ ...base, kind: 'dot', size: R(1.5, 3), color: c[Math.floor(R(0, 3))] });
+    else add({ ...base, kind: 'dot', size: R(1.5, 3), color: i % 2 ? '#ffffff' : c[0] });
   }
 }
 
-/** Particles racing along a spell beam (wind streaks, fire, water jets, gravel). */
-export function elementBeam(el: ElementId, x1: number, y1: number, x2: number, y2: number, level: number) {
-  const c = ELEMENT_COLORS[el];
-  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
-  const n = 30 + level * 10;
-  for (let i = 0; i < n; i++) {
-    const t = R(0, 0.9), side = R(-1, 1) * (8 + level * 3);
-    const sp = R(9, 15);
-    const base = { x: x1 + dx * t + nx * side, y: y1 + dy * t + ny * side, vx: ux * sp, vy: uy * sp, max: R(10, 18), drag: 1, delay: Math.floor(R(0, 14)) };
-    if (el === 'fire') add({ ...base, kind: 'flame', size: R(7, 13), colors: c });
-    else if (el === 'water') add({ ...base, kind: 'drop', normal: true, size: R(1.8, 3.4), color: c[Math.floor(R(0, 4))] });
-    else if (el === 'earth') add({ ...base, kind: 'rock', normal: true, size: R(2, 4), color: c[Math.floor(R(1, 4))], spin: R(-0.3, 0.3) });
-    else add({ ...base, kind: 'streak', size: R(3, 6), color: c[Math.floor(R(0, 3))] });
-  }
-  for (let i = 0; i < 8 + level * 2; i++) {
-    const t = R(0, 1);
-    add({ x: x1 + dx * t, y: y1 + dy * t, kind: 'ring', size: R(10, 18) + level * 2, color: c[0], max: 18, delay: Math.floor(R(0, 12)) });
-  }
-}
-
-/** A few particles per frame behind an item flying toward a monster. */
-export function elementTrail(el: ElementId, x: number, y: number, level: number) {
-  const c = ELEMENT_COLORS[el];
-  const k = 0.6 + level * 0.12;
-  if (el === 'fire') {
-    add({ x: x + R(-6, 6), y: y + R(-6, 6), vy: R(-1.5, -0.5), kind: 'flame', size: R(6, 11) * k, colors: c, max: 22, grav: -0.03 });
-  } else if (el === 'water') {
-    add({ x: x + R(-6, 6), y, vx: R(-1, 1), vy: R(-1, 0.5), kind: 'drop', normal: true, size: R(1.5, 3) * k, color: c[Math.floor(R(1, 4))], max: 26, grav: 0.2 });
-  } else if (el === 'wind') {
-    add({ x, y, orbit: { cx: x, cy: y, ang: R(0, 6.28), angV: 0.35, r: R(4, 10) * k, rV: 0.4, rise: 0 }, kind: 'streak', size: R(2, 4) * k, color: c[Math.floor(R(0, 3))], max: 18 });
-  } else {
-    add({ x: x + R(-6, 6), y: y + R(-4, 4), vx: R(-0.6, 0.6), vy: R(-0.4, 0.4), kind: 'flame', normal: true, size: R(6, 10) * k, colors: ['rgba(199,144,86,.55)', 'rgba(160,120,80,.35)', 'rgba(120,90,60,.15)'], max: 26 });
-    if (Math.random() < 0.25) add({ x, y, vx: R(-1.5, 1.5), vy: R(-2, 0), kind: 'rock', normal: true, size: R(1.5, 3) * k, color: c[2], max: 28, grav: 0.25, spin: R(-0.3, 0.3) });
-  }
+/** A few particles per frame behind a dish flying to a customer. */
+export function foodTrail(food: FoodId, x: number, y: number, level: number) {
+  const c = FOOD_COLORS[food];
+  const k = 0.6 + level * 0.1;
+  if (Math.random() < 0.35) add({ x: x + R(-6, 6), y: y + R(-6, 6), vy: R(-1.2, -0.4), kind: 'flame', normal: true, size: R(5, 9) * k, colors: STEAM, max: 26 });
+  if (food === 'drinks') add({ x: x + R(-6, 6), y, vx: R(-0.6, 0.6), vy: R(-1.4, -0.2), kind: 'ring', size: R(2, 4) * k, color: c[0], max: 24 });
+  else if (food === 'dessert') add({ x, y, vx: R(-1.5, 1.5), vy: R(-1, 1), kind: 'streak', normal: true, size: R(2, 3) * k, color: SPRINKLES[Math.floor(R(0, SPRINKLES.length))], max: 24, grav: 0.1 });
+  else if (food === 'grill') add({ x, y, vx: R(-1.5, 1.5), vy: R(-2, 0), size: R(1.5, 2.5) * k, color: c[Math.floor(R(0, 3))], max: 22, grav: 0.05 });
+  else add({ x, y, vx: R(-1, 1), vy: R(-0.5, 0.5), size: R(1.5, 3) * k, color: Math.random() < 0.5 ? '#ffffff' : c[0], max: 24 });
+  if (Math.random() < 0.2) add({ x, y, kind: 'star', size: 5, color: '#fffbe0', max: 20, spin: 0.2 });
 }
 
 /**
- * The hit effect when an element spell lands. `level` 1-7: higher levels
- * spawn more and bigger particles, stack extra layers (fire pillar, geyser,
- * tornado, ground cracks) and ask the caller to shake / flash the screen.
+ * A customer tasting their dish at (x, y): a pop of hearts and the dish's own
+ * particles. `level` 1-7: higher levels throw more and bigger hearts, add
+ * confetti and ask the caller to flash the screen.
  */
-export function elementHit(el: ElementId, x: number, y: number, level: number): { shake: number; flash: string | null } {
+export function yum(food: FoodId, x: number, y: number, level: number): { flash: string | null } {
   const L = Math.max(1, Math.min(7, level));
-  const p = 0.6 + L * 0.22;
-  const c = ELEMENT_COLORS[el];
+  const p = 0.6 + L * 0.2;
+  const c = FOOD_COLORS[food];
   add({ x, y, kind: 'ring', size: 30 * p, max: 22, color: '#fff' });
   add({ x, y, kind: 'ring', size: 46 * p, max: 30, color: c[2] });
-
-  if (el === 'fire') {
-    for (let i = 0; i < 10 + L * 8; i++) {
-      const a = R(-Math.PI, 0), sp = R(1, 4) * p;
-      add({ x: x + R(-8, 8) * p, y: y + R(-4, 8), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1, kind: 'flame', size: R(8, 16) * p, colors: c, max: R(28, 44) + L * 3, grav: -0.06, drag: 0.94 });
-    }
-    for (let i = 0; i < 6 + L * 5; i++) {
-      add({ x, y, vx: R(-3, 3) * p, vy: R(-6, -1) * p, size: R(1.5, 3), color: i % 2 ? '#ffd27a' : '#ff8a3c', max: R(40, 70), grav: -0.02 });
-    }
-    if (L >= 4) {
-      // Fire pillar
-      for (let i = 0; i < L * 6; i++) {
-        add({ x: x + R(-10, 10) * p, y: y + 20, vy: R(-7, -4) * p, kind: 'flame', size: R(10, 20) * p, colors: c, max: R(30, 45), grav: -0.05, delay: Math.floor(i * 0.8), drag: 0.97 });
-      }
-    }
-    if (L >= 6) add({ x, y, kind: 'ring', size: 120 * p, max: 40, color: '#ffb63c', delay: 6 });
-  } else if (el === 'water') {
-    for (let i = 0; i < 10 + L * 8; i++) {
-      const a = -Math.PI / 2 + R(-1.3, 1.3), sp = R(3, 7) * p;
-      add({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, kind: 'drop', normal: true, size: R(2, 4.5) * p, color: c[Math.floor(R(1, 4))], max: R(35, 55), grav: 0.28, drag: 0.98 });
-    }
-    for (let i = 0; i < 1 + Math.floor(L / 2); i++) {
-      add({ x, y: y + 16, kind: 'ripple', size: R(36, 46) * p * (1 + i * 0.35), squash: 0.32, max: 40, color: i % 2 ? '#ffffff' : c[2], delay: i * 7 });
-    }
-    if (L >= 3) {
-      for (let i = 0; i < L * 3; i++) {
-        add({ x: x + R(-20, 20) * p, y: y + R(0, 14), vx: R(-0.4, 0.4), vy: R(-2.2, -0.8), kind: 'ring', size: R(3, 7), color: '#d8f4ff', max: R(40, 60), delay: Math.floor(R(0, 15)), drag: 0.99 });
-      }
-    }
-    if (L >= 5) {
-      // Geyser
-      for (let i = 0; i < L * 8; i++) {
-        add({ x: x + R(-6, 6) * p, y: y + 18, vx: R(-1.2, 1.2), vy: R(-12, -7) * p * 0.8, kind: 'drop', normal: true, size: R(2.5, 5) * p, color: c[Math.floor(R(1, 4))], max: R(40, 60), grav: 0.3, delay: Math.floor(i * 0.5), drag: 0.99 });
-      }
-    }
-  } else if (el === 'wind') {
-    for (let i = 0; i < 10 + L * 5; i++) {
-      add({ x, y, kind: i % 4 ? 'streak' : 'dot', size: R(2, 4.5) * p, color: c[Math.floor(R(1, 4))], max: R(30, 50) + L * 2,
-        orbit: { cx: x, cy: y + 10, ang: R(0, 6.28), angV: R(0.18, 0.32), r: R(4, 12), rV: R(0.6, 1.4) * p, rise: R(-1, -0.3) * p } });
-    }
-    for (let i = 0; i < 3 + L; i++) {
-      const yy = y + R(-30, 30) * p;
-      add({ x: x - R(60, 110), y: yy, vx: R(9, 14), vy: R(-0.5, 0.5), kind: 'streak', size: R(3, 5), color: c[0], max: R(18, 26), drag: 0.99, delay: Math.floor(R(0, 10)) });
-    }
-    for (let i = 0; i < 2 + Math.floor(L / 3); i++) add({ x, y, kind: 'ripple', size: 50 * p * (1 + i * 0.4), squash: 0.5, max: 34, color: c[2], delay: i * 5 });
-    if (L >= 5) {
-      // Tornado: stacked rings of orbiting streaks rising off the target.
-      for (let i = 0; i < L * 6; i++) {
-        const h = R(0, 1);
-        add({ x, y, kind: 'streak', size: R(2.5, 5) * p, color: c[Math.floor(R(1, 4))], max: R(40, 60), delay: Math.floor(R(0, 12)),
-          orbit: { cx: x, cy: y + 30 - h * 90 * p * 0.6, ang: R(0, 6.28), angV: R(0.3, 0.45), r: (6 + h * 34) * p * 0.6, rV: 0.15, rise: -0.6 } });
-      }
-    }
-  } else {
-    for (let i = 0; i < 6 + L * 4; i++) {
-      const a = -Math.PI / 2 + R(-1.4, 1.4), sp = R(3, 7) * p;
-      add({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, kind: 'rock', normal: true, size: R(2.5, 5) * p, color: c[Math.floor(R(1, 3))], max: R(40, 60), grav: 0.35, spin: R(-0.3, 0.3), drag: 0.985 });
-    }
-    for (let i = 0; i < 8 + L * 5; i++) {
-      const a = R(0, 6.28), sp = R(0.5, 2.2) * p;
-      add({ x: x + R(-6, 6), y: y + R(0, 12), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5 - 0.3, kind: 'flame', normal: true, size: R(10, 18) * p, colors: ['rgba(214,180,130,.55)', 'rgba(180,140,100,.45)', 'rgba(140,110,80,.2)'], max: R(40, 60), drag: 0.95 });
-    }
-    if (L >= 4) {
-      // Ground cracks radiating from the impact.
-      for (let k = 0; k < 3 + L; k++) {
-        const a = R(0, Math.PI * 2), len = R(30, 60) * p;
-        const pts = [x, y + 14];
-        let px = x, py = y + 14;
-        for (let s = 1; s <= 6; s++) {
-          px = x + Math.cos(a) * len * (s / 6) + R(-5, 5);
-          py = y + 14 + Math.sin(a) * len * (s / 6) * 0.45 + R(-3, 3);
-          pts.push(px, py);
-        }
-        add({ x, y, kind: 'crack', normal: true, path: pts, size: R(2, 3.5), color: 'rgba(60,35,15,.85)', max: 55 });
-      }
-    }
-    if (L >= 6) {
-      for (let i = 0; i < 3; i++) {
-        add({ x: x + R(-20, 20), y: y - 10, vx: R(-3, 3), vy: R(-9, -6), kind: 'rock', normal: true, size: R(6, 9) * p, color: c[1], max: 60, grav: 0.4, spin: R(-0.2, 0.2), delay: 4 + i * 3 });
-      }
+  for (let i = 0; i < 3 + L * 2; i++) {
+    const a = -Math.PI / 2 + R(-1.2, 1.2), sp = R(2, 5) * p;
+    add({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, kind: 'heart', normal: true, size: R(5, 9) * p, color: i % 3 ? '#ff5a8a' : '#ff9ec8', max: R(40, 60), grav: 0.06, rot: R(-0.4, 0.4), spin: R(-0.03, 0.03), drag: 0.95 });
+  }
+  for (let i = 0; i < 6 + L * 4; i++) {
+    const a = R(0, Math.PI * 2), sp = R(2, 6) * p;
+    const base = { x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1, max: R(30, 50), grav: 0.15 };
+    if (food === 'drinks') add({ ...base, kind: 'drop', normal: true, size: R(2, 3.5) * p, color: c[Math.floor(R(1, 4))], grav: 0.25 });
+    else if (food === 'dessert') add({ ...base, kind: 'streak', normal: true, size: R(2.5, 4) * p, color: SPRINKLES[i % SPRINKLES.length] });
+    else if (food === 'grill') add({ ...base, kind: 'dot', size: R(2, 4) * p, color: c[Math.floor(R(0, 3))] });
+    else add({ ...base, kind: 'dot', normal: true, size: R(2, 3.5) * p, color: c[Math.floor(R(1, 4))], grav: 0.25 });
+  }
+  for (let i = 0; i < 2 + L; i++) steamPuff(x, y + 10, p, Math.floor(R(0, 8)));
+  if (L >= 4) {
+    // Confetti
+    for (let i = 0; i < L * 6; i++) {
+      const a = -Math.PI / 2 + R(-1.4, 1.4), sp = R(5, 10);
+      add({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, kind: 'streak', normal: true, size: R(3, 5), color: SPRINKLES[i % SPRINKLES.length], max: R(50, 70), grav: 0.25, drag: 0.97, delay: 4 });
     }
   }
-
   if (L >= 7) {
-    // Finale: a nova of stars and a huge shockwave.
+    // Finale: a nova of stars and a huge ring.
     add({ x, y, kind: 'ring', size: 200, max: 50, color: c[1], delay: 8 });
     for (let i = 0; i < 24; i++) {
       const a = (i / 24) * Math.PI * 2;
       add({ x, y, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7, kind: 'star', size: R(7, 11), color: '#fffbe0', max: 50, spin: 0.2, delay: 8 });
     }
   }
-  return { shake: L >= 4 ? (L - 3) * 2.5 : 0, flash: L >= 5 ? c[2] : null };
+  return { flash: L >= 5 ? c[1] : null };
 }

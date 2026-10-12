@@ -3,9 +3,9 @@
 // items feel like they belong on the same board.
 //
 // Each merge chain sticks to one palette and each level changes silhouette:
-// small round -> tall -> wide -> ornate.
+// small and simple -> tall -> wide -> a big party piece.
 
-import { ChainId, GEN_LEVELS, GenId, MonsterKind } from '../game/config';
+import { ChainId, CustomerKind, GEN_LEVELS, GenId } from '../game/config';
 import type { Piece } from '../game/state';
 
 interface Pal { hi: string; mid: string; lo: string; ink: string }
@@ -17,10 +17,10 @@ const P: Record<string, Pal> = {
   pot: { hi: '#ffc9a3', mid: '#e48a5a', lo: '#b05a34', ink: '#7a3a1e' },
   flame: { hi: '#fff3b0', mid: '#ffa23c', lo: '#e8502e', ink: '#9c3020' },
   wax: { hi: '#fffaf0', mid: '#ffe9c4', lo: '#e8c48f', ink: '#a7773f' },
-  arcane: { hi: '#efe0ff', mid: '#ae7bec', lo: '#6a3fb8', ink: '#44287a' },
+  purple: { hi: '#efe0ff', mid: '#ae7bec', lo: '#6a3fb8', ink: '#44287a' },
   paper: { hi: '#fffaf0', mid: '#f4e6c4', lo: '#d7bf8c', ink: '#8a6a3a' },
   coin: { hi: '#fff6c2', mid: '#ffd147', lo: '#e09a1c', ink: '#9a6510' },
-  mana: { hi: '#ffe3f4', mid: '#ff85cb', lo: '#d63f98', ink: '#8f2366' },
+  pink: { hi: '#ffe3f4', mid: '#ff85cb', lo: '#d63f98', ink: '#8f2366' },
   stone: { hi: '#e6e2ec', mid: '#b3aec0', lo: '#7d7690', ink: '#524b66' },
   metal: { hi: '#fff4cf', mid: '#e9c46a', lo: '#b8862e', ink: '#7a5418' },
 };
@@ -144,322 +144,419 @@ const sw = 'stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
 const shape = (d: string, fill: string, ink: string, extra = '') =>
   `<path d="${d}" fill="${fill}" stroke="${ink}" ${extra.includes('stroke-width') ? sw.replace('stroke-width="3" ', '') : sw} ${extra}/>`;
 const hl = (d: string, w = 3, op = 0.75) => `<path d="${d}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
+const ell = (cx: number, cy: number, rx: number, ry: number, fill: string, ink: string, extra = '') =>
+  `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" stroke="${ink}" ${extra.includes('stroke-width') ? sw.replace('stroke-width="3" ', '') : sw} ${extra}/>`;
+const circ = (cx: number, cy: number, r: number, fill: string, ink: string, extra = '') => ell(cx, cy, r, r, fill, ink, extra);
 
-// ------------------------------------------------------------------ crystal
+/** Glass: a see-through fill that still reads on the light board. */
+const GLASS = 'rgba(226,244,255,.72)';
+const GLASS_INK = '#2a5a8a';
 
-/** A pointed hexagonal crystal standing on (cx, by). */
-function crystal(s: Svg, cx: number, by: number, w: number, h: number, rot = 0, p = P.crystal) {
-  const t = by - h, sh = t + w * 0.55, hw = w / 2;
-  s.add(`<g transform="rotate(${rot} ${cx} ${by})">`);
-  s.add(shape(`M${cx} ${t}L${cx + hw} ${sh}L${cx + hw} ${by}L${cx} ${by + w * 0.18}L${cx - hw} ${by}L${cx - hw} ${sh}Z`, s.rad(p), p.ink));
-  s.add(`<path d="M${cx} ${t}L${cx - hw} ${sh}L${cx - hw} ${by}L${cx - hw * 0.25} ${by + w * 0.12}L${cx - hw * 0.25} ${sh + 3}Z" fill="#fff" opacity=".45"/>`);
-  s.add(`<path d="M${cx} ${t}L${cx + hw} ${sh}L${cx + hw} ${by}L${cx + hw * 0.4} ${by + w * 0.1}L${cx + hw * 0.4} ${sh + 4}Z" fill="${p.lo}" opacity=".35"/>`);
-  s.add(hl(`M${cx - hw * 0.65} ${sh + 3}L${cx - hw * 0.65} ${by - 4}`, 2.4, 0.8));
+/** A few coloured sprinkles scattered over an area. */
+function sprinkles(s: Svg, pts: [number, number, number][], colors = ['#ff5a8a', '#4ac8ff', '#ffe066', '#7ee08e', '#b98cff']) {
+  pts.forEach(([x, y, a], i) => s.add(`<rect x="${x - 3}" y="${y - 1.1}" width="6" height="2.2" rx="1.1" fill="${colors[i % colors.length]}" transform="rotate(${a} ${x} ${y})"/>`));
+}
+
+/** Wavy steam rising from (x, y). */
+function steam(s: Svg, x: number, y: number, h = 18) {
+  s.fx.push(`<path d="M${x} ${y}q-5 ${-h / 4} 0 ${-h / 2}t0 ${-h / 2}" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".85"/>`);
+}
+
+// ------------------------------------------------------------------ bakery
+
+const WHEAT = { hi: '#fff4b8', mid: '#f2c94c', lo: '#c48a1e', ink: '#6a4410' };
+const BREAD = { hi: '#ffe2a8', mid: '#e3a352', lo: '#a8622a', ink: '#5a3012' };
+const SACK = { hi: '#fbf3e0', mid: '#e2cfa4', lo: '#ad9462', ink: '#5e4a2a' };
+const DOUGH = { hi: '#fffdf6', mid: '#f7e8cc', lo: '#dcc196', ink: '#7a5a30' };
+const WICKER = { hi: '#f0c890', mid: '#c48a4a', lo: '#8a5626', ink: '#4e2e10' };
+
+/** One ear of wheat from (x, by) up to height h, leaning by `rot` degrees. */
+function wheatStalk(s: Svg, x: number, by: number, h: number, rot: number) {
+  s.add(`<g transform="rotate(${rot} ${x} ${by})">`);
+  s.add(shape(`M${x} ${by}L${x} ${by - h}`, 'none', WHEAT.ink, 'stroke-width="3"'));
+  for (let i = 0; i < 5; i++) {
+    const y = by - h * 0.45 - i * h * 0.11;
+    for (const f of [-1, 1]) s.add(ell(x + f * 4, y, 3.6, 6, s.rad(WHEAT), WHEAT.ink, `stroke-width="1.8" transform="rotate(${f * 28} ${x + f * 4} ${y})"`));
+  }
+  s.add(ell(x, by - h * 0.97, 3.2, 5.5, s.rad(WHEAT), WHEAT.ink, 'stroke-width="1.8"'));
   s.add('</g>');
 }
 
-// ------------------------------------------------------------------ flame
-
-function fire(s: Svg, cx: number, by: number, w: number, h: number) {
-  const p = P.flame;
-  s.add(shape(`M${cx} ${by - h}Q${cx + w * 0.15} ${by - h * 0.6} ${cx + w / 2} ${by - h * 0.45}Q${cx + w * 0.6} ${by} ${cx} ${by}Q${cx - w * 0.6} ${by} ${cx - w / 2} ${by - h * 0.45}Q${cx - w * 0.15} ${by - h * 0.6} ${cx} ${by - h}Z`, s.rad({ ...p, hi: '#fff6c4', mid: '#ffb63c', lo: '#ef5a2a' }), p.ink));
-  s.add(`<path d="M${cx} ${by - h * 0.55}Q${cx + w * 0.3} ${by - h * 0.2} ${cx} ${by - 2}Q${cx - w * 0.3} ${by - h * 0.2} ${cx} ${by - h * 0.55}Z" fill="#fff6c4"/>`);
+function roll(s: Svg, cx: number, cy: number, r: number) {
+  s.add(shape(`M${cx - r} ${cy + r * 0.5}Q${cx - r * 1.05} ${cy - r * 0.8} ${cx} ${cy - r * 0.85}Q${cx + r * 1.05} ${cy - r * 0.8} ${cx + r} ${cy + r * 0.5}Q${cx} ${cy + r * 0.85} ${cx - r} ${cy + r * 0.5}Z`, s.rad(BREAD), BREAD.ink));
+  s.add(`<path d="M${cx - r * 0.45} ${cy - r * 0.35}Q${cx - r * 0.2} ${cy - r * 0.55} ${cx} ${cy - r * 0.4}M${cx + r * 0.05} ${cy - r * 0.15}Q${cx + r * 0.3} ${cy - r * 0.35} ${cx + r * 0.55} ${cy - r * 0.2}" fill="none" stroke="${BREAD.ink}" stroke-width="2.2" stroke-linecap="round" opacity=".7"/>`);
+  s.add(hl(`M${cx - r * 0.7} ${cy}Q${cx - r * 0.6} ${cy - r * 0.5} ${cx - r * 0.25} ${cy - r * 0.62}`, 2.4, 0.6));
 }
 
-function candle(s: Svg, cx: number, by: number, w: number, h: number) {
-  s.add(shape(`M${cx - w / 2} ${by}L${cx - w / 2} ${by - h + 3}Q${cx} ${by - h - 2} ${cx + w / 2} ${by - h + 3}L${cx + w / 2} ${by}Z`, s.lin(P.wax.hi, P.wax.lo, false), P.wax.ink));
-  s.add(`<path d="M${cx - w * 0.15} ${by - h + 3}Q${cx - w * 0.2} ${by - h + 10} ${cx - w * 0.12} ${by - h + 14}" fill="none" stroke="${P.wax.lo}" stroke-width="2.4" stroke-linecap="round"/>`);
-  s.add(`<path d="M${cx} ${by - h}L${cx} ${by - h - 4}" stroke="#4a3020" stroke-width="2"/>`);
-  fire(s, cx, by - h - 2, w * 0.9, w * 1.5);
+function croissant(s: Svg, cx: number, cy: number, k: number) {
+  const segs: [number, number, number, number, number][] = [[-26, 14, 9, 13, -55], [26, 14, 9, 13, 55], [-14, 4, 12, 16, -28], [14, 4, 12, 16, 28], [0, 0, 14, 19, 0]];
+  for (const [dx, dy, rx, ry, a] of segs) {
+    const x = cx + dx * k, y = cy + dy * k;
+    s.add(ell(x, y, rx * k, ry * k, s.rad(BREAD), BREAD.ink, `transform="rotate(${a} ${x} ${y})"`));
+    s.add(`<path d="M${x - rx * k * 0.5} ${y - ry * k * 0.45}Q${x} ${y - ry * k * 0.75} ${x + rx * k * 0.5} ${y - ry * k * 0.45}" fill="none" stroke="#fff" stroke-width="${2 * k}" opacity=".5" transform="rotate(${a} ${x} ${y})"/>`);
+  }
 }
 
-const flameArt: ((s: Svg) => void)[] = [
-  (s) => { s.halo('#ffd27a'); s.shadow(12, 80); fire(s, 50, 78, 30, 44); s.sparkle(70, 34, 4, '#fff6c4'); },
-  (s) => {
-    s.shadow(18, 88);
-    s.add(shape('M30 86Q30 80 50 80Q70 80 70 86Q70 90 50 90Q30 90 30 86Z', s.rad(P.metal), P.metal.ink));
-    candle(s, 50, 83, 18, 40);
-  },
-  (s) => {
-    s.shadow(28, 92);
-    s.add(shape('M26 66Q26 76 50 76Q74 76 74 66', 'none', P.metal.ink, 'stroke-width="6"'));
-    s.add(shape('M26 66Q26 76 50 76Q74 76 74 66', 'none', P.metal.mid, 'stroke-width="3"'));
-    s.add(shape('M46 76L44 88L56 88L54 76Z', s.rad(P.metal), P.metal.ink));
-    s.add(shape('M34 90Q50 84 66 90Z', s.rad(P.metal), P.metal.ink));
-    candle(s, 26, 66, 12, 24); candle(s, 74, 66, 12, 24); candle(s, 50, 74, 14, 38);
-  },
-  (s) => {
-    s.halo('#ffd27a'); s.shadow(22, 92);
-    s.add(shape('M44 18Q50 8 56 18', 'none', P.metal.ink, 'stroke-width="3"'));
-    s.add(shape('M34 26L66 26L60 18L40 18Z', s.rad({ ...P.flame, hi: '#ff9a6a', mid: '#d84a2a', lo: '#9c3020' }), P.flame.ink));
-    s.add(shape('M32 28L68 28L64 82L36 82Z', 'rgba(255,240,200,.55)', P.flame.ink));
-    fire(s, 50, 74, 20, 32);
-    s.add(`<path d="M41 30L39 80M59 30L61 80" stroke="${P.flame.ink}" stroke-width="2.4"/>`);
-    s.add(shape('M30 82L70 82L68 92L32 92Z', s.rad({ ...P.flame, hi: '#ff9a6a', mid: '#d84a2a', lo: '#9c3020' }), P.flame.ink));
-    s.add(hl('M35 34L37 76', 2.4, 0.7));
-  },
-  (s) => {
-    s.halo('#ffc46a'); s.shadow(26, 93);
-    s.add(shape('M34 70L28 92M66 70L72 92M50 72L50 92', 'none', P.stone.ink, 'stroke-width="5"'));
-    fire(s, 50, 58, 50, 56); fire(s, 36, 58, 22, 30); fire(s, 64, 58, 22, 32);
-    s.add(shape('M18 54Q50 50 82 54Q78 76 50 76Q22 76 18 54Z', s.rad(P.stone), P.stone.ink));
-    s.add(`<path d="M18 54Q50 60 82 54" fill="none" stroke="${P.stone.ink}" stroke-width="2"/>`);
-    s.add(hl('M26 60Q32 70 44 72', 2.4, 0.6));
-    s.sparkle(80, 22, 4, '#fff6c4'); s.sparkle(22, 26, 3, '#fff6c4');
-  },
-  (s) => {
-    s.halo('#ffb46a'); s.shadow(18, 92);
-    s.add('<g transform="rotate(28 50 50)">');
-    s.add(shape('M50 8Q74 30 66 62Q60 80 50 86Q40 80 34 62Q26 30 50 8Z', s.rad({ hi: '#fff3b0', mid: '#ff9a3c', lo: '#d8402a', ink: P.flame.ink }), P.flame.ink));
-    s.add('<path d="M50 14Q62 34 58 60Q54 74 50 80Q46 74 42 60Q38 34 50 14Z" fill="#ffd56a" opacity=".8"/>');
-    s.add(`<path d="M50 20L50 96" stroke="${P.flame.ink}" stroke-width="2.6" stroke-linecap="round"/>`);
-    for (let i = 0; i < 4; i++) s.add(`<path d="M50 ${32 + i * 12}L${62 - i} ${26 + i * 12}M50 ${32 + i * 12}L${38 + i} ${26 + i * 12}" stroke="${P.flame.lo}" stroke-width="1.6" opacity=".7"/>`);
-    s.add('</g>');
-    fire(s, 30, 30, 14, 20); s.sparkle(76, 20, 5, '#fff6c4'); s.sparkle(20, 66, 4, '#fff6c4');
-  },
-  (s) => {
-    s.halo('#ff9a5a'); s.shadow(26, 93);
-    fire(s, 24, 86, 22, 36); fire(s, 76, 86, 22, 38);
-    s.add(shape('M50 10Q76 12 78 54Q78 88 50 88Q22 88 22 54Q24 12 50 10Z', s.rad({ hi: '#ffd08a', mid: '#f0603a', lo: '#a82a20', ink: '#7a1e18' }), '#7a1e18'));
-    for (let row = 0; row < 4; row++) {
-      for (let i = 0; i < 4; i++) {
-        const x = 30 + i * 13 + (row % 2) * 6, y = 34 + row * 13;
-        s.add(`<path d="M${x - 5} ${y}Q${x} ${y + 8} ${x + 5} ${y}" fill="none" stroke="#7a1e18" stroke-width="1.6" opacity=".45"/>`);
-      }
-    }
-    s.add('<ellipse cx="38" cy="28" rx="8" ry="11" fill="#fff" opacity=".45" transform="rotate(20 38 28)"/>');
-    s.add(shape('M42 56L50 46L58 56L50 66Z', s.rad(P.coin), P.coin.ink));
-    fire(s, 50, 92, 26, 22); s.sparkle(82, 18, 6, '#fff6c4');
-  },
-];
-
-// ------------------------------------------------------------------ earth
-
-const EARTH = { hi: '#f4dcb0', mid: '#c79056', lo: '#8a5a2c', ink: '#553218' };
-const ROCK = { hi: '#ece0d0', mid: '#b8a286', lo: '#7e6a52', ink: '#4e3e2c' };
-const MOSS = { hi: '#e0f5b0', mid: '#8cc65a', lo: '#4e8a34', ink: '#2e5a22' };
-const NUT = { hi: '#f8e2b8', mid: '#dcae6e', lo: '#9a6a34', ink: '#5a3a18' };
-
-function stone(s: Svg, cx: number, cy: number, rx: number, ry: number, p = ROCK) {
-  s.add(shape(`M${cx - rx} ${cy}Q${cx - rx} ${cy - ry} ${cx - rx * 0.2} ${cy - ry}Q${cx + rx} ${cy - ry * 1.05} ${cx + rx} ${cy - ry * 0.1}Q${cx + rx * 1.02} ${cy + ry} ${cx} ${cy + ry}Q${cx - rx} ${cy + ry} ${cx - rx} ${cy}Z`, s.rad(p), p.ink));
-  s.add(hl(`M${cx - rx * 0.65} ${cy - ry * 0.2}Q${cx - rx * 0.5} ${cy - ry * 0.7} ${cx - rx * 0.1} ${cy - ry * 0.72}`, 2.4, 0.6));
+function baguette(s: Svg, cx: number, cy: number, len: number, rot: number) {
+  const h = len * 0.2;
+  s.add(`<g transform="rotate(${rot} ${cx} ${cy})">`);
+  s.add(shape(`M${cx - len / 2} ${cy}Q${cx - len / 2} ${cy - h / 2} ${cx - len / 2 + h} ${cy - h / 2}L${cx + len / 2 - h} ${cy - h / 2}Q${cx + len / 2} ${cy - h / 2} ${cx + len / 2} ${cy}Q${cx + len / 2} ${cy + h / 2} ${cx + len / 2 - h} ${cy + h / 2}L${cx - len / 2 + h} ${cy + h / 2}Q${cx - len / 2} ${cy + h / 2} ${cx - len / 2} ${cy}Z`, s.rad(BREAD), BREAD.ink));
+  for (let i = 0; i < 4; i++) {
+    const x = cx - len * 0.3 + i * len * 0.2;
+    s.add(`<path d="M${x - h * 0.3} ${cy - h * 0.28}L${x + h * 0.3} ${cy + h * 0.1}" stroke="${BREAD.ink}" stroke-width="2.4" stroke-linecap="round" opacity=".6"/><path d="M${x - h * 0.15} ${cy - h * 0.3}L${x + h * 0.35} ${cy}" stroke="#ffe8b8" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>`);
+  }
+  s.add('</g>');
 }
 
-function tuft(s: Svg, x: number, y: number, k = 1) {
-  s.add(shape(`M${x - 6 * k} ${y}Q${x - 5 * k} ${y - 9 * k} ${x - 2 * k} ${y - 12 * k}Q${x - 1 * k} ${y - 6 * k} ${x} ${y - 4 * k}Q${x + 2 * k} ${y - 13 * k} ${x + 5 * k} ${y - 10 * k}Q${x + 4 * k} ${y - 5 * k} ${x + 6 * k} ${y}Z`, s.rad(MOSS), MOSS.ink));
-}
-
-const earthArt: ((s: Svg) => void)[] = [
-  (s) => { s.shadow(16); stone(s, 50, 66, 18, 12); s.add(`<circle cx="56" cy="70" r="1.6" fill="${ROCK.lo}"/><circle cx="46" cy="72" r="1.2" fill="${ROCK.lo}"/>`); },
+const bakeryArt: ((s: Svg) => void)[] = [
   (s) => {
     s.shadow(14);
-    s.add(shape('M37 50Q36 82 50 88Q64 82 63 50Z', s.rad(NUT), NUT.ink));
-    s.add(hl('M42 56Q41 72 47 80', 2.6, 0.6));
-    s.add(shape('M30 52Q29 34 50 31Q71 34 70 52Q50 58 30 52Z', s.rad(EARTH), EARTH.ink));
-    s.add(`<path d="M36 44L44 50M44 38L54 50M54 36L63 48M40 50L48 40M50 50L60 38" stroke="${EARTH.ink}" stroke-width="1.4" opacity=".4"/>`);
-    s.add(shape('M50 32Q51 24 58 21', 'none', EARTH.ink, 'stroke-width="3.5"'));
-  },
-  (s) => {
-    s.shadow(28);
-    stone(s, 50, 80, 30, 11); stone(s, 48, 61, 22, 9); stone(s, 52, 45, 15, 8); stone(s, 50, 32, 9, 6);
-    tuft(s, 26, 88, 0.9); tuft(s, 76, 88, 0.8);
+    wheatStalk(s, 50, 88, 62, -20); wheatStalk(s, 50, 88, 62, 20); wheatStalk(s, 50, 88, 70, 0);
+    s.add(shape('M44 72Q50 76 56 72L56 78Q50 82 44 78Z', '#7ee08e', '#2e6a2e', 'stroke-width="2"'));
   },
   (s) => {
     s.shadow(24);
-    s.add(shape('M40 20L60 20L58 30Q80 36 80 60Q80 86 50 88Q20 86 20 60Q20 36 42 30Z', s.rad(EARTH), EARTH.ink));
-    s.add(shape('M37 16L63 16L63 23L37 23Z', s.lin(EARTH.hi, EARTH.mid), EARTH.ink));
-    s.add(shape('M24 44Q12 46 14 58Q16 66 24 64', 'none', EARTH.ink, 'stroke-width="4"'));
-    s.add(shape('M76 44Q88 46 86 58Q84 66 76 64', 'none', EARTH.ink, 'stroke-width="4"'));
-    s.add(`<path d="M24 50Q50 58 76 50M22 70Q50 78 78 70" fill="none" stroke="${EARTH.lo}" stroke-width="2.4" opacity=".7"/>`);
-    s.add(shape('M50 50L60 66L40 66Z', MOSS.mid, MOSS.ink, 'stroke-width="2.4"'));
-    s.add(`<path d="M44 60L56 60" stroke="${MOSS.ink}" stroke-width="2"/>`);
-    s.add(hl('M28 44Q24 60 30 76', 3, 0.5));
+    s.add(shape('M26 88Q20 60 30 40L36 32Q50 28 64 32L70 40Q80 60 74 88Q50 93 26 88Z', s.rad(SACK), SACK.ink));
+    s.add(shape('M36 32Q30 18 40 15Q50 21 60 15Q70 18 64 32Z', s.rad(SACK), SACK.ink));
+    s.add(`<path d="M35 32Q50 37 65 32" fill="none" stroke="#c0503a" stroke-width="4" stroke-linecap="round"/>`);
+    s.add(circ(50, 62, 13, '#fff8e8', SACK.ink, 'stroke-width="2"'));
+    wheatStalk(s, 50, 72, 18, 0);
+    s.add(hl('M32 50Q28 66 32 80', 2.6, 0.6));
+    s.add('<g fill="#fff"><circle cx="44" cy="12" r="2.6"/><circle cx="54" cy="9" r="2"/><circle cx="60" cy="13" r="1.6"/></g>');
   },
   (s) => {
-    s.halo('#c6f08a'); s.shadow(26);
-    s.add(shape('M32 88L28 40Q28 14 50 10Q72 14 72 40L68 88Z', s.rad(ROCK), ROCK.ink));
-    s.add(`<path d="M50 28L50 62M40 36L50 46L60 36M42 56L58 56" fill="none" stroke="#b8f070" stroke-width="5" stroke-linecap="round" opacity=".55"/>`);
-    s.add(`<path d="M50 28L50 62M40 36L50 46L60 36M42 56L58 56" fill="none" stroke="#f0ffd0" stroke-width="2.4" stroke-linecap="round"/>`);
-    s.add(shape('M30 76Q40 70 46 78Q52 70 62 74Q70 76 70 88L30 88Z', s.rad(MOSS), MOSS.ink));
-    s.add(hl('M34 40Q33 26 42 18', 3, 0.5));
-    tuft(s, 22, 90); tuft(s, 78, 90);
-  },
-  (s) => {
-    s.shadow(36);
-    s.add(shape('M10 86L36 34L50 52L64 22L92 86Z', s.rad(ROCK), ROCK.ink));
-    s.add(shape('M36 34L28 50L34 48L38 54L44 46Z', '#fff', ROCK.ink, 'stroke-width="2"'));
-    s.add(shape('M64 22L54 42L60 40L64 47L70 40L74 44Z', '#fff', ROCK.ink, 'stroke-width="2"'));
-    s.add(`<path d="M64 22L70 52L66 86M36 34L42 60" fill="none" stroke="${ROCK.lo}" stroke-width="2" opacity=".55"/>`);
-    s.add(shape('M10 86Q30 72 50 80Q72 70 92 86Z', s.rad(MOSS), MOSS.ink));
-  },
-  (s) => {
-    s.halo('#ffe39a'); s.shadow(26, 96);
-    // roots
-    s.add(`<path d="M40 74Q38 86 32 92M56 76Q58 88 64 94M48 78L48 92" fill="none" stroke="${EARTH.ink}" stroke-width="2.6" stroke-linecap="round"/>`);
-    s.add(shape('M14 54Q50 46 86 54Q76 70 60 78Q50 86 40 78Q24 70 14 54Z', s.rad(EARTH), EARTH.ink));
-    s.add(shape('M14 54Q50 44 86 54Q50 62 14 54Z', s.rad(MOSS), MOSS.ink));
-    s.add(shape('M46 54Q44 40 50 32', 'none', '#7c4a24', 'stroke-width="6"'));
-    s.add(shape('M46 54Q44 40 50 32', 'none', '#b67a43', 'stroke-width="3"'));
-    for (const [x, y, r] of [[38, 28, 11], [52, 18, 13], [64, 30, 10], [50, 32, 9]] as const) {
-      s.add(shape(`M${x} ${y - r}A${r} ${r} 0 1 1 ${x - 0.1} ${y - r}Z`, s.rad(MOSS), MOSS.ink));
-    }
-    stone(s, 72, 52, 6, 4); stone(s, 26, 53, 5, 3);
-    s.sparkle(86, 20, 6); s.sparkle(14, 30, 4);
-  },
-];
-
-// ------------------------------------------------------------------ water
-
-const WATER = { hi: '#e6f8ff', mid: '#5ab8f5', lo: '#1f6fc9', ink: '#12448a' };
-const FOAM = { hi: '#ffffff', mid: '#eaf6ff', lo: '#b8dcf5', ink: '#3a6ea8' };
-const SHELL = { hi: '#ffffff', mid: '#cfeafc', lo: '#7fb8e6', ink: '#2e5e9a' };
-
-function bubble(s: Svg, x: number, y: number, r: number) {
-  s.add(shape(`M${x} ${y - r}A${r} ${r} 0 1 1 ${x - 0.1} ${y - r}Z`, s.rad(WATER), WATER.ink));
-  s.add(`<ellipse cx="${x - r * 0.35}" cy="${y - r * 0.4}" rx="${r * 0.32}" ry="${r * 0.22}" fill="#fff" opacity=".85" transform="rotate(-30 ${x - r * 0.35} ${y - r * 0.4})"/>`);
-}
-
-function drop(s: Svg, x: number, y: number, r: number) {
-  s.add(shape(`M${x} ${y - r * 1.8}Q${x + r} ${y - r * 0.4} ${x + r} ${y + r * 0.2}Q${x + r} ${y + r} ${x} ${y + r}Q${x - r} ${y + r} ${x - r} ${y + r * 0.2}Q${x - r} ${y - r * 0.4} ${x} ${y - r * 1.8}Z`, s.rad(WATER), WATER.ink));
-  s.add(`<ellipse cx="${x - r * 0.4}" cy="${y}" rx="${r * 0.22}" ry="${r * 0.4}" fill="#fff" opacity=".7"/>`);
-}
-
-const waterArt: ((s: Svg) => void)[] = [
-  (s) => { s.shadow(16); bubble(s, 44, 66, 12); bubble(s, 60, 58, 8); bubble(s, 58, 74, 5); },
-  (s) => {
-    s.shadow(24);
-    s.add(shape('M50 84L22 46Q24 26 50 22Q76 26 78 46Z', s.rad(SHELL), SHELL.ink));
-    s.add(`<path d="M50 84L30 30M50 84L40 24M50 84L50 22M50 84L60 24M50 84L70 30" stroke="${SHELL.ink}" stroke-width="1.8" opacity=".45"/>`);
-    s.add(shape('M40 84L60 84L56 92L44 92Z', s.rad(SHELL), SHELL.ink));
-    s.add(hl('M30 44Q34 32 44 28', 2.6, 0.8));
+    s.shadow(30);
+    s.add(shape('M10 82L90 82L86 92L14 92Z', s.rad(P.wood), P.wood.ink));
+    s.add(shape('M20 80Q16 58 34 52Q50 42 66 52Q84 58 80 80Q50 88 20 80Z', s.rad(DOUGH), DOUGH.ink));
+    s.add(hl('M28 66Q34 56 46 54', 3, 0.8));
+    s.add('<g fill="#fff"><circle cx="62" cy="62" r="1.6"/><circle cx="70" cy="70" r="1.2"/><circle cx="30" cy="74" r="1.4"/><circle cx="24" cy="86" r="1.6"/><circle cx="78" cy="86" r="1.3"/></g>');
+    s.add(`<g transform="rotate(-12 50 46)">${shape('M28 42L72 42L72 50L28 50Z', s.rad(P.wood), P.wood.ink)}${shape('M14 44L28 44L28 48L14 48Z', s.rad(P.wood), P.wood.ink, 'stroke-width="2"')}${shape('M72 44L86 44L86 48L72 48Z', s.rad(P.wood), P.wood.ink, 'stroke-width="2"')}</g>`);
   },
   (s) => {
     s.shadow(28);
-    s.add(shape('M14 78Q14 66 50 66Q86 66 86 78Q86 88 50 88Q14 88 14 78Z', s.rad(WATER), WATER.ink));
-    s.add(shape('M24 74Q28 52 34 46Q38 60 42 70Q46 42 52 36Q56 58 58 70Q64 48 68 44Q72 60 76 74Q50 82 24 74Z', s.rad(FOAM), FOAM.ink));
-    drop(s, 34, 34, 4); drop(s, 54, 22, 5); drop(s, 70, 32, 3.5);
-    s.add(`<ellipse cx="50" cy="80" rx="22" ry="4" fill="none" stroke="#fff" stroke-width="2" opacity=".6"/>`);
+    roll(s, 50, 62, 30);
+    s.add('<g fill="#fff8e0" stroke="#a8622a" stroke-width=".8"><ellipse cx="40" cy="44" rx="2.2" ry="1.3"/><ellipse cx="54" cy="40" rx="2.2" ry="1.3" transform="rotate(30 54 40)"/><ellipse cx="62" cy="48" rx="2.2" ry="1.3" transform="rotate(-20 62 48)"/><ellipse cx="46" cy="52" rx="2.2" ry="1.3"/></g>');
+  },
+  (s) => { s.shadow(34); croissant(s, 50, 58, 1.35); s.sparkle(80, 30, 4.5, '#fff6c4'); },
+  (s) => {
+    s.shadow(34);
+    baguette(s, 50, 56, 84, -40);
+    baguette(s, 54, 62, 80, -62);
+    s.add(shape('M30 92L30 64L70 64L70 92Z', s.rad({ hi: '#f8e6c4', mid: '#dcbc8a', lo: '#a88454', ink: '#5e4420' }), '#5e4420'));
+    s.add(`<path d="M30 70L70 70" stroke="#c0503a" stroke-width="4"/><circle cx="50" cy="80" r="5" fill="#fff8e8" stroke="#5e4420" stroke-width="1.6"/>`);
   },
   (s) => {
-    s.halo('#9fdcff'); s.shadow(22);
-    s.add(shape('M50 18A30 30 0 1 1 49.9 18Z', s.rad(WATER), WATER.ink));
-    s.add('<path d="M22 54Q30 46 38 54T54 54T70 54T80 52L78 62Q64 78 50 78Q30 78 22 62Z" fill="#1f6fc9" opacity=".55"/>');
-    s.add('<path d="M22 54Q30 46 38 54T54 54T70 54T80 52" fill="none" stroke="#fff" stroke-width="2.6" opacity=".85"/>');
-    s.add('<ellipse cx="38" cy="32" rx="9" ry="6" fill="#fff" opacity=".8" transform="rotate(-30 38 32)"/>');
-    s.sparkle(80, 22, 6);
-  },
-  (s) => {
-    s.shadow(32);
-    s.add(shape('M14 74L86 74L80 88L20 88Z', s.rad(FOAM), FOAM.ink));
-    s.add(shape('M14 70Q50 64 86 70L86 76Q50 82 14 76Z', s.rad(WATER), WATER.ink));
-    s.add(shape('M44 72L42 46L58 46L56 72Z', s.rad(FOAM), FOAM.ink));
-    s.add(shape('M28 48Q50 40 72 48Q70 56 50 56Q30 56 28 48Z', s.rad(FOAM), FOAM.ink));
-    s.add(shape('M50 46Q48 28 50 16Q52 28 50 46', 'none', WATER.ink, 'stroke-width="5"'));
-    s.add(`<path d="M50 20Q30 22 26 48M50 20Q70 22 74 48" fill="none" stroke="${WATER.ink}" stroke-width="6" stroke-linecap="round"/>`);
-    s.add(`<path d="M50 20Q30 22 26 48M50 20Q70 22 74 48M50 44L50 18" fill="none" stroke="${WATER.mid}" stroke-width="3" stroke-linecap="round"/>`);
-    drop(s, 26, 58, 3); drop(s, 74, 58, 3);
-  },
-  (s) => {
-    s.halo('#9fdcff'); s.shadow(16);
-    s.add('<g transform="rotate(28 50 50)">');
-    s.add(shape('M48 30L52 30L52 96L48 96Z', s.lin('#cfe8ff', '#6a8ab8', false), '#2e4a7a'));
-    s.add(shape('M30 34L30 14L34 6L38 14L38 30Q50 36 62 30L62 14L66 6L70 14L70 34Q60 44 50 42Q40 44 30 34Z', s.rad({ hi: '#ffffff', mid: '#9fd4ff', lo: '#3a7ac8', ink: '#1e3e78' }), '#1e3e78'));
-    s.add(shape('M46 42L50 4L54 42Z', s.rad({ hi: '#ffffff', mid: '#9fd4ff', lo: '#3a7ac8', ink: '#1e3e78' }), '#1e3e78'));
-    s.add('</g>');
-    s.add(`<path d="M20 72Q34 58 50 70T80 64" fill="none" stroke="${WATER.mid}" stroke-width="5" stroke-linecap="round" opacity=".8"/>`);
-    drop(s, 78, 44, 4); s.sparkle(22, 24, 5);
-  },
-  (s) => {
-    s.halo('#7fd0ff'); s.shadow(36);
-    s.add(shape('M8 88Q12 50 42 26Q70 8 88 26Q70 22 60 34Q78 34 80 50Q70 42 58 46Q48 52 50 66Q52 80 70 88Z', s.rad(WATER), WATER.ink));
-    s.add(shape('M42 26Q70 8 88 26Q78 30 70 26Q76 34 66 34Q58 28 52 36Q50 28 42 26Z', s.rad(FOAM), FOAM.ink));
-    s.add('<path d="M18 80Q22 56 40 40M30 84Q32 66 46 54" fill="none" stroke="#fff" stroke-width="2.4" opacity=".55"/>');
-    s.add(shape('M60 88Q70 80 92 86L92 92L56 92Z', s.rad(FOAM), FOAM.ink));
-    drop(s, 90, 40, 3.5); drop(s, 80, 12, 3); s.sparkle(16, 20, 6); s.sparkle(92, 60, 4);
+    s.halo('#ffe2a0'); s.shadow(40);
+    baguette(s, 36, 34, 60, -62);
+    croissant(s, 64, 44, 0.75);
+    roll(s, 44, 50, 16);
+    s.add(shape('M10 56L90 56L80 92L20 92Z', s.rad(WICKER), WICKER.ink));
+    for (let i = 0; i < 4; i++) s.add(`<path d="M${14 + i * 2} ${64 + i * 8}L${86 - i * 2} ${64 + i * 8}" stroke="${WICKER.ink}" stroke-width="1.6" opacity=".55"/>`);
+    for (let x = 22; x < 82; x += 8) s.add(`<path d="M${x} 58L${x + (x - 50) * 0.08} 90" stroke="${WICKER.lo}" stroke-width="1.6" opacity=".7"/>`);
+    s.add(shape('M8 54L92 54L90 62L10 62Z', s.rad(WICKER), WICKER.ink));
+    // Checked cloth hanging over the rim.
+    s.add(shape('M14 56L40 56L32 76L20 70Z', '#fff', '#8a2a2a', 'stroke-width="2"'));
+    s.add('<path d="M18 58L36 58M17 63L33 63M18 68L30 68M22 56L22 72M28 56L26 74M34 56L31 70" stroke="#e8403a" stroke-width="2.4" opacity=".75"/>');
+    s.sparkle(84, 22, 5, '#fff6c4'); s.sparkle(14, 30, 3.5, '#fff6c4');
   },
 ];
 
-// ------------------------------------------------------------------ wind
+// ------------------------------------------------------------------ drinks
 
-const WIND = { hi: '#f2fff9', mid: '#9ce8cc', lo: '#3cb894', ink: '#1e6e5a' };
-const CLOUD = { hi: '#ffffff', mid: '#eef4fa', lo: '#bccadc', ink: '#56688a' };
+const LEMON = { hi: '#fffbd0', mid: '#ffe066', lo: '#e8b020', ink: '#8a6410' };
+const CUP = { hi: '#ffffff', mid: '#f2f4fa', lo: '#c8cfe0', ink: '#4a5478' };
+const COFFEE = '#7a4626';
 
-function swirl(s: Svg, x: number, y: number, r: number, w = 3.4) {
-  const d = `M${x - r} ${y}Q${x - r} ${y - r} ${x} ${y - r}Q${x + r} ${y - r} ${x + r} ${y}Q${x + r} ${y + r * 0.6} ${x + r * 0.1} ${y + r * 0.6}Q${x - r * 0.5} ${y + r * 0.6} ${x - r * 0.4} ${y}Q${x - r * 0.3} ${y - r * 0.35} ${x + r * 0.1} ${y - r * 0.3}`;
-  s.add(`<path d="${d}" fill="none" stroke="${WIND.ink}" stroke-width="${w + 3}" stroke-linecap="round"/>`);
-  s.add(`<path d="${d}" fill="none" stroke="${WIND.mid}" stroke-width="${w}" stroke-linecap="round"/>`);
+/** A tumbler from y=top to y=bottom with liquid from y=level down. */
+function tumbler(s: Svg, top: number, bottom: number, wTop: number, wBot: number, level: number, liquid: string) {
+  const t = (y: number) => wTop + (wBot - wTop) * ((y - top) / (bottom - top));
+  const lw = t(level);
+  s.add(shape(`M${50 - wTop / 2} ${top}L${50 + wTop / 2} ${top}L${50 + wBot / 2} ${bottom}L${50 - wBot / 2} ${bottom}Z`, GLASS, GLASS_INK));
+  s.add(`<path d="M${50 - lw / 2 + 2} ${level}L${50 + lw / 2 - 2} ${level}L${50 + wBot / 2 - 2} ${bottom - 2}L${50 - wBot / 2 + 2} ${bottom - 2}Z" fill="${liquid}"/>`);
+  s.add(`<ellipse cx="50" cy="${level}" rx="${lw / 2 - 2}" ry="2.6" fill="#fff" opacity=".45"/>`);
+  s.add(hl(`M${50 - wTop / 2 + 5} ${top + 6}L${50 - wBot / 2 + 5} ${bottom - 6}`, 3, 0.85));
 }
 
-function gust(s: Svg, x: number, y: number, len: number) {
-  const d = `M${x} ${y}L${x + len} ${y}Q${x + len + 8} ${y} ${x + len + 8} ${y - 6}Q${x + len + 8} ${y - 11} ${x + len + 3} ${y - 11}`;
-  s.add(`<path d="${d}" fill="none" stroke="${WIND.ink}" stroke-width="6" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${WIND.hi}" stroke-width="3" stroke-linecap="round"/>`);
+function straw(s: Svg, x1: number, y1: number, x2: number, y2: number, color = '#ff5a8a') {
+  s.add(shape(`M${x1} ${y1}L${x2} ${y2}`, 'none', '#7a2a4a', 'stroke-width="7"'));
+  s.add(`<path d="M${x1} ${y1}L${x2} ${y2}" stroke="${color}" stroke-width="4" stroke-linecap="round"/>`);
+  s.add(`<path d="M${x1} ${y1}L${x2} ${y2}" stroke="#fff" stroke-width="4" stroke-dasharray="3 5" opacity=".9"/>`);
 }
 
-const windArt: ((s: Svg) => void)[] = [
-  (s) => { s.shadow(14); swirl(s, 50, 62, 12); gust(s, 30, 78, 16); },
+function lemonSlice(s: Svg, x: number, y: number, r: number) {
+  s.add(circ(x, y, r, s.rad(LEMON), LEMON.ink, 'stroke-width="2"'));
+  s.add(`<circle cx="${x}" cy="${y}" r="${r * 0.72}" fill="#fff6b0"/>`);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    s.add(`<path d="M${x} ${y}L${(x + Math.cos(a) * r * 0.7).toFixed(1)} ${(y + Math.sin(a) * r * 0.7).toFixed(1)}" stroke="${LEMON.lo}" stroke-width="1.2"/>`);
+  }
+}
+
+function cream(s: Svg, cx: number, cy: number, w: number) {
+  const k = w / 40;
+  s.add(shape(`M${cx - 20 * k} ${cy}Q${cx - 24 * k} ${cy - 10 * k} ${cx - 12 * k} ${cy - 11 * k}Q${cx - 12 * k} ${cy - 22 * k} ${cx} ${cy - 20 * k}Q${cx + 4 * k} ${cy - 30 * k} ${cx + 8 * k} ${cy - 20 * k}Q${cx + 20 * k} ${cy - 22 * k} ${cx + 13 * k} ${cy - 11 * k}Q${cx + 24 * k} ${cy - 10 * k} ${cx + 20 * k} ${cy}Z`, s.rad(CUP), CUP.ink, 'stroke-width="2.4"'));
+}
+
+const drinksArt: ((s: Svg) => void)[] = [
   (s) => {
-    s.shadow(16);
-    s.add(shape('M50 88Q48 70 50 52', 'none', WIND.ink, 'stroke-width="3.5"'));
-    s.add(`<path d="M50 72Q40 68 36 60" fill="none" stroke="${WIND.lo}" stroke-width="3" stroke-linecap="round"/>`);
-    s.add(`<circle cx="50" cy="38" r="20" fill="#fff" stroke="${CLOUD.ink}" stroke-width="2.4" opacity=".95"/>`);
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2, x = 50 + Math.cos(a) * 18, y = 38 + Math.sin(a) * 18;
-      s.add(`<path d="M50 38L${x.toFixed(1)} ${y.toFixed(1)}" stroke="${WIND.lo}" stroke-width="1.2" opacity=".7"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2" fill="${WIND.mid}"/>`);
-    }
-    s.add(`<circle cx="50" cy="38" r="4" fill="${WIND.lo}"/>`);
-    s.add(`<path d="M74 22L80 18M78 30L86 28" stroke="${WIND.lo}" stroke-width="2" stroke-linecap="round"/><circle cx="82" cy="18" r="2" fill="${WIND.mid}"/>`);
-  },
-  (s) => {
-    s.shadow(16);
-    s.add(shape('M48 50L46 92L54 92L52 50Z', s.lin('#e7b77d', '#7c4a24', false), '#553016'));
-    for (let i = 0; i < 4; i++) {
-      s.add(`<g transform="rotate(${i * 90} 50 44)">`);
-      s.add(shape('M50 44L50 14Q70 18 68 36Z', s.rad(i % 2 ? WIND : CLOUD), WIND.ink));
-      s.add('</g>');
-    }
-    s.add(`<circle cx="50" cy="44" r="4.5" fill="#ffd147" stroke="${WIND.ink}" stroke-width="2"/>`);
+    s.shadow(18);
+    tumbler(s, 30, 88, 38, 30, 46, 'rgba(110,190,248,.75)');
+    s.add(shape('M42 50L56 47L58 60L44 62Z', 'rgba(255,255,255,.85)', GLASS_INK, 'stroke-width="2"'));
+    s.add('<g fill="#fff" opacity=".9"><circle cx="54" cy="72" r="2"/><circle cx="46" cy="78" r="1.6"/><circle cx="56" cy="82" r="1.3"/></g>');
   },
   (s) => {
     s.shadow(20);
-    s.add(`<path d="M50 74Q44 82 52 88Q60 94 50 100" fill="none" stroke="${WIND.ink}" stroke-width="2.4"/>`);
-    for (const y of [82, 92]) s.add(shape(`M44 ${y}L50 ${y - 3}L56 ${y}L50 ${y + 3}Z`, s.rad(WIND), WIND.ink, 'stroke-width="2"'));
-    s.add(shape('M50 10L78 40L50 74L22 40Z', s.rad(WIND), WIND.ink));
-    s.add('<path d="M50 10L50 74L22 40Z" fill="#fff" opacity=".45"/>');
-    s.add(`<path d="M50 10L50 74M22 40L78 40" stroke="${WIND.ink}" stroke-width="2" opacity=".6"/>`);
-    swirl(s, 64, 52, 5, 2);
+    straw(s, 58, 60, 70, 14);
+    tumbler(s, 26, 90, 40, 32, 38, 'rgba(255,224,90,.9)');
+    lemonSlice(s, 30, 28, 11);
+    s.add('<g fill="#fff" opacity=".9"><circle cx="46" cy="60" r="2"/><circle cx="54" cy="74" r="1.6"/><circle cx="44" cy="80" r="1.3"/></g>');
+  },
+  (s) => {
+    s.shadow(30);
+    s.add(ell(50, 84, 36, 8, s.rad(CUP), CUP.ink));
+    s.add(shape('M72 54Q88 54 86 64Q84 74 68 72', 'none', CUP.ink, 'stroke-width="8"') + shape('M72 54Q88 54 86 64Q84 74 68 72', 'none', CUP.mid, 'stroke-width="4"'));
+    s.add(shape('M26 48L74 48Q74 80 50 82Q26 80 26 48Z', s.rad(CUP), CUP.ink));
+    s.add(ell(50, 48, 24, 5.5, COFFEE, CUP.ink, 'stroke-width="2.4"'));
+    s.add('<path d="M44 47Q50 44 56 47Q50 50 44 47Z" fill="#e8c8a0"/>');
+    s.add(hl('M32 56Q32 70 40 76', 2.6, 0.7));
+    steam(s, 42, 38, 18); steam(s, 56, 34, 20);
+  },
+  (s) => {
+    s.shadow(28);
+    const red = { hi: '#ffb8a8', mid: '#ef4a4a', lo: '#a82424', ink: '#5a1010' };
+    s.add(shape('M70 46Q88 46 86 60Q84 74 68 72', 'none', red.ink, 'stroke-width="9"') + shape('M70 46Q88 46 86 60Q84 74 68 72', 'none', red.mid, 'stroke-width="4.5"'));
+    s.add(shape('M24 38L72 38L70 86Q48 92 26 86Z', s.rad(red), red.ink));
+    s.add(ell(48, 38, 24, 5.5, '#8a5232', red.ink, 'stroke-width="2.4"'));
+    for (const [x, y, c] of [[38, 34, '#fff'], [48, 31, '#ffd0e0'], [58, 34, '#fff'], [46, 37, '#fff']] as const) s.add(shape(`M${x - 4} ${y - 3}L${x + 4} ${y - 3}L${x + 4} ${y + 3}L${x - 4} ${y + 3}Z`, c, '#a07a6a', 'stroke-width="1.6"'));
+    s.add('<path d="M30 60Q48 66 66 60" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="2 6" stroke-linecap="round" opacity=".8"/>');
+    steam(s, 40, 26, 16); steam(s, 56, 24, 18);
+  },
+  (s) => {
+    s.shadow(22);
+    straw(s, 56, 30, 70, 2, '#ff5a8a');
+    const glass = 'M30 30L70 30L60 72L54 76L54 84L66 88L34 88L46 84L46 76L40 72Z';
+    s.add(shape(glass, GLASS, GLASS_INK));
+    s.add('<path d="M33 34L67 34L58.5 70L41.5 70Z" fill="#ff9ec8"/>');
+    s.add('<path d="M36 44L64 44M38 54L62 54" stroke="#fff" stroke-width="2" opacity=".5"/>');
+    cream(s, 50, 32, 42);
+    s.add(circ(52, 8, 6, s.rad({ hi: '#ffb0b0', mid: '#e8203a', lo: '#a01020', ink: '#5a0a10' }), '#5a0a10', 'stroke-width="2"'));
+    s.add('<path d="M53 3Q56 -4 62 -4" fill="none" stroke="#3a6a2a" stroke-width="2"/>');
+    sprinkles(s, [[40, 22, 20], [58, 20, -30], [48, 16, 70], [62, 26, 10]]);
+    s.add(hl('M35 36L42 66', 2.6, 0.8));
+  },
+  (s) => {
+    s.shadow(22);
+    s.add(shape('M57 8L63 8L60 60L54 60Z', '#ff8ac0', '#7a2a4a', 'stroke-width="2.4"'));
+    s.add(shape('M30 36L70 36L64 90L36 90Z', GLASS, GLASS_INK));
+    s.add('<path d="M33 46L67 46L62 88L38 88Z" fill="#d8a878"/>');
+    for (const [x, y] of [[42, 82], [50, 84], [58, 82], [46, 76], [55, 76], [40, 70]]) s.add(`<circle cx="${x}" cy="${y}" r="3.6" fill="#3a2418"/><circle cx="${x - 1}" cy="${y - 1.2}" r="1" fill="#fff" opacity=".7"/>`);
+    s.add(shape('M28 36Q50 14 72 36Z', 'rgba(255,255,255,.6)', GLASS_INK, 'stroke-width="2.4"'));
+    s.add(shape('M26 34L74 34L74 39L26 39Z', 'rgba(255,255,255,.8)', GLASS_INK, 'stroke-width="2"'));
+    s.add(hl('M35 42L39 84', 2.6, 0.8));
+  },
+  (s) => {
+    s.halo('#ffc0c0'); s.shadow(36);
+    s.add(shape('M40 84L60 84L64 92L36 92Z', GLASS, GLASS_INK));
+    s.add(shape('M46 76L54 76L54 86L46 86Z', GLASS, GLASS_INK, 'stroke-width="2.4"'));
+    s.add(shape('M76 20L66 52', 'none', '#8a8aa0', 'stroke-width="5"'));
+    s.add(shape('M8 40Q10 78 50 80Q90 78 92 40Z', GLASS, GLASS_INK));
+    s.add('<path d="M12 48Q16 74 50 76Q84 74 88 48Z" fill="#ff5a6a"/>');
+    s.add(ell(50, 48, 38, 6, '#ff8a8a', GLASS_INK, 'stroke-width="1.6"'));
+    lemonSlice(s, 30, 46, 8);
+    s.add(circ(64, 46, 8, s.rad({ hi: '#ffe0b0', mid: '#ff9a3c', lo: '#d8601a', ink: '#7a3410' }), '#7a3410', 'stroke-width="2"'));
+    s.add('<path d="M44 42L52 40L54 48L46 50Z" fill="#fff" stroke="#2a5a8a" stroke-width="1.4" opacity=".9"/>');
+    s.add(circ(76, 20, 5, s.rad(P.stone), P.stone.ink, 'stroke-width="2"'));
+    s.add(hl('M16 50Q20 68 34 74', 3, 0.8));
+    s.sparkle(88, 18, 6); s.sparkle(14, 24, 4);
+  },
+];
+
+// ------------------------------------------------------------------ desserts
+
+const PINK = { hi: '#ffe3f0', mid: '#ff8ec4', lo: '#e0508e', ink: '#8a2458' };
+const COOKIE = { hi: '#ffe6b8', mid: '#e0a85e', lo: '#a86c30', ink: '#5a3414' };
+const CHOC = { hi: '#c8946a', mid: '#7a4a2a', lo: '#4a2814', ink: '#2a1408' };
+const VANILLA = { hi: '#fffef6', mid: '#fff3d0', lo: '#e8d09a', ink: '#8a6a30' };
+const BERRY = { hi: '#ffb0b0', mid: '#ee3a4a', lo: '#a81a28', ink: '#5a0a14' };
+
+function strawberry(s: Svg, x: number, y: number, k: number) {
+  s.add(shape(`M${x} ${y + 9 * k}Q${x - 9 * k} ${y + 2 * k} ${x - 7 * k} ${y - 4 * k}Q${x} ${y - 7 * k} ${x + 7 * k} ${y - 4 * k}Q${x + 9 * k} ${y + 2 * k} ${x} ${y + 9 * k}Z`, s.rad(BERRY), BERRY.ink, 'stroke-width="2"'));
+  s.add(`<path d="M${x - 5 * k} ${y - 5 * k}L${x} ${y - 2 * k}L${x + 5 * k} ${y - 5 * k}L${x} ${y - 8 * k}Z" fill="#5ab84a" stroke="#2e6a2e" stroke-width="1.2"/>`);
+  s.add(`<g fill="#ffe8a0"><circle cx="${x - 3 * k}" cy="${y}" r="${0.8 * k}"/><circle cx="${x + 3 * k}" cy="${y + 1 * k}" r="${0.8 * k}"/><circle cx="${x}" cy="${y + 4 * k}" r="${0.8 * k}"/></g>`);
+}
+
+function cherry(s: Svg, x: number, y: number, r = 5) {
+  s.add(`<path d="M${x + 1} ${y - r + 1}Q${x + 3} ${y - r - 8} ${x + 9} ${y - r - 9}" fill="none" stroke="#3a6a2a" stroke-width="2"/>`);
+  s.add(circ(x, y, r, s.rad(BERRY), BERRY.ink, 'stroke-width="2"'));
+  s.add(`<circle cx="${x - r * 0.35}" cy="${y - r * 0.35}" r="${r * 0.3}" fill="#fff" opacity=".8"/>`);
+}
+
+function scoop(s: Svg, x: number, y: number, r: number, p: { hi: string; mid: string; lo: string; ink: string }) {
+  s.add(shape(`M${x - r} ${y + r * 0.3}Q${x - r} ${y - r} ${x} ${y - r}Q${x + r} ${y - r} ${x + r} ${y + r * 0.3}Q${x + r * 0.6} ${y + r * 0.6} ${x + r * 0.3} ${y + r * 0.3}Q${x} ${y + r * 0.7} ${x - r * 0.3} ${y + r * 0.35}Q${x - r * 0.7} ${y + r * 0.65} ${x - r} ${y + r * 0.3}Z`, s.rad(p), p.ink, 'stroke-width="2.4"'));
+  s.add(hl(`M${x - r * 0.6} ${y - r * 0.2}Q${x - r * 0.45} ${y - r * 0.65} ${x - r * 0.05} ${y - r * 0.7}`, 2.2, 0.7));
+}
+
+const dessertArt: ((s: Svg) => void)[] = [
+  (s) => {
+    s.shadow(20);
+    s.add(shape('M30 50L14 38L16 62Z', s.rad(PINK), PINK.ink) + shape('M70 50L86 38L84 62Z', s.rad(PINK), PINK.ink));
+    s.add(circ(50, 50, 20, s.rad(PINK), PINK.ink));
+    s.add('<path d="M50 50m-14 0a14 14 0 0 1 28 0a10 10 0 0 1 -20 0a6 6 0 0 1 12 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>');
+    s.add(hl('M38 40Q42 34 50 33', 2.6, 0.8));
   },
   (s) => {
     s.shadow(24);
-    s.add(shape('M20 22Q50 10 80 22L78 28Q50 18 22 28Z', s.rad(P.wood), P.wood.ink));
-    s.add(`<path d="M50 4L50 16" stroke="${P.wood.ink}" stroke-width="3"/>`);
-    for (const [x, len] of [[30, 44], [42, 56], [54, 50], [66, 38]] as const) {
-      s.add(`<path d="M${x} 24L${x} 30" stroke="${CLOUD.ink}" stroke-width="1.6"/>`);
-      s.add(shape(`M${x - 4} 30L${x + 4} 30L${x + 4} ${30 + len}L${x - 4} ${30 + len}Z`, s.lin(WIND.hi, WIND.lo, false), WIND.ink, 'stroke-width="2.4"'));
+    s.add(shape('M50 22Q78 22 80 50Q80 78 50 80Q20 80 20 52Q22 20 50 22Z', s.rad(COOKIE), COOKIE.ink));
+    for (const [x, y, r] of [[38, 38, 4], [58, 34, 3.5], [66, 52, 4.5], [44, 58, 4], [34, 66, 3], [56, 68, 3.6], [50, 46, 2.8]]) {
+      s.add(`<path d="M${x - r} ${y}Q${x - r} ${y - r} ${x} ${y - r}Q${x + r} ${y - r * 0.8} ${x + r} ${y + r * 0.2}Q${x} ${y + r * 1.1} ${x - r} ${y}Z" fill="${CHOC.mid}" stroke="${CHOC.ink}" stroke-width="1.2"/>`);
     }
-    s.add(`<path d="M48 26L48 70" stroke="${CLOUD.ink}" stroke-width="1.4"/>`);
-    s.add(shape('M42 70L54 70L48 84Z', s.rad(WIND), WIND.ink, 'stroke-width="2.2"'));
-    gust(s, 10, 52, 8); gust(s, 74, 62, 10);
+    s.add(`<path d="M30 46L33 44M62 62L65 64M44 28L47 30" stroke="${COOKIE.lo}" stroke-width="2" stroke-linecap="round"/>`);
+    s.add(hl('M28 44Q32 30 46 27', 2.6, 0.6));
   },
   (s) => {
-    s.halo('#b8f5e0'); s.shadow(18);
-    const bands = [[50, 18, 34, 8], [52, 32, 28, 7], [50, 45, 22, 6], [48, 57, 16, 5], [50, 68, 11, 4], [50, 78, 7, 3]];
-    for (const [x, y, rx, ry] of bands) {
-      s.add(shape(`M${x - rx} ${y}Q${x - rx} ${y + ry * 1.5} ${x} ${y + ry * 1.5}Q${x + rx} ${y + ry * 1.5} ${x + rx} ${y}Q${x + rx} ${y - ry} ${x} ${y - ry}Q${x - rx} ${y - ry} ${x - rx} ${y}Z`, s.rad(WIND), WIND.ink, 'stroke-width="2.4"'));
-    }
-    s.add(`<path d="M50 86L50 90" stroke="${WIND.ink}" stroke-width="3" stroke-linecap="round"/>`);
-    stone(s, 20, 46, 4, 3); stone(s, 82, 34, 3.5, 2.5);
-    s.add(shape('M78 62L86 58L84 66Z', '#8cc65a', '#2e5a22', 'stroke-width="1.6"'));
+    s.shadow(24);
+    s.add(shape('M28 56L72 56L64 90L36 90Z', s.rad({ hi: '#e0f4ff', mid: '#8ccff8', lo: '#3a8ad8', ink: '#1a4a80' }), '#1a4a80'));
+    for (const x of [36, 44, 52, 60]) s.add(`<path d="M${x + 1} 58L${x + 1 - (x - 50) * 0.1} 88" stroke="#fff" stroke-width="2.6" opacity=".7"/>`);
+    s.add(shape('M24 58Q20 46 32 42Q30 30 44 30Q46 20 56 22Q68 22 66 32Q80 34 76 46Q82 52 76 58Q50 64 24 58Z', s.rad(PINK), PINK.ink));
+    s.add('<path d="M30 50Q50 56 70 48M36 38Q50 44 62 36" fill="none" stroke="#fff" stroke-width="2.4" opacity=".6"/>');
+    sprinkles(s, [[36, 46, 20], [48, 40, -30], [60, 44, 60], [42, 52, -10], [64, 52, 30], [54, 32, 0]]);
+    cherry(s, 54, 20, 6);
   },
   (s) => {
-    s.halo('#b8f5e0'); s.shadow(34, 96);
-    s.add(shape('M46 58L36 76L46 76L40 94L60 70L50 70L58 58Z', s.rad({ hi: '#fffbd0', mid: '#ffe060', lo: '#e8a820', ink: '#8a5a10' }), '#8a5a10'));
-    for (const [x, y, r] of [[26, 46, 14], [44, 34, 18], [64, 36, 16], [78, 48, 12], [52, 50, 14], [34, 52, 11]] as const) {
-      s.add(shape(`M${x} ${y - r}A${r} ${r} 0 1 1 ${x - 0.1} ${y - r}Z`, s.rad(CLOUD), CLOUD.ink));
+    s.shadow(30);
+    s.add(`<path d="M50 24A30 28 0 1 1 49.9 24ZM50 42A11 9 0 1 0 50.1 42Z" fill="${s.rad(COOKIE)}" fill-rule="evenodd" stroke="${COOKIE.ink}" ${sw}/>`);
+    s.add(`<path d="M50 28Q66 26 74 38Q80 48 74 56Q76 64 68 66Q60 74 50 70Q40 74 32 66Q24 64 26 56Q20 48 26 38Q34 26 50 28ZM50 42A11 9 0 1 0 50.1 42Z" fill="${s.rad(PINK)}" fill-rule="evenodd" stroke="${PINK.ink}" stroke-width="2.4" stroke-linejoin="round"/>`);
+    sprinkles(s, [[36, 38, 20], [62, 36, -40], [70, 52, 80], [32, 54, -20], [56, 64, 10], [42, 64, 50], [50, 32, 90], [66, 44, 30]]);
+    s.add(hl('M32 42Q36 32 46 30', 2.6, 0.7));
+  },
+  (s) => {
+    s.shadow(24);
+    s.add(shape('M24 50L76 50Q74 70 56 74L54 82L64 86L64 90L36 90L36 86L46 82L44 74Q26 70 24 50Z', GLASS, GLASS_INK));
+    scoop(s, 38, 46, 13, VANILLA); scoop(s, 62, 46, 13, PINK); scoop(s, 50, 34, 14, CHOC);
+    s.add(`<path d="M40 38Q44 46 40 52M58 34Q62 44 60 50M50 24Q46 32 50 38" fill="none" stroke="${CHOC.lo}" stroke-width="3" stroke-linecap="round"/>`);
+    s.add(shape('M70 14L80 40L76 41L66 15Z', s.rad(COOKIE), COOKIE.ink, 'stroke-width="2"'));
+    cherry(s, 50, 18, 6);
+    sprinkles(s, [[34, 40, 30], [64, 40, -30], [44, 30, 70], [58, 28, 10]]);
+    s.add(hl('M30 54Q34 64 42 68', 2.6, 0.8));
+  },
+  (s) => {
+    s.shadow(36);
+    s.add(ell(50, 84, 42, 9, s.rad(CUP), CUP.ink));
+    s.add(shape('M14 48L14 76Q50 90 86 76L86 48Z', s.rad(VANILLA), VANILLA.ink));
+    s.add('<path d="M15 62Q50 74 85 62L85 68Q50 80 15 68Z" fill="#ff7aa8"/>');
+    s.add(ell(50, 48, 36, 10, s.rad(VANILLA), VANILLA.ink));
+    for (let i = 0; i < 7; i++) { const x = 18 + i * 10.7, y = 52 + Math.sin((i / 6) * Math.PI) * 6; s.add(circ(x, y, 4, s.rad(CUP), CUP.ink, 'stroke-width="1.6"')); }
+    strawberry(s, 36, 42, 1.1); strawberry(s, 52, 38, 1.25); strawberry(s, 66, 43, 1.05);
+    s.add(hl('M20 56L20 72', 2.6, 0.6));
+  },
+  (s) => {
+    s.halo('#ffd8ec'); s.shadow(36);
+    const tier = (y: number, w: number, h: number) => {
+      s.add(shape(`M${50 - w / 2} ${y - h}L${50 - w / 2} ${y}Q50 ${y + 6} ${50 + w / 2} ${y}L${50 + w / 2} ${y - h}Z`, s.rad(VANILLA), VANILLA.ink));
+      s.add(ell(50, y - h, w / 2, 4.5, s.rad(VANILLA), VANILLA.ink, 'stroke-width="2.4"'));
+      s.add(`<path d="M${50 - w / 2 + 1} ${y - h * 0.35}Q50 ${y - h * 0.35 + 6} ${50 + w / 2 - 1} ${y - h * 0.35}" fill="none" stroke="#ff8ec4" stroke-width="4"/>`);
+      for (let x = 50 - w / 2 + 5; x < 50 + w / 2 - 2; x += 7) s.add(`<circle cx="${x}" cy="${y - h + 6}" r="1.6" fill="#fff" stroke="${VANILLA.lo}" stroke-width=".8"/>`);
+    };
+    s.add(ell(50, 90, 40, 6, s.rad(P.metal), P.metal.ink));
+    tier(88, 74, 22); tier(64, 54, 18); tier(44, 34, 15);
+    for (const [x, y] of [[22, 66], [78, 66], [32, 46], [68, 46]]) s.add(circ(x, y, 4, s.rad(PINK), PINK.ink, 'stroke-width="1.6"'));
+    s.add(shape('M50 26Q44 18 40 22Q36 26 50 34Q64 26 60 22Q56 18 50 26Z', s.rad(BERRY), BERRY.ink, 'stroke-width="2"'));
+    s.sparkle(84, 20, 6); s.sparkle(16, 28, 4); s.sparkle(72, 8, 3.5);
+  },
+];
+
+// ------------------------------------------------------------------ grill
+
+const EGG = { hi: '#fffef8', mid: '#fbf0dc', lo: '#dcc6a0', ink: '#7a6040' };
+const YOLK = { hi: '#fff6b0', mid: '#ffc93c', lo: '#e8901c', ink: '#8a5010' };
+const MEAT = { hi: '#ffb88a', mid: '#c8643a', lo: '#8a3418', ink: '#4a1a08' };
+const PAN = { hi: '#8a90a8', mid: '#4a5068', lo: '#2a2e40', ink: '#14161e' };
+const LETTUCE = { hi: '#e0ffb0', mid: '#7ed04a', lo: '#3c8a2a', ink: '#24561a' };
+const TOMATO = { hi: '#ffb0a0', mid: '#ef4a3a', lo: '#a82418', ink: '#5a1008' };
+
+function sausage(s: Svg, cx: number, cy: number, len: number, rot: number) {
+  const h = len * 0.32;
+  s.add(`<g transform="rotate(${rot} ${cx} ${cy})">`);
+  s.add(shape(`M${cx - len / 2 + h / 2} ${cy - h / 2}L${cx + len / 2 - h / 2} ${cy - h / 2}A${h / 2} ${h / 2} 0 0 1 ${cx + len / 2 - h / 2} ${cy + h / 2}L${cx - len / 2 + h / 2} ${cy + h / 2}A${h / 2} ${h / 2} 0 0 1 ${cx - len / 2 + h / 2} ${cy - h / 2}Z`, s.rad(MEAT), MEAT.ink));
+  for (let i = -1; i <= 1; i++) s.add(`<path d="M${cx + i * len * 0.22 - 3} ${cy - h * 0.35}L${cx + i * len * 0.22 + 3} ${cy + h * 0.35}" stroke="${MEAT.ink}" stroke-width="2.6" stroke-linecap="round" opacity=".7"/>`);
+  s.add(hl(`M${cx - len / 2 + h * 0.6} ${cy - h * 0.25}L${cx + len / 2 - h * 0.8} ${cy - h * 0.25}`, 2.4, 0.55));
+  s.add('</g>');
+}
+
+const grillArt: ((s: Svg) => void)[] = [
+  (s) => {
+    s.shadow(16);
+    s.add(shape('M50 26Q68 26 70 56Q70 80 50 80Q30 80 30 56Q32 26 50 26Z', s.rad(EGG), EGG.ink));
+    s.add('<ellipse cx="42" cy="44" rx="5" ry="8" fill="#fff" opacity=".9" transform="rotate(20 42 44)"/>');
+    s.add(`<g fill="${EGG.lo}"><circle cx="58" cy="62" r="1.2"/><circle cx="54" cy="70" r="1"/></g>`);
+  },
+  (s) => {
+    s.shadow(30);
+    s.add(shape('M70 58L96 46L98 52L74 66Z', s.rad(P.wood), P.wood.ink));
+    s.add(ell(46, 60, 36, 26, s.rad(PAN), PAN.ink));
+    s.add(ell(46, 58, 30, 21, '#30344a', PAN.ink, 'stroke-width="2"'));
+    s.add(shape('M26 58Q22 44 36 42Q44 34 56 40Q70 42 66 56Q70 70 54 72Q40 76 32 68Q22 68 26 58Z', s.rad(EGG), EGG.ink, 'stroke-width="2.4"'));
+    s.add(circ(46, 56, 9, s.rad(YOLK), YOLK.ink, 'stroke-width="2"'));
+    s.add('<circle cx="43" cy="53" r="2.6" fill="#fff" opacity=".85"/>');
+  },
+  (s) => {
+    s.shadow(28);
+    sausage(s, 46, 60, 60, -24);
+    sausage(s, 54, 66, 58, 18);
+    s.add(shape('M76 18L82 18L80 46L78 46Z', s.rad(P.stone), P.stone.ink, 'stroke-width="2"'));
+    s.add(shape('M72 10L72 22Q79 28 86 22L86 10', 'none', P.stone.ink, 'stroke-width="2.4"'));
+    steam(s, 40, 40, 16);
+  },
+  (s) => {
+    s.shadow(24);
+    s.add(shape('M14 86L86 14', 'none', '#7a5a3a', 'stroke-width="6"'));
+    s.add(`<path d="M14 86L86 14" stroke="#e8c890" stroke-width="2.6" stroke-linecap="round"/>`);
+    const chunks: [number, number, string][] = [[28, 72, 'meat'], [40, 60, 'pepper'], [52, 48, 'meat'], [64, 36, 'tomato'], [74, 26, 'meat']];
+    for (const [x, y, k] of chunks) {
+      if (k === 'meat') s.add(shape(`M${x - 9} ${y - 6}L${x + 7} ${y - 9}L${x + 9} ${y + 6}L${x - 7} ${y + 9}Z`, s.rad(MEAT), MEAT.ink, `transform="rotate(${x} ${x} ${y})"`));
+      else if (k === 'pepper') s.add(shape(`M${x - 8} ${y - 8}L${x + 8} ${y - 8}L${x + 8} ${y + 8}L${x - 8} ${y + 8}Z`, s.rad(LETTUCE), LETTUCE.ink, `transform="rotate(45 ${x} ${y})"`));
+      else s.add(circ(x, y, 8, s.rad(TOMATO), TOMATO.ink));
     }
-    s.add(`<path d="M16 56Q50 64 88 56L86 60Q50 70 16 60Z" fill="${CLOUD.lo}" opacity=".6"/>`);
-    swirl(s, 46, 40, 7, 2.6); swirl(s, 68, 42, 5, 2.2);
-    gust(s, 4, 70, 12); gust(s, 70, 78, 12);
-    s.sparkle(86, 20, 5);
+    s.add(`<path d="M24 70L30 76M50 46L56 52M72 24L78 30" stroke="${MEAT.ink}" stroke-width="2" opacity=".6"/>`);
+    steam(s, 46, 30, 14);
+  },
+  (s) => {
+    s.shadow(34);
+    s.add(shape('M16 74Q16 66 24 66L76 66Q84 66 84 74Q84 86 70 86L30 86Q16 86 16 74Z', s.rad(BREAD), BREAD.ink));
+    s.add(shape('M14 64Q50 58 86 64L84 72Q50 78 16 72Z', s.rad(MEAT), MEAT.ink));
+    s.add(shape('M12 58L88 58L82 66L72 60L62 67L52 60L42 67L32 60L20 66Z', s.rad(YOLK), YOLK.ink, 'stroke-width="2.4"'));
+    s.add(shape('M10 54Q20 48 30 54Q40 48 50 54Q60 48 70 54Q80 48 90 54L88 58L12 58Z', s.rad(LETTUCE), LETTUCE.ink, 'stroke-width="2.4"'));
+    s.add(ell(36, 51, 12, 4, s.rad(TOMATO), TOMATO.ink, 'stroke-width="2"') + ell(64, 51, 12, 4, s.rad(TOMATO), TOMATO.ink, 'stroke-width="2"'));
+    s.add(shape('M14 50Q14 22 50 20Q86 22 86 50Z', s.rad(BREAD), BREAD.ink));
+    s.add('<g fill="#fff8e0" stroke="#a8622a" stroke-width=".8"><ellipse cx="38" cy="32" rx="2.4" ry="1.4"/><ellipse cx="52" cy="28" rx="2.4" ry="1.4" transform="rotate(30 52 28)"/><ellipse cx="64" cy="36" rx="2.4" ry="1.4" transform="rotate(-20 64 36)"/><ellipse cx="46" cy="40" rx="2.4" ry="1.4"/><ellipse cx="28" cy="42" rx="2.4" ry="1.4"/></g>');
+    s.add(hl('M24 40Q28 28 40 25', 3, 0.6));
+  },
+  (s) => {
+    s.shadow(40);
+    s.add(circ(50, 52, 40, s.rad(BREAD), BREAD.ink));
+    s.add(`<circle cx="50" cy="52" r="33" fill="#e8402a" stroke="${MEAT.ink}" stroke-width="1.6"/>`);
+    s.add(`<path d="M50 20Q62 22 70 30Q80 36 78 46Q84 56 76 64Q74 76 62 78Q52 86 42 80Q30 80 26 70Q16 62 22 52Q18 40 28 34Q36 22 50 20Z" fill="${s.rad({ hi: '#fffbd0', mid: '#ffe07a', lo: '#f0b030', ink: '#8a5a10' })}"/>`);
+    for (const [x, y] of [[38, 38], [62, 36], [50, 54], [34, 62], [66, 62], [52, 74]]) s.add(circ(x, y, 6, s.rad(TOMATO), TOMATO.ink, 'stroke-width="1.8"') + `<circle cx="${x - 2}" cy="${y - 2}" r="1.5" fill="#fff" opacity=".6"/>`);
+    for (const [x, y, a] of [[48, 40, 20], [60, 50, -30], [42, 70, 60]]) s.add(`<ellipse cx="${x}" cy="${y}" rx="4" ry="2" fill="#3c9a2a" transform="rotate(${a} ${x} ${y})"/>`);
+    s.add(`<path d="M50 52L90 52A40 40 0 0 0 78 24Z" fill="none" stroke="${BREAD.ink}" stroke-width="2.4" stroke-linejoin="round"/>`);
+  },
+  (s) => {
+    s.halo('#ffd8a0'); s.shadow(42);
+    s.add(ell(50, 80, 44, 13, s.rad(CUP), CUP.ink));
+    s.add(ell(50, 78, 36, 9, '#e8ecf6', CUP.ink, 'stroke-width="1.6"'));
+    for (const [x, y] of [[16, 76], [84, 76], [24, 84], [76, 84]]) s.add(circ(x, y, 5, s.rad(LETTUCE), LETTUCE.ink, 'stroke-width="1.8"'));
+    const roast = { hi: '#ffe0a0', mid: '#e8964a', lo: '#a85a22', ink: '#5a2a0a' };
+    // Drumsticks with paper frills.
+    for (const f of [-1, 1]) {
+      const x = (n: number) => 50 + f * n;
+      s.add(shape(`M${x(18)} 60Q${x(30)} 44 ${x(36)} 34L${x(40)} 36Q${x(36)} 50 ${x(28)} 66Z`, s.rad(roast), roast.ink));
+      s.add(shape(`M${x(34)} 34L${x(40)} 26L${x(44)} 30L${x(40)} 37Z`, '#fff', '#7a7a8a', 'stroke-width="1.8"'));
+    }
+    s.add(shape('M18 70Q14 46 34 40Q50 34 66 40Q86 46 82 70Q50 80 18 70Z', s.rad(roast), roast.ink));
+    s.add(hl('M28 52Q36 44 48 42', 3, 0.7));
+    s.add(`<path d="M40 60Q50 64 60 60" fill="none" stroke="${roast.lo}" stroke-width="2" opacity=".6"/>`);
+    steam(s, 40, 32, 16); steam(s, 60, 30, 18);
+    s.sparkle(86, 30, 5, '#fff6c4');
   },
 ];
 
@@ -485,72 +582,79 @@ const coinArt: ((s: Svg) => void)[] = [
     s.sparkle(76, 42, 5);
   },
   (s) => {
-    s.shadow(26, 90);
-    const bag = { hi: '#f2d9a8', mid: '#c99a5a', lo: '#8a5e2e', ink: '#5a3a18' };
-    s.add(shape('M50 34Q80 38 80 66Q80 88 50 88Q20 88 20 66Q20 38 50 34Z', s.rad(bag), bag.ink));
-    s.add(shape('M40 34Q36 22 44 18Q50 24 56 18Q64 22 60 34Z', s.rad(bag), bag.ink));
-    s.add(`<path d="M38 34Q50 40 62 34" stroke="#d8404a" stroke-width="4" fill="none" stroke-linecap="round"/>`);
-    coinShape(s, 50, 64, 12); s.add(hl('M28 56Q28 72 38 80', 2.6, 0.5));
+    s.shadow(24, 90);
+    s.add(shape('M28 30L72 30L74 86Q50 92 26 86Z', GLASS, GLASS_INK));
+    for (const [x, y, r] of [[38, 78, 7], [54, 80, 7], [64, 72, 6], [44, 68, 6.5], [58, 62, 6]]) coinShape(s, x, y, r);
+    s.add(shape('M24 22L76 22L76 31L24 31Z', s.rad(P.metal), P.metal.ink));
+    s.add(shape('M32 40L68 40L68 54L32 54Z', '#fff8e8', '#8a6a3a', 'stroke-width="2"'));
+    s.add('<text x="50" y="51" text-anchor="middle" font-family="Fredoka, Arial Rounded MT Bold, sans-serif" font-weight="700" font-size="11" fill="#c0503a">TIPS</text>');
+    s.add(hl('M32 36L31 80', 2.6, 0.8));
+    s.sparkle(80, 18, 5);
   },
   (s) => {
-    s.halo('#ffe58a'); s.shadow(32, 92);
-    s.add(shape('M18 50L82 50L80 88L20 88Z', s.rad(P.wood), P.wood.ink));
-    for (let i = 0; i < 3; i++) coinShape(s, 34 + i * 16, 44 - (i % 2) * 6, 10);
-    s.add(shape('M16 50Q16 24 50 22Q84 24 84 50Z', s.rad(P.wood), P.wood.ink, 'transform="rotate(-8 16 50) translate(0 -6)"'));
-    s.add(`<path d="M18 62L82 62M30 50L30 88M70 50L70 88" stroke="${P.metal.ink}" stroke-width="5"/><path d="M18 62L82 62M30 50L30 88M70 50L70 88" stroke="${P.metal.mid}" stroke-width="2.4"/>`);
-    s.add(shape('M44 60L56 60L56 72L44 72Z', s.rad(P.metal), P.metal.ink));
-    s.sparkle(80, 18, 6); s.sparkle(22, 20, 4);
+    s.halo('#ffe58a'); s.shadow(36, 92);
+    const body = { hi: '#ffd0e0', mid: '#ff7aa8', lo: '#c83a6a', ink: '#6a1438' };
+    s.add(shape('M12 70L88 70L86 92L14 92Z', s.rad(body), body.ink));
+    s.add(shape('M18 44L82 44L88 70L12 70Z', s.rad(body), body.ink));
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) s.add(`<rect x="${26 + c * 13 + r * 2}" y="${50 + r * 8}" width="9" height="5" rx="1.5" fill="#fff" stroke="${body.ink}" stroke-width="1.2"/>`);
+    s.add(shape('M30 20L70 20L70 40L30 40Z', '#2a3a4a', body.ink));
+    s.add('<text x="50" y="35" text-anchor="middle" font-family="Fredoka, Arial Rounded MT Bold, sans-serif" font-weight="700" font-size="12" fill="#7effa0">$$$</text>');
+    s.add(shape('M46 40L54 40L54 44L46 44Z', s.rad(P.stone), P.stone.ink, 'stroke-width="2"'));
+    s.add(shape('M24 76L76 76L76 84L24 84Z', s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
+    coinShape(s, 20, 30, 8); coinShape(s, 82, 28, 7);
+    s.sparkle(88, 12, 6); s.sparkle(10, 14, 4);
   },
 ];
 
-const manaArt: ((s: Svg) => void)[] = [
-  (s) => {
-    s.shadow(14, 82);
-    s.add(shape('M50 26Q68 50 68 62Q68 78 50 78Q32 78 32 62Q32 50 50 26Z', s.rad(P.mana), P.mana.ink));
-    s.add('<ellipse cx="42" cy="60" rx="4" ry="7" fill="#fff" opacity=".7"/>'); s.sparkle(68, 34, 4);
-  },
-  (s) => {
-    s.shadow(18, 88);
-    s.add(shape('M42 22L58 22L58 40Q70 50 70 66Q70 86 50 86Q30 86 30 66Q30 50 42 40Z', 'rgba(255,255,255,.7)', P.mana.ink));
-    s.add(`<path d="M32 62Q50 56 68 62Q68 84 50 84Q32 84 32 62Z" fill="${s.rad(P.mana)}"/>`);
-    s.add(shape('M40 14L60 14L60 22L40 22Z', s.rad(P.wood), P.wood.ink));
-    s.add(hl('M38 52Q34 64 38 74', 2.6, 0.8)); s.sparkle(70, 28, 5);
-  },
-  (s) => {
-    s.halo('#ffb0dc'); s.shadow(26, 92);
-    s.add(shape('M42 14L58 14L58 34Q82 42 82 64Q82 90 50 90Q18 90 18 64Q18 42 42 34Z', 'rgba(255,255,255,.7)', P.mana.ink));
-    s.add(`<path d="M20 60Q50 50 80 60Q82 88 50 88Q18 88 20 60Z" fill="${s.rad(P.mana)}"/>`);
-    s.add('<circle cx="40" cy="70" r="3" fill="#fff" opacity=".7"/><circle cx="58" cy="76" r="2" fill="#fff" opacity=".7"/>');
-    s.add(shape('M38 8L62 8L60 16L40 16Z', s.rad(P.wood), P.wood.ink));
-    s.add(shape('M40 32Q50 38 60 32', 'none', P.metal.ink, 'stroke-width="4"'));
-    s.add(hl('M26 52Q22 66 28 78', 3, 0.8)); s.sparkle(80, 26, 6); s.sparkle(16, 36, 4);
-  },
-];
+const ENERGY = { hi: '#efe0ff', mid: '#a77cf0', lo: '#6a3fb8', ink: '#3a1e7a' };
 
-// ------------------------------------------------------------------ generators
-
-/** Alchemical element symbol centred at (cx, cy); fire/air point up, water/earth down. */
-function alchemy(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cx: number, cy: number, k: number, color: string) {
-  const up = el === 'fire' || el === 'wind', dir = up ? -1 : 1;
-  let d = `M${cx} ${cy + dir * k}L${cx + k * 0.9} ${cy - dir * k * 0.55}L${cx - k * 0.9} ${cy - dir * k * 0.55}Z`;
-  if (el === 'wind' || el === 'earth') d += `M${cx - k * 0.6} ${cy + dir * 0.05 * k}L${cx + k * 0.6} ${cy + dir * 0.05 * k}`;
-  s.add(`<path d="${d}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`);
+function bolt(s: Svg, cx: number, cy: number, k: number) {
+  s.add(shape(`M${cx + 3 * k} ${cy - 12 * k}L${cx - 7 * k} ${cy + 2 * k}L${cx - 1 * k} ${cy + 2 * k}L${cx - 4 * k} ${cy + 12 * k}L${cx + 7 * k} ${cy - 3 * k}L${cx + 1 * k} ${cy - 3 * k}Z`, s.rad({ hi: '#fff6b0', mid: '#ffd23c', lo: '#e89a1c', ink: '#8a5a10' }), '#8a5a10', 'stroke-width="2"'));
 }
 
+const energyArt: ((s: Svg) => void)[] = [
+  (s) => {
+    s.shadow(22);
+    s.add(`<g transform="rotate(-24 50 54)">${shape('M20 42L80 42L80 66L20 66Z', s.rad(ENERGY), ENERGY.ink)}`
+      + `${shape('M14 40L20 42L20 66L14 68L17 54Z', s.rad(ENERGY), ENERGY.ink, 'stroke-width="2"')}${shape('M86 40L80 42L80 66L86 68L83 54Z', s.rad(ENERGY), ENERGY.ink, 'stroke-width="2"')}`
+      + `${hl('M26 47L74 47', 2.4, 0.7)}</g>`);
+    bolt(s, 50, 54, 1.1);
+  },
+  (s) => {
+    s.shadow(30);
+    s.add(shape('M38 32Q38 18 50 18Q62 18 62 32', 'none', ENERGY.ink, 'stroke-width="8"') + shape('M38 32Q38 18 50 18Q62 18 62 32', 'none', ENERGY.mid, 'stroke-width="4"'));
+    s.add(shape('M18 34L82 34L82 86Q82 90 78 90L22 90Q18 90 18 86Z', s.rad(ENERGY), ENERGY.ink));
+    s.add(shape('M16 32L84 32L84 44L16 44Z', s.rad(ENERGY), ENERGY.ink));
+    s.add(shape('M44 40L56 40L56 48L44 48Z', s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
+    bolt(s, 50, 68, 1.3);
+    s.add(hl('M24 52L24 82', 2.6, 0.6));
+  },
+  (s) => {
+    s.halo('#e0ccff'); s.shadow(40);
+    s.add(shape('M28 44Q28 16 50 16Q72 16 72 44', 'none', WICKER.ink, 'stroke-width="8"') + shape('M28 44Q28 16 50 16Q72 16 72 44', 'none', WICKER.mid, 'stroke-width="4"'));
+    s.add(shape('M12 50L88 50L80 92L20 92Z', s.rad(WICKER), WICKER.ink));
+    for (let i = 0; i < 4; i++) s.add(`<path d="M${16 + i * 2} ${58 + i * 9}L${84 - i * 2} ${58 + i * 9}" stroke="${WICKER.ink}" stroke-width="1.6" opacity=".55"/>`);
+    s.add(shape('M8 42L92 42L90 52L10 52Z', s.rad(WICKER), WICKER.ink));
+    s.add(shape('M24 50L50 50L44 70L30 66Z', '#fff', ENERGY.ink, 'stroke-width="2"'));
+    s.add(`<path d="M28 52L46 52M28 57L44 57M30 62L42 62M30 50L32 66M36 50L36 68M42 50L40 68" stroke="${ENERGY.mid}" stroke-width="2.4" opacity=".8"/>`);
+    s.add(circ(66, 70, 11, s.rad(ENERGY), ENERGY.ink, 'stroke-width="2.4"'));
+    bolt(s, 66, 70, 0.75);
+    s.sparkle(86, 22, 6); s.sparkle(14, 26, 4);
+  },
+];
+
+// ------------------------------------------------------------------ kitchen stations
+
 /**
- * An open grimoire in the element's cover colour, with its alchemical
- * symbol on the left page; `emerge` draws the element rising from the pages.
- * Each generator level dresses the book up a little more:
- * 1 plain leather and iron, 2 gold corners, 3 gilt trim, a spine gem and a rune
- * ring, 4 glowing script, a gold ribbon and floating runes, 5 golden rays and corner gems,
- * 6 an orbit of element motes, 7 crystal shards and a gem-studded cover, 8 a floating
- * crown, 9 gilded wings, 10 a starry sky behind it and rays in the element's colour.
+ * Dress a kitchen station up for its level, around the station itself (drawn
+ * by `body`, which also adds its own gold trim from level 2 and gems from
+ * level 3). Shared extras: 3 a serving plate it stands on, 4 sparkles and a
+ * gold star badge, 5 golden rays, 6 an orbit of tasty motes, 7 floating
+ * hearts, 8 a little crown, 9 gilded wings, 10 a starry sky with rays in the
+ * station's colour.
  */
-function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, lv: number, emerge: () => void) {
-  const glow = { earth: '#ffd27a', water: '#8fe0ff', wind: '#a8ffe0', fire: '#ffb04a' }[el];
-  const fittings = lv >= 2 ? P.metal : P.stone;
+function dress(s: Svg, lv: number, glow: string, body: () => void) {
   if (lv >= 10) {
-    // A disc of night sky full of stars.
     s.behind.push(`<circle cx="50" cy="56" r="56" fill="#2a1a5a" opacity=".55"/><circle cx="50" cy="56" r="56" fill="none" stroke="${glow}" stroke-width="2" opacity=".8"/>`);
     for (let k = 0; k < 18; k++) {
       const a = k * 2.39996, r = 18 + ((k * 37) % 36);
@@ -558,7 +662,6 @@ function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, l
     }
   }
   if (lv >= 9) {
-    // Gilded wings spreading from behind the covers.
     for (const f of [1, -1]) {
       const x = (n: number) => (50 + f * n).toFixed(1);
       s.behind.push(`<path d="M${x(30)} 66C${x(36)} 34 ${x(44)} 18 ${x(50)} 6Q${x(47)} 20 ${x(50)} 26Q${x(44)} 30 ${x(48)} 38Q${x(42)} 40 ${x(45)} 48Q${x(39)} 50 ${x(40)} 58Z" fill="${s.rad(P.metal)}" stroke="${P.metal.ink}" stroke-width="1.8" stroke-linejoin="round"/>`);
@@ -566,7 +669,6 @@ function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, l
     }
   }
   if (lv >= 5) {
-    // Golden rays fanning out behind everything.
     const rays: string[] = [];
     for (let k = 0; k < 12; k++) {
       const a = (k / 12) * Math.PI * 2, b = a + 0.13;
@@ -574,7 +676,6 @@ function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, l
     }
     s.behind.push(`<path d="${rays.join('')}" fill="#ffd84a" opacity=".6"/>`);
     if (lv >= 10) {
-      // A second fan of rays in the element's colour, between the gold ones.
       const more: string[] = [];
       for (let k = 0; k < 12; k++) {
         const a = ((k + 0.5) / 12) * Math.PI * 2, b = a + 0.09;
@@ -583,119 +684,129 @@ function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, l
       s.behind.push(`<path d="${more.join('')}" fill="${glow}" opacity=".7"/>`);
     }
   }
-  if (lv >= 6) {
-    // The back half of an orbit; the front half is drawn over the book.
-    s.behind.push(`<path d="M6 60A44 14 -12 0 1 94 42" fill="none" stroke="${glow}" stroke-width="2" opacity=".85"/>`);
-  }
+  if (lv >= 6) s.behind.push(`<path d="M6 60A44 14 -12 0 1 94 42" fill="none" stroke="${glow}" stroke-width="2" opacity=".85"/>`);
   if (lv >= 3) {
-    // A rune ring the book hovers over.
-    s.behind.push(`<ellipse cx="50" cy="94" rx="50" ry="11" fill="${glow}" fill-opacity=".25" stroke="${glow}" stroke-width="2.6"/>`);
-    s.behind.push(`<ellipse cx="50" cy="94" rx="42" ry="8" fill="none" stroke="#fff" stroke-width="1.4" stroke-dasharray="3 4" opacity=".9"/>`);
+    // A big serving plate the station stands on.
+    s.behind.push(`<ellipse cx="50" cy="95" rx="50" ry="10" fill="#fff" stroke="${P.stone.ink}" stroke-width="2"/>`);
+    s.behind.push(`<ellipse cx="50" cy="95" rx="40" ry="7" fill="none" stroke="${glow}" stroke-width="2.4"/>`);
   }
-  // Ribbon bookmark(s) hanging from the spine.
-  s.add(shape('M48 88L48 100L51 97L54 100L54 88Z', cover.mid, cover.ink, 'stroke-width="2"'));
-  if (lv >= 4) s.add(shape('M55 87L58 98L60 94L63 96L60 86Z', s.rad(P.metal), P.metal.ink, 'stroke-width="1.8"'));
-  s.add(shape('M50 52Q32 42 8 48L10 90Q32 84 50 94Q68 84 90 90L92 48Q68 42 50 52Z', s.rad(cover), cover.ink));
-  if (lv >= 3) {
-    // Gilt trim just inside the cover edge.
-    s.add(`<path d="M50 55Q32 46 11 51L13 87Q32 81 50 91Q68 81 87 87L89 51Q68 46 50 55" fill="none" stroke="${P.metal.mid}" stroke-width="1.8" opacity=".9"/>`);
-  }
-  // Page block edges.
-  s.add(`<path d="M13 86Q33 81 50 89Q67 81 87 86M12 83Q33 78 50 86Q67 78 88 83" fill="none" stroke="${P.paper.lo}" stroke-width="2"/>`);
-  s.add(shape('M50 48Q33 38 13 44L15 82Q33 78 50 86Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink, 'stroke-width="2.4"'));
-  s.add(shape('M50 48Q67 38 87 44L85 82Q67 78 50 86Z', s.lin(P.paper.mid, P.paper.hi, false), P.paper.ink, 'stroke-width="2.4"'));
-  if (lv >= 4) s.add(`<circle cx="32" cy="62" r="13" fill="${glow}" opacity=".45"/>`);
-  alchemy(s, el, 32, 63, 9, cover.mid);
-  for (let i = 0; i < 4; i++) {
-    s.add(`<path d="M57 ${52 + i * 7}Q66 ${49 + i * 7} 79 ${53 + i * 7 - (i % 2) * 2}" fill="none" stroke="${lv >= 4 ? cover.mid : cover.lo}" stroke-width="1.8" stroke-linecap="round" opacity="${lv >= 4 ? 0.9 : 0.6}"/>`);
-  }
-  if (lv >= 2) {
-    // Gold corner guards, top and bottom.
-    for (const [x, f] of [[10, 1], [90, -1]] as const) {
-      s.add(shape(`M${x} 90L${x} 80L${x + f * 10} 88Z`, s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
-      s.add(shape(`M${x - f * 2} 48L${x - f * 1.6} 57L${x + f * 8} 47Z`, s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
-    }
-  }
-  // Spine stud: iron, then gold, then a gem in the element's colour.
-  s.add(`<circle cx="50" cy="91" r="${lv >= 3 ? 4.5 : 3.5}" fill="${s.rad(fittings)}" stroke="${fittings.ink}" stroke-width="1.6"/>`);
-  if (lv >= 3) s.add(`<circle cx="50" cy="91" r="2.4" fill="${s.rad(cover, 'gem')}"/><circle cx="49.2" cy="90.2" r=".9" fill="#fff"/>`);
-
+  body();
   if (lv >= 7) {
-    // Gems set along the cover edge.
-    for (const [x, y] of [[9, 62], [9, 76], [91, 62], [91, 76]]) s.add(`<circle cx="${x}" cy="${y}" r="2.2" fill="${s.rad(cover, 'gem')}" stroke="${P.metal.ink}" stroke-width="1"/>`);
-  }
-
-  emerge();
-  if (lv >= 7) {
-    // Crystal shards floating either side of the book.
-    for (const [x, y, t] of [[13, 34, -18], [87, 30, 16]]) {
-      s.fx.push(`<path d="M${x} ${y - 9}L${x + 4} ${y}L${x} ${y + 9}L${x - 4} ${y}Z" transform="rotate(${t} ${x} ${y})" fill="${glow}" stroke="${cover.ink}" stroke-width="1.4" stroke-linejoin="round"/>`);
-      s.fx.push(`<path d="M${x} ${y - 9}L${x + 4} ${y}L${x} ${y}Z" transform="rotate(${t} ${x} ${y})" fill="#fff" opacity=".6"/>`);
+    for (const [x, y] of [[12, 34], [88, 30]]) {
+      s.fx.push(`<path d="M${x} ${y + 6}Q${x - 8} ${y} ${x - 6} ${y - 4}Q${x - 3} ${y - 8} ${x} ${y - 3}Q${x + 3} ${y - 8} ${x + 6} ${y - 4}Q${x + 8} ${y} ${x} ${y + 6}Z" fill="#ff6a9a" stroke="#8a1a48" stroke-width="1.4" stroke-linejoin="round"/>`);
     }
   }
   if (lv >= 6) {
-    // Front half of the orbit, with motes of the element riding it.
     s.fx.push(`<path d="M94 42A44 14 -12 0 1 6 60" fill="none" stroke="${glow}" stroke-width="2.4" opacity=".95"/>`);
-    for (const [x, y, r] of [[18, 66, 3.2], [62, 70, 2.6], [88, 50, 2.2]]) {
-      s.fx.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="${glow}" stroke="#fff" stroke-width="1"/>`);
-    }
+    for (const [x, y, r] of [[18, 66, 3.2], [62, 70, 2.6], [88, 50, 2.2]]) s.fx.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="${glow}" stroke="#fff" stroke-width="1"/>`);
   }
   if (lv >= 8) {
-    // A small crown resting on top of the rising element.
-    s.fx.push(`<path d="M41 20L42.5 12L46.5 16L50 9L53.5 16L57.5 12L59 20Z" fill="${s.rad(P.metal)}" stroke="${P.metal.ink}" stroke-width="1.8" stroke-linejoin="round"/>`);
-    s.fx.push(`<circle cx="50" cy="17" r="1.8" fill="${s.rad(cover, 'gem')}" stroke="${P.metal.ink}" stroke-width="1"/><circle cx="50" cy="9" r="1.3" fill="${glow}"/>`);
-  }
-  if (lv >= 5) {
-    // Gems set in the gold corners.
-    for (const x of [13, 87]) s.add(`<circle cx="${x}" cy="85" r="2.6" fill="${s.rad(cover, 'gem')}" stroke="${P.metal.ink}" stroke-width="1.2"/>`);
+    s.fx.push(`<path d="M41 12L42.5 4L46.5 8L50 1L53.5 8L57.5 4L59 12Z" fill="${s.rad(P.metal)}" stroke="${P.metal.ink}" stroke-width="1.8" stroke-linejoin="round"/>`);
+    s.fx.push(`<circle cx="50" cy="9" r="1.8" fill="#ff6a9a" stroke="${P.metal.ink}" stroke-width="1"/>`);
   }
   if (lv >= 4) {
-    for (const [x, y, r] of [[12, 30, 4], [88, 34, 3.5], [82, 12, 3]]) s.sparkle(x, y, r, glow);
-    // Small floating runes.
-    s.fx.push(`<path d="M16 16l4 -6l4 6M18 13h4M78 52l3 -5l3 5l-3 3z" fill="none" stroke="${glow}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity=".95"/>`);
+    for (const [x, y, r] of [[12, 22, 4], [88, 20, 3.5], [80, 6, 3]]) s.sparkle(x, y, r, glow);
+    s.fx.push(`<path d="M80 72L82.4 77L88 77.6L83.8 81.4L85 87L80 84.2L75 87L76.2 81.4L72 77.6L77.6 77Z" fill="${s.rad(P.metal)}" stroke="${P.metal.ink}" stroke-width="1.4" stroke-linejoin="round"/>`);
   }
-  if (lv >= 5) for (const [x, y, r] of [[22, 8, 4], [70, 4, 3.5], [92, 60, 3]]) s.sparkle(x, y, r, '#fff6b0');
+  if (lv >= 5) for (const [x, y, r] of [[22, 4, 4], [66, -2, 3.5], [94, 58, 3]]) s.sparkle(x, y, r, '#fff6b0');
 }
 
+/** Gold (from level 2) or plain steel for knobs, handles and trims. */
+const trim = (lv: number) => (lv >= 2 ? P.metal : P.stone);
+/** A gem (from level 3) set in a trim. */
+function gem(s: Svg, lv: number, x: number, y: number, color: { hi: string; mid: string; lo: string; ink: string }) {
+  if (lv < 3) return;
+  s.add(`<circle cx="${x}" cy="${y}" r="3" fill="${s.rad(color, 'gem')}" stroke="${P.metal.ink}" stroke-width="1.2"/><circle cx="${x - 1}" cy="${y - 1}" r="1" fill="#fff"/>`);
+}
+
+const BRICK = { hi: '#ffc0a0', mid: '#d8643a', lo: '#9a3a1e', ink: '#5a1e0a' };
+const MINT = { hi: '#e0fff6', mid: '#5fd0b8', lo: '#2a8a78', ink: '#145a4e' };
+
 const genArt: Record<GenId, (s: Svg, lv: number) => void> = {
-  geode: (s, lv) => {
-    s.halo('#f2d08a'); s.shadow(38, 96);
-    grimoire(s, 'earth', { hi: '#e8c08a', mid: '#9a6438', lo: '#5e3a20', ink: '#3a2210' }, lv, () => {
-      const amber = { hi: '#fff0c8', mid: '#e6b066', lo: '#a8662c', ink: '#5a3214' };
-      crystal(s, 40, 52, 11, 22, -22, amber); crystal(s, 60, 52, 11, 24, 20, amber); crystal(s, 50, 50, 14, 34, 0, amber);
-      stone(s, 22, 30, 5, 3.5); stone(s, 80, 24, 6, 4); stone(s, 70, 40, 3.5, 2.5);
-      tuft(s, 14, 50, 0.7); tuft(s, 86, 50, 0.7);
-    });
-  },
-  well: (s, lv) => {
-    s.halo('#9fdcff'); s.shadow(38, 96);
-    grimoire(s, 'water', { hi: '#9fd4ff', mid: '#2f7fd8', lo: '#164a8a', ink: '#0e2e5a' }, lv, () => {
-      s.add(shape('M40 48Q34 34 44 24Q52 16 62 20Q54 22 52 30Q60 30 62 38Q54 34 50 40Q48 44 56 48Z', s.rad(WATER), WATER.ink));
-      s.add(shape('M44 24Q52 16 62 20Q56 22 54 26Q50 22 44 24Z', s.rad(FOAM), FOAM.ink, 'stroke-width="2"'));
-      drop(s, 30, 34, 3.5); drop(s, 72, 30, 3); bubble(s, 68, 44, 3.5); bubble(s, 26, 46, 2.5);
-    });
-  },
-  windmill: (s, lv) => {
-    s.halo('#b8f5e0'); s.shadow(38, 96);
-    grimoire(s, 'wind', { hi: '#d8fff0', mid: '#3cb894', lo: '#1e6e5a', ink: '#0e4438' }, lv, () => {
-      const bands = [[50, 20, 18, 4], [51, 29, 14, 3.5], [50, 37, 10, 3], [49, 44, 6, 2.5]];
-      for (const [x, y, rx, ry] of bands) {
-        s.add(shape(`M${x - rx} ${y}Q${x - rx} ${y + ry * 1.5} ${x} ${y + ry * 1.5}Q${x + rx} ${y + ry * 1.5} ${x + rx} ${y}Q${x + rx} ${y - ry} ${x} ${y - ry}Q${x - rx} ${y - ry} ${x - rx} ${y}Z`, s.rad(WIND), WIND.ink, 'stroke-width="2.2"'));
+  oven: (s, lv) => {
+    s.halo('#ffd8a0'); s.shadow(38, 96);
+    dress(s, lv, '#ffc46a', () => {
+      const t = trim(lv);
+      s.add(shape('M62 22L62 8L74 8L74 30Z', s.rad(BRICK), BRICK.ink));
+      s.add(shape('M10 92L10 58Q10 20 50 20Q90 20 90 58L90 92Z', s.rad(BRICK), BRICK.ink));
+      for (const [y, off] of [[34, 0], [46, 9], [58, 0], [70, 9], [82, 0]] as const) {
+        s.add(`<path d="M${y < 40 ? 24 : 12} ${y}L${y < 40 ? 76 : 88} ${y}" stroke="${BRICK.lo}" stroke-width="1.6" opacity=".6"/>`);
+        for (let x = 18 + off; x < 86; x += 18) s.add(`<path d="M${x} ${y - 12}L${x} ${y}" stroke="${BRICK.lo}" stroke-width="1.6" opacity=".5"/>`);
       }
-      gust(s, 12, 30, 8); gust(s, 70, 40, 8);
-      s.add(shape('M78 18L84 14L83 21Z', '#8cc65a', '#2e5a22', 'stroke-width="1.4"'));
+      s.add(shape('M26 92L26 66Q26 46 50 46Q74 46 74 66L74 92Z', '#2a1408', BRICK.ink));
+      s.add('<path d="M30 92L30 70Q30 52 50 52Q70 52 70 70L70 92Z" fill="#ff8a2a" opacity=".55"/>');
+      fire(s, 38, 90, 10, 14); fire(s, 62, 90, 10, 15);
+      roll(s, 50, 78, 13);
+      s.add(shape('M22 46Q22 40 50 40Q78 40 78 46', 'none', t.ink, 'stroke-width="6"') + shape('M22 46Q22 40 50 40Q78 40 78 46', 'none', t.mid, 'stroke-width="3"'));
+      gem(s, lv, 50, 40, BRICK);
+      if (lv >= 7) for (const x of [20, 80]) gem(s, lv, x, 86, BRICK);
+      s.add(hl('M18 56Q20 36 36 28', 3, 0.5));
+      steam(s, 68, 6, 14);
     });
   },
-  forge: (s, lv) => {
-    s.halo('#ffb46a'); s.shadow(38, 96);
-    grimoire(s, 'fire', { hi: '#ff9a7a', mid: '#d8402a', lo: '#8a1e14', ink: '#5a1008' }, lv, () => {
-      fire(s, 50, 52, 30, 40); fire(s, 34, 52, 12, 16); fire(s, 66, 52, 12, 18);
-      s.add('<circle cx="30" cy="26" r="2" fill="#ffd27a"/><circle cx="72" cy="20" r="1.6" fill="#ffd27a"/><circle cx="62" cy="10" r="1.4" fill="#ffb63c"/>');
+  fountain: (s, lv) => {
+    s.halo('#b8e4ff'); s.shadow(38, 96);
+    dress(s, lv, '#8fd8ff', () => {
+      const t = trim(lv);
+      s.add(shape('M18 76L82 76L84 92L16 92Z', s.rad(MINT), MINT.ink));
+      s.add(shape('M24 24L76 24L78 76L22 76Z', GLASS, GLASS_INK));
+      s.add('<path d="M26 40L74 40L76 74L24 74Z" fill="rgba(80,170,245,.75)"/>');
+      s.add('<ellipse cx="50" cy="40" rx="24" ry="2.6" fill="#fff" opacity=".5"/>');
+      lemonSlice(s, 38, 56, 7); lemonSlice(s, 60, 64, 6);
+      s.add('<g fill="#fff" opacity=".9"><circle cx="50" cy="50" r="2"/><circle cx="66" cy="48" r="1.6"/><circle cx="32" cy="68" r="1.4"/></g>');
+      s.add(shape('M20 16L80 16L80 26L20 26Z', s.rad(t), t.ink));
+      s.add(shape('M44 76L56 76L56 84L52 84L52 88L48 88L48 84L44 84Z', s.rad(t), t.ink, 'stroke-width="2"'));
+      s.add(hl('M29 30L28 70', 3, 0.85));
+      gem(s, lv, 50, 21, { hi: '#d8f2ff', mid: '#4aa8f0', lo: '#1f6fc9', ink: '#0e3a70' });
+      if (lv >= 7) for (const x of [24, 76]) gem(s, lv, x, 84, { hi: '#d8f2ff', mid: '#4aa8f0', lo: '#1f6fc9', ink: '#0e3a70' });
+    });
+  },
+  mixer: (s, lv) => {
+    s.halo('#ffd0e6'); s.shadow(38, 96);
+    dress(s, lv, '#ff9ec8', () => {
+      const t = trim(lv);
+      s.add(shape('M14 84L86 84L88 92L12 92Z', s.rad(PINK), PINK.ink));
+      s.add(shape('M62 46L62 84L84 84L84 46Z', s.rad(PINK), PINK.ink));
+      s.add(shape('M18 58L58 58Q58 86 38 86Q18 86 18 58Z', s.rad(P.stone), P.stone.ink));
+      s.add('<path d="M21 60L55 60Q54 66 50 68Q38 72 24 66Q21 64 21 60Z" fill="#ffb0d0"/>');
+      s.add(`<path d="M38 46L38 62M34 50Q30 60 38 66Q46 60 42 50" fill="none" stroke="${P.stone.ink}" stroke-width="2.2"/>`);
+      s.add(shape('M12 30Q12 16 30 16L70 16Q86 16 86 32L86 42Q86 48 78 48L20 48Q12 48 12 40Z', s.rad(PINK), PINK.ink));
+      s.add(shape('M14 32L84 32', 'none', t.ink, 'stroke-width="5"') + `<path d="M14 32L84 32" stroke="${t.mid}" stroke-width="2.4"/>`);
+      s.add(circ(74, 40, 4, s.rad(t), t.ink, 'stroke-width="1.8"'));
+      s.add(hl('M18 26Q22 20 34 20', 3, 0.7));
+      gem(s, lv, 50, 24, PINK);
+      if (lv >= 7) for (const x of [66, 80]) gem(s, lv, x, 64, PINK);
+      sprinkles(s, [[24, 10, 30], [62, 8, -20], [44, 6, 80]]);
+    });
+  },
+  bbq: (s, lv) => {
+    s.halo('#ffc8a0'); s.shadow(38, 96);
+    dress(s, lv, '#ffa060', () => {
+      const t = trim(lv);
+      s.add(shape('M32 74L22 96M68 74L78 96M50 76L50 96', 'none', PAN.ink, 'stroke-width="5"'));
+      s.add(shape('M16 26Q16 6 50 6Q84 6 84 26L80 30L20 30Z', s.rad(PAN), PAN.ink, 'transform="rotate(-14 20 30) translate(-4 -6)"'));
+      s.add(circ(40, -9, 4, s.rad(P.stone), P.stone.ink, 'stroke-width="2"'));
+      fire(s, 30, 52, 14, 22); fire(s, 50, 52, 18, 28); fire(s, 70, 52, 14, 22);
+      sausage(s, 38, 46, 26, -8); sausage(s, 62, 46, 26, 10);
+      s.add(shape('M12 50Q12 80 50 80Q88 80 88 50Z', s.rad(BRICK), BRICK.ink));
+      s.add(`<path d="M12 50L88 50" stroke="${PAN.ink}" stroke-width="4"/>`);
+      s.add(shape('M44 62L56 62L56 68L44 68Z', s.rad(t), t.ink, 'stroke-width="2"'));
+      s.add(hl('M20 58Q24 70 36 74', 3, 0.6));
+      gem(s, lv, 50, 72, BRICK);
+      if (lv >= 7) for (const x of [24, 76]) gem(s, lv, x, 58, BRICK);
+      steam(s, 44, 26, 14); steam(s, 60, 24, 16);
     });
   },
 };
 
-// ------------------------------------------------------------------ monsters
+/** A small flame standing on (cx, by). */
+function fire(s: Svg, cx: number, by: number, w: number, h: number) {
+  const p = P.flame;
+  s.add(shape(`M${cx} ${by - h}Q${cx + w * 0.15} ${by - h * 0.6} ${cx + w / 2} ${by - h * 0.45}Q${cx + w * 0.6} ${by} ${cx} ${by}Q${cx - w * 0.6} ${by} ${cx - w / 2} ${by - h * 0.45}Q${cx - w * 0.15} ${by - h * 0.6} ${cx} ${by - h}Z`, s.rad({ ...p, hi: '#fff6c4', mid: '#ffb63c', lo: '#ef5a2a' }), p.ink, 'stroke-width="2"'));
+  s.add(`<path d="M${cx} ${by - h * 0.55}Q${cx + w * 0.3} ${by - h * 0.2} ${cx} ${by - 2}Q${cx - w * 0.3} ${by - h * 0.2} ${cx} ${by - h * 0.55}Z" fill="#fff6c4"/>`);
+}
+
+// ------------------------------------------------------------------ customers
 
 function eyes(s: Svg, y: number, gap: number, r: number, cx = 50) {
   for (const x of [cx - gap, cx + gap]) {
@@ -705,159 +816,203 @@ function eyes(s: Svg, y: number, gap: number, r: number, cx = 50) {
 }
 
 function cheeks(s: Svg, y: number, gap: number) {
-  s.add(`<ellipse cx="${50 - gap}" cy="${y}" rx="5" ry="3" fill="#ff7fa8" opacity=".45"/><ellipse cx="${50 + gap}" cy="${y}" rx="5" ry="3" fill="#ff7fa8" opacity=".45"/>`);
+  s.add(`<ellipse cx="${50 - gap}" cy="${y}" rx="5" ry="3" fill="#ff7fa8" opacity=".5"/><ellipse cx="${50 + gap}" cy="${y}" rx="5" ry="3" fill="#ff7fa8" opacity=".5"/>`);
 }
 
-const monsterArt: Record<MonsterKind, (s: Svg) => void> = {
-  slime: (s) => {
-    const p = { hi: '#d8fff4', mid: '#5fe0c0', lo: '#20a088', ink: '#106858' };
-    s.shadow(36, 90);
-    s.add(shape('M14 86Q10 60 30 40Q42 24 50 22Q58 24 70 40Q90 60 86 86Q50 92 14 86Z', s.rad(p), p.ink));
-    s.add('<ellipse cx="34" cy="40" rx="7" ry="4" fill="#fff" opacity=".7" transform="rotate(-35 34 40)"/>');
-    eyes(s, 60, 12, 5); cheeks(s, 70, 22);
-    s.add('<path d="M44 72Q50 78 56 72" fill="none" stroke="#2a1a3a" stroke-width="2.6" stroke-linecap="round"/>');
-  },
-  bat: (s) => {
-    const p = { hi: '#d8c4ff', mid: '#7a5ac8', lo: '#45307a', ink: '#2a1a50' };
-    s.shadow(24, 92);
-    s.add(shape('M40 50Q20 30 4 40Q14 46 10 58Q20 54 24 64Q30 56 40 62Z', s.rad(p), p.ink));
-    s.add(shape('M60 50Q80 30 96 40Q86 46 90 58Q80 54 76 64Q70 56 60 62Z', s.rad(p), p.ink));
-    s.add(shape('M34 30L38 16L46 28Z', s.rad(p), p.ink) + shape('M66 30L62 16L54 28Z', s.rad(p), p.ink));
-    s.add(shape('M50 26Q70 26 70 52Q70 76 50 76Q30 76 30 52Q30 26 50 26Z', s.rad(p), p.ink));
-    eyes(s, 48, 9, 4.5); cheeks(s, 58, 15);
-    s.add('<path d="M44 62L46 67L48 62M52 62L54 67L56 62" fill="#fff" stroke="#2a1a3a" stroke-width="1.4" stroke-linejoin="round"/>');
-  },
-  ghost: (s) => {
-    const p = { hi: '#ffffff', mid: '#eee8ff', lo: '#b6a8e6', ink: '#6a5aa8' };
-    s.halo('#e8deff'); s.shadow(22, 94);
-    s.add(shape('M22 84L22 46Q22 14 50 14Q78 14 78 46L78 84L70 76L62 86L54 76L46 86L38 76L30 86Z', s.rad(p), p.ink));
-    s.add(shape('M22 50Q10 52 8 42', 'none', p.ink) + shape('M78 50Q90 52 92 42', 'none', p.ink));
-    eyes(s, 44, 11, 5); cheeks(s, 54, 19);
-    s.add('<ellipse cx="50" cy="60" rx="5" ry="6" fill="#2a1a3a"/>');
-  },
-  mushroom: (s) => {
-    const cap = { hi: '#ffb8a8', mid: '#f0584a', lo: '#b02a2a', ink: '#7a1a1a' };
-    const stem = { hi: '#fffaf0', mid: '#f6e6c8', lo: '#d8bf94', ink: '#8a6a3a' };
-    s.shadow(28, 92);
-    s.add(shape('M30 54Q28 88 50 90Q72 88 70 54Z', s.rad(stem), stem.ink));
-    s.add(shape('M8 56Q8 14 50 12Q92 14 92 56Q50 64 8 56Z', s.rad(cap), cap.ink));
-    for (const [x, y, r] of [[30, 34, 6], [54, 24, 7], [74, 40, 5], [46, 46, 4]]) s.add(`<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" opacity=".9"/>`);
-    eyes(s, 70, 9, 4);
-    s.add('<path d="M36 62L44 66M64 62L56 66" stroke="#2a1a3a" stroke-width="2.6" stroke-linecap="round"/>');
-    s.add('<path d="M45 81Q50 77 55 81" fill="none" stroke="#2a1a3a" stroke-width="2.4" stroke-linecap="round"/>');
-  },
-  imp: (s) => {
-    const p = { hi: '#ffb0a0', mid: '#ef5a4a', lo: '#a82a2a', ink: '#6a1414' };
-    s.shadow(26, 94);
-    s.add(shape('M70 76Q92 80 88 60L94 58L86 52L84 60Q84 72 68 70', 'none', p.ink, 'stroke-width="4"'));
-    s.add(shape('M30 30Q22 18 26 6Q34 18 40 24Z', s.rad(P.wax), P.wax.ink) + shape('M70 30Q78 18 74 6Q66 18 60 24Z', s.rad(P.wax), P.wax.ink));
-    s.add(shape('M50 18Q78 18 78 50Q78 86 50 86Q22 86 22 50Q22 18 50 18Z', s.rad(p), p.ink));
-    eyes(s, 48, 11, 5);
-    s.add('<path d="M32 38L44 42M68 38L56 42" stroke="#2a1a3a" stroke-width="2.8" stroke-linecap="round"/>');
-    s.add('<path d="M38 64Q50 74 62 64" fill="#fff" stroke="#2a1a3a" stroke-width="2.4" stroke-linejoin="round"/>');
-    fire(s, 50, 18, 12, 14);
-  },
-  golem: (s) => {
-    s.shadow(38, 94);
-    s.add(shape('M10 60Q6 80 20 88L30 70Z', s.rad(P.stone), P.stone.ink) + shape('M90 60Q94 80 80 88L70 70Z', s.rad(P.stone), P.stone.ink));
-    s.add(shape('M22 88L18 40Q18 16 50 14Q82 16 82 40L78 88Z', s.rad(P.stone), P.stone.ink));
-    for (const [x, y, r] of [[30, 22, 10], [56, 16, 12], [74, 26, 8]] as const) {
-      s.add(shape(`M${x - r} ${y + 4}Q${x} ${y - r} ${x + r} ${y + 4}Z`, s.rad(P.herb), P.herb.ink));
-    }
-    s.add(`<path d="M36 70L42 60L38 52M66 74L60 66" stroke="${P.stone.ink}" stroke-width="2" fill="none" opacity=".5"/>`);
-    s.add('<ellipse cx="38" cy="46" rx="6" ry="4" fill="#9ff0ff"/><ellipse cx="62" cy="46" rx="6" ry="4" fill="#9ff0ff"/>');
-    s.add('<path d="M42 64L58 64" stroke="#2a1a3a" stroke-width="3" stroke-linecap="round"/>');
-  },
-  spider: (s) => {
-    const p = { hi: '#b8a0e0', mid: '#5a3a8a', lo: '#33204f', ink: '#1e1232' };
-    s.shadow(34, 92);
-    s.add('<path d="M50 0L50 30" stroke="#d8d0e8" stroke-width="1.6"/>');
-    for (const f of [1, -1]) {
-      const x = (n: number) => 50 + f * n;
-      for (const [a, b, c, d] of [[18, 46, 36, 34], [20, 56, 42, 52], [20, 64, 40, 74], [16, 72, 30, 90]]) {
-        s.add(shape(`M${x(a)} ${b}Q${x(c)} ${d - 14} ${x(c + 4)} ${d}`, 'none', p.ink, 'stroke-width="7"'));
-        s.add(shape(`M${x(a)} ${b}Q${x(c)} ${d - 14} ${x(c + 4)} ${d}`, 'none', p.mid, 'stroke-width="3.5"'));
+/** A big hungry smile with a little tongue. */
+function smile(s: Svg, y: number, w = 8) {
+  s.add(`<path d="M${50 - w} ${y}Q50 ${y + w * 1.2} ${50 + w} ${y}Z" fill="#7a2a3a" stroke="#2a1a3a" stroke-width="2.2" stroke-linejoin="round"/>`);
+  s.add(`<path d="M${50 - w * 0.45} ${y + w * 0.55}Q50 ${y + w * 0.2} ${50 + w * 0.45} ${y + w * 0.55}Q50 ${y + w * 1} ${50 - w * 0.45} ${y + w * 0.55}Z" fill="#ff7a8a"/>`);
+}
+
+
+/**
+ * A customer: shoulders with a napkin tucked in, a round head, and whatever
+ * `ears` (drawn behind the head) and `face` add.
+ */
+function customer(s: Svg, fur: Pal, ears: () => void, face: () => void, napkin = true) {
+  s.shadow(34, 96);
+  s.add(shape('M12 100Q12 74 50 70Q88 74 88 100Z', s.rad(fur), fur.ink));
+  if (napkin) {
+    s.add(shape('M34 72L66 72L50 98Z', '#fff', '#6a6a8a', 'stroke-width="2.2"'));
+    s.add('<path d="M38 76L62 76M42 82L58 82M46 88L54 88M42 72L46 86M50 72L50 92M58 72L54 86" stroke="#e8403a" stroke-width="2" opacity=".6"/>');
+  }
+  ears();
+  s.add(shape('M50 16Q82 16 82 46Q82 74 50 74Q18 74 18 46Q18 16 50 16Z', s.rad(fur), fur.ink));
+  face();
+}
+
+const customerArt: Record<CustomerKind, (s: Svg) => void> = {
+  bunny: (s) => {
+    const fur = { hi: '#ffffff', mid: '#f4eef6', lo: '#cbbcd8', ink: '#5a4a6e' };
+    customer(s, fur, () => {
+      for (const f of [-1, 1]) {
+        const x = 50 + f * 14;
+        s.add(shape(`M${x - 8} 26Q${x - 10} -6 ${x} -10Q${x + 10} -6 ${x + 8} 26Z`, s.rad(fur), fur.ink, `transform="rotate(${f * 10} ${x} 26)"`));
+        s.add(`<path d="M${x - 4} 22Q${x - 5} 0 ${x} -4Q${x + 5} 0 ${x + 4} 22Z" fill="#ffb8d0" transform="rotate(${f * 10} ${x} 26)"/>`);
       }
-    }
-    s.add(shape('M50 30Q76 30 76 58Q76 86 50 86Q24 86 24 58Q24 30 50 30Z', s.rad(p), p.ink));
-    s.add('<path d="M44 34Q50 40 56 34" fill="none" stroke="#9a7ad0" stroke-width="2" opacity=".7"/>');
-    eyes(s, 54, 9, 5);
-    for (const [x, y] of [[38, 44], [62, 44], [44, 42], [56, 42]]) s.add(`<circle cx="${x}" cy="${y}" r="2.2" fill="#ff5a8a"/>`);
-    s.add('<path d="M44 68L46 76L49 69M56 68L54 76L51 69" fill="#fff" stroke="#2a1a3a" stroke-width="1.6" stroke-linejoin="round"/>');
+    }, () => {
+      eyes(s, 44, 12, 5); cheeks(s, 56, 21);
+      s.add('<path d="M46 52L54 52L50 56Z" fill="#ff7aa8" stroke="#8a2458" stroke-width="1.4" stroke-linejoin="round"/>');
+      s.add('<path d="M50 56L50 60M44 60Q47 64 50 60Q53 64 56 60" fill="none" stroke="#2a1a3a" stroke-width="2" stroke-linecap="round"/>');
+      s.add('<rect x="47" y="61" width="6" height="6" rx="1" fill="#fff" stroke="#2a1a3a" stroke-width="1.4"/>');
+    });
   },
-  crab: (s) => {
-    const p = { hi: '#ffc0a0', mid: '#f0603a', lo: '#b0301e', ink: '#6a1a10' };
-    s.shadow(40, 92);
-    for (const f of [1, -1]) {
-      const x = (n: number) => 50 + f * n;
-      for (const y of [70, 78, 86]) s.add(shape(`M${x(22)} ${y - 4}L${x(38)} ${y}L${x(42)} ${y + 6}`, 'none', p.ink, 'stroke-width="4"'));
-      s.add(shape(`M${x(22)} 54Q${x(32)} 44 ${x(34)} 36`, 'none', p.ink, 'stroke-width="6"'));
-      s.add(shape(`M${x(30)} 38Q${x(26)} 14 ${x(40)} 10Q${x(48)} 10 ${x(46)} 22L${x(38)} 24L${x(44)} 30Q${x(42)} 40 ${x(30)} 38Z`, s.rad(p), p.ink));
-      s.add(shape(`M${x(10)} 46L${x(12)} 30`, 'none', p.ink, 'stroke-width="4"'));
-    }
-    s.add(shape('M50 44Q84 44 86 66Q84 86 50 86Q16 86 14 66Q16 44 50 44Z', s.rad(p), p.ink));
-    s.add('<ellipse cx="34" cy="54" rx="8" ry="3.5" fill="#fff" opacity=".45" transform="rotate(-15 34 54)"/>');
-    for (const x of [38, 62]) s.add(`<circle cx="${x}" cy="28" r="7" fill="#fff" stroke="${p.ink}" stroke-width="2.4"/><circle cx="${x + 1}" cy="29" r="3.5" fill="#2a1a3a"/><circle cx="${x}" cy="27.5" r="1.2" fill="#fff"/>`);
-    cheeks(s, 68, 20);
-    s.add('<path d="M42 70Q50 77 58 70" fill="none" stroke="#2a1a3a" stroke-width="2.6" stroke-linecap="round"/>');
+  cat: (s) => {
+    const fur = { hi: '#ffe0b0', mid: '#ffa64a', lo: '#d0701e', ink: '#6a3410' };
+    customer(s, fur, () => {
+      s.add(shape('M22 34L20 6L44 22Z', s.rad(fur), fur.ink) + shape('M78 34L80 6L56 22Z', s.rad(fur), fur.ink));
+      s.add('<path d="M25 28L24 13L36 22ZM75 28L76 13L64 22Z" fill="#ffb8c8"/>');
+    }, () => {
+      s.add(`<path d="M44 20L46 30M50 18L50 30M56 20L54 30" stroke="${fur.lo}" stroke-width="3" stroke-linecap="round"/>`);
+      eyes(s, 44, 12, 5); cheeks(s, 56, 21);
+      s.add('<path d="M47 52L53 52L50 55Z" fill="#ff7aa8"/><path d="M44 58Q47 61 50 57Q53 61 56 58" fill="none" stroke="#2a1a3a" stroke-width="2" stroke-linecap="round"/>');
+      s.add('<path d="M24 52L36 54M24 58L36 57M76 52L64 54M76 58L64 57" stroke="#6a3410" stroke-width="1.4" stroke-linecap="round"/>');
+    });
   },
-  wolf: (s) => {
-    const p = { hi: '#f2f8ff', mid: '#a8c0de', lo: '#6a86ae', ink: '#34486a' };
-    s.halo('#cfe8ff'); s.shadow(30, 94);
-    s.add(shape('M24 40L20 8L44 28Z', s.rad(p), p.ink) + shape('M76 40L80 8L56 28Z', s.rad(p), p.ink));
-    s.add('<path d="M26 32L24 16L36 28ZM74 32L76 16L64 28Z" fill="#ffb8c8" opacity=".8"/>');
-    s.add(shape('M50 22Q82 22 84 52Q86 70 74 80L64 74L60 86L50 80L40 86L36 74L26 80Q14 70 16 52Q18 22 50 22Z', s.rad(p), p.ink));
-    s.add(shape('M50 56Q64 56 66 70Q64 84 50 86Q36 84 34 70Q36 56 50 56Z', s.rad({ hi: '#ffffff', mid: '#eef4ff', lo: '#c8d6ec', ink: p.ink }), p.ink, 'stroke-width="2.4"'));
-    s.add('<ellipse cx="50" cy="62" rx="5" ry="3.5" fill="#2a1a3a"/>');
-    s.add('<ellipse cx="36" cy="46" rx="5" ry="5.5" fill="#7ad8ff"/><ellipse cx="64" cy="46" rx="5" ry="5.5" fill="#7ad8ff"/><circle cx="37" cy="46" r="2.6" fill="#1a2a4a"/><circle cx="63" cy="46" r="2.6" fill="#1a2a4a"/>');
-    s.add('<path d="M28 38L42 42M72 38L58 42" stroke="#2a1a3a" stroke-width="2.6" stroke-linecap="round"/>');
-    s.add('<path d="M44 74L47 79L50 74L53 79L56 74" fill="#fff" stroke="#2a1a3a" stroke-width="1.6" stroke-linejoin="round"/>');
-    for (const [x, y, r] of [[10, 24, 4], [90, 30, 3.5], [86, 8, 3]]) s.sparkle(x, y, r, '#e8f6ff');
+  bear: (s) => {
+    const fur = { hi: '#e8c09a', mid: '#a86e42', lo: '#704422', ink: '#3e220c' };
+    customer(s, fur, () => {
+      s.add(circ(26, 22, 11, s.rad(fur), fur.ink) + circ(74, 22, 11, s.rad(fur), fur.ink));
+      s.add('<circle cx="26" cy="22" r="5.5" fill="#e8b890"/><circle cx="74" cy="22" r="5.5" fill="#e8b890"/>');
+    }, () => {
+      eyes(s, 40, 13, 4.5);
+      s.add(ell(50, 56, 15, 11, s.rad({ hi: '#fff0dc', mid: '#f0d0aa', lo: '#c8a070', ink: fur.ink }), fur.ink, 'stroke-width="2"'));
+      s.add('<ellipse cx="50" cy="51" rx="5" ry="3.5" fill="#2a1a1a"/>');
+      smile(s, 57, 6); cheeks(s, 52, 24);
+    });
   },
-  treant: (s) => {
-    const bark = { hi: '#d8a878', mid: '#8a5a32', lo: '#5a361a', ink: '#3a200c' };
-    s.shadow(38, 94);
-    s.add(shape('M20 30Q8 22 6 10M80 30Q92 22 94 10', 'none', bark.ink, 'stroke-width="7"') + shape('M20 30Q8 22 6 10M80 30Q92 22 94 10', 'none', bark.mid, 'stroke-width="3.5"'));
-    for (const [x, y, r] of [[30, 16, 14], [50, 8, 16], [70, 16, 14], [14, 12, 8], [86, 12, 8]] as const) {
-      s.add(`<circle cx="${x}" cy="${y}" r="${r}" fill="${s.rad(P.herb)}" stroke="${P.herb.ink}" stroke-width="3"/>`);
-    }
-    s.add(shape('M24 92L28 50Q28 24 50 24Q72 24 72 50L76 92L62 84L56 94L50 86L44 94L38 84Z', s.rad(bark), bark.ink));
-    s.add(`<path d="M36 34Q34 46 38 56M64 36Q68 48 62 58M44 70Q42 80 46 88" fill="none" stroke="${bark.lo}" stroke-width="2.4" stroke-linecap="round"/>`);
-    s.add('<ellipse cx="40" cy="50" rx="6" ry="5" fill="#3a200c"/><ellipse cx="60" cy="50" rx="6" ry="5" fill="#3a200c"/><circle cx="40" cy="50" r="2.8" fill="#ffe066"/><circle cx="60" cy="50" r="2.8" fill="#ffe066"/>');
-    s.add('<path d="M40 66Q50 60 60 66Q56 72 50 72Q44 72 40 66Z" fill="#3a200c"/>');
-    s.add(shape('M76 62Q86 58 88 66Q84 70 78 68Z', s.rad(P.herb), P.herb.ink, 'stroke-width="2"'));
+  fox: (s) => {
+    const fur = { hi: '#ffd0a0', mid: '#ff8a3a', lo: '#c8521a', ink: '#5e2408' };
+    customer(s, fur, () => {
+      s.add(shape('M20 36L16 0L46 22Z', s.rad(fur), fur.ink) + shape('M80 36L84 0L54 22Z', s.rad(fur), fur.ink));
+      s.add('<path d="M18 14L16 0L26 8ZM82 14L84 0L74 8Z" fill="#3a2010"/><path d="M24 30L22 12L36 22ZM76 30L78 12L64 22Z" fill="#fff0e0"/>');
+    }, () => {
+      s.add('<path d="M19 50Q30 46 40 56Q50 74 60 56Q70 46 81 50Q80 72 50 74Q20 72 19 50Z" fill="#fff8f0"/>');
+      eyes(s, 42, 13, 4.5);
+      s.add('<ellipse cx="50" cy="56" rx="4.5" ry="3.2" fill="#2a1a1a"/>');
+      smile(s, 61, 6); cheeks(s, 54, 24);
+    });
   },
-  cyclops: (s) => {
-    const p = { hi: '#e0c0ff', mid: '#9a5ad8', lo: '#5e2e9a', ink: '#361860' };
-    s.shadow(38, 94);
-    s.add(shape('M18 58Q4 66 8 82Q16 86 22 76Z', s.rad(p), p.ink) + shape('M82 58Q96 66 92 82Q84 86 78 76Z', s.rad(p), p.ink));
-    s.add(shape('M42 16Q42 2 54 -4Q50 6 58 14Z', s.rad(P.wax), P.wax.ink));
-    s.add(shape('M50 10Q86 10 86 52Q86 92 50 92Q14 92 14 52Q14 10 50 10Z', s.rad(p), p.ink));
-    s.add(shape('M18 72Q50 82 82 72L80 82Q50 92 20 82Z', s.rad(P.wood), P.wood.ink, 'stroke-width="2.4"'));
-    s.add(shape('M45 80L55 80L55 88L45 88Z', s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
-    s.add(`<circle cx="50" cy="40" r="15" fill="#fff" stroke="${p.ink}" stroke-width="3"/><circle cx="52" cy="42" r="8" fill="#3a8a4a"/><circle cx="52" cy="42" r="4.2" fill="#1a1a2a"/><circle cx="48" cy="38" r="2.6" fill="#fff"/>`);
-    s.add('<path d="M34 24Q50 18 66 24" fill="none" stroke="#2a1a3a" stroke-width="3" stroke-linecap="round"/>');
-    s.add('<path d="M36 60Q50 68 64 60" fill="none" stroke="#2a1a3a" stroke-width="2.6" stroke-linecap="round"/><path d="M42 62L44 56L46 63M54 63L56 56L58 62" fill="#fff" stroke="#2a1a3a" stroke-width="1.4" stroke-linejoin="round"/>');
+  penguin: (s) => {
+    const fur = { hi: '#6a7090', mid: '#2e3248', lo: '#181a28', ink: '#0a0c14' };
+    customer(s, fur, () => {
+      s.add('<path d="M46 18Q48 6 56 8Q50 12 54 18Z" fill="#2e3248" stroke="#0a0c14" stroke-width="2"/>');
+    }, () => {
+      s.add('<path d="M50 34Q58 24 70 30Q78 40 74 54Q70 70 50 72Q30 70 26 54Q22 40 30 30Q42 24 50 34Z" fill="#fff"/>');
+      eyes(s, 44, 11, 4.5); cheeks(s, 56, 18);
+      s.add(shape('M42 54L58 54L50 64Z', s.rad({ hi: '#ffe0a0', mid: '#ffa63c', lo: '#e0701a', ink: '#7a3a08' }), '#7a3a08', 'stroke-width="2"'));
+    });
   },
-  dragon: (s) => {
-    const p = { hi: '#ffd08a', mid: '#f07a3a', lo: '#b8402a', ink: '#6a1e14' };
-    s.halo('#ffb46a'); s.shadow(36, 94);
-    s.add(shape('M30 50Q8 26 2 40Q12 46 6 58Q18 54 20 66Z', s.rad({ ...p, mid: '#e8603a' }), p.ink));
-    s.add(shape('M70 50Q92 26 98 40Q88 46 94 58Q82 54 80 66Z', s.rad({ ...p, mid: '#e8603a' }), p.ink));
-    s.add(shape('M34 26Q30 10 22 6Q38 10 42 22Z', s.rad(P.wax), P.wax.ink) + shape('M66 26Q70 10 78 6Q62 10 58 22Z', s.rad(P.wax), P.wax.ink));
-    s.add(shape('M50 18Q80 18 80 50Q80 88 50 88Q20 88 20 50Q20 18 50 18Z', s.rad(p), p.ink));
-    s.add(shape('M36 62Q50 56 64 62Q66 82 50 84Q34 82 36 62Z', s.rad(P.wax), P.wax.ink));
-    eyes(s, 44, 12, 5.5);
-    s.add('<path d="M30 34L42 38M70 34L58 38" stroke="#2a1a3a" stroke-width="2.8" stroke-linecap="round"/>');
-    s.add('<circle cx="45" cy="64" r="1.8" fill="#2a1a3a"/><circle cx="55" cy="64" r="1.8" fill="#2a1a3a"/>');
-    s.add(shape('M38 12L44 2L50 10L56 2L62 12Z', s.rad(P.coin), P.coin.ink));
+  pig: (s) => {
+    const fur = { hi: '#ffe4ee', mid: '#ffb0c8', lo: '#e07898', ink: '#8a3454' };
+    customer(s, fur, () => {
+      s.add(shape('M22 28L18 8L42 20Z', s.rad(fur), fur.ink, 'transform="rotate(-20 30 20)"') + shape('M78 28L82 8L58 20Z', s.rad(fur), fur.ink, 'transform="rotate(20 70 20)"'));
+    }, () => {
+      eyes(s, 40, 13, 4.5); cheeks(s, 52, 26);
+      s.add(ell(50, 54, 12, 8.5, s.rad({ hi: '#ffd0de', mid: '#ff8eb0', lo: '#d85a84', ink: fur.ink }), fur.ink, 'stroke-width="2.4"'));
+      s.add('<ellipse cx="45.5" cy="54" rx="2.2" ry="3.2" fill="#8a3454"/><ellipse cx="54.5" cy="54" rx="2.2" ry="3.2" fill="#8a3454"/>');
+      s.add('<path d="M42 66Q50 72 58 66" fill="none" stroke="#2a1a3a" stroke-width="2.4" stroke-linecap="round"/>');
+    });
+  },
+  frog: (s) => {
+    const fur = { hi: '#d8ffb0', mid: '#6ccc4a', lo: '#3a8a2a', ink: '#1e4a14' };
+    customer(s, fur, () => {
+      s.add(circ(32, 20, 13, s.rad(fur), fur.ink) + circ(68, 20, 13, s.rad(fur), fur.ink));
+    }, () => {
+      for (const x of [32, 68]) s.add(`<circle cx="${x}" cy="20" r="8" fill="#fff" stroke="${fur.ink}" stroke-width="2"/><circle cx="${x + 1}" cy="21" r="4.5" fill="#1a1a2a"/><circle cx="${x - 1}" cy="19" r="1.6" fill="#fff"/>`);
+      s.add('<path d="M28 52Q50 70 72 52" fill="none" stroke="#1e4a14" stroke-width="3" stroke-linecap="round"/>');
+      s.add('<path d="M52 59Q60 58 62 66Q56 70 52 62Z" fill="#ff7a8a" stroke="#7a2a3a" stroke-width="1.6"/>');
+      s.add('<circle cx="46" cy="40" r="1.6" fill="#1e4a14"/><circle cx="54" cy="40" r="1.6" fill="#1e4a14"/>');
+      cheeks(s, 50, 26);
+    });
+  },
+  panda: (s) => {
+    const fur = { hi: '#ffffff', mid: '#f2f2f6', lo: '#c8c8d8', ink: '#2a2a3a' };
+    const black = { hi: '#6a6a7a', mid: '#2e2e3a', lo: '#18181f', ink: '#0a0a10' };
+    s.shadow(34, 96);
+    s.add(shape('M12 100Q12 74 50 70Q88 74 88 100Z', s.rad(black), black.ink));
+    s.add(shape('M34 72L66 72L50 98Z', '#fff', '#6a6a8a', 'stroke-width="2.2"'));
+    s.add('<path d="M38 76L62 76M42 82L58 82M46 88L54 88M42 72L46 86M50 72L50 92M58 72L54 86" stroke="#e8403a" stroke-width="2" opacity=".6"/>');
+    s.add(circ(26, 22, 11, s.rad(black), black.ink) + circ(74, 22, 11, s.rad(black), black.ink));
+    s.add(shape('M50 16Q82 16 82 46Q82 74 50 74Q18 74 18 46Q18 16 50 16Z', s.rad(fur), fur.ink));
+    s.add('<ellipse cx="36" cy="44" rx="9" ry="11" fill="#2e2e3a" transform="rotate(-25 36 44)"/><ellipse cx="64" cy="44" rx="9" ry="11" fill="#2e2e3a" transform="rotate(25 64 44)"/>');
+    for (const x of [37, 63]) s.add(`<circle cx="${x}" cy="44" r="4" fill="#fff"/><circle cx="${x}" cy="45" r="2.4" fill="#1a1a2a"/>`);
+    s.add('<ellipse cx="50" cy="55" rx="5" ry="3.5" fill="#2a1a1a"/>');
+    smile(s, 60, 6); cheeks(s, 58, 24);
+  },
+  dog: (s) => {
+    const fur = { hi: '#fff0d8', mid: '#e8b878', lo: '#b07a3a', ink: '#5a3814' };
+    const ear = { hi: '#c8946a', mid: '#8a5a32', lo: '#5a3418', ink: '#3a1e08' };
+    customer(s, fur, () => {}, () => {
+      s.add(shape('M22 26Q8 30 10 56Q12 66 22 62Q26 44 30 30Z', s.rad(ear), ear.ink) + shape('M78 26Q92 30 90 56Q88 66 78 62Q74 44 70 30Z', s.rad(ear), ear.ink));
+      eyes(s, 40, 12, 4.5);
+      s.add(ell(50, 56, 14, 10, '#fff8ee', fur.ink, 'stroke-width="2"'));
+      s.add('<ellipse cx="50" cy="50" rx="6" ry="4" fill="#2a1a1a"/><circle cx="48" cy="49" r="1.4" fill="#fff" opacity=".7"/>');
+      s.add('<path d="M44 58Q47 61 50 57Q53 61 56 58" fill="none" stroke="#2a1a3a" stroke-width="2" stroke-linecap="round"/>');
+      s.add('<path d="M47 60Q47 70 50 70Q53 70 53 60Z" fill="#ff7a8a" stroke="#7a2a3a" stroke-width="1.6"/>');
+      cheeks(s, 50, 24);
+    });
+  },
+  raccoon: (s) => {
+    const fur = { hi: '#e0e0ea', mid: '#9a9aae', lo: '#62627a', ink: '#2a2a3e' };
+    customer(s, fur, () => {
+      s.add(shape('M22 32L22 10L42 22Z', s.rad(fur), fur.ink) + shape('M78 32L78 10L58 22Z', s.rad(fur), fur.ink));
+      s.add('<path d="M25 26L25 15L35 22ZM75 26L75 15L65 22Z" fill="#3a3a4e"/>');
+    }, () => {
+      s.add('<path d="M20 40Q34 32 50 42Q66 32 80 40Q78 54 64 52Q56 50 50 48Q44 50 36 52Q22 54 20 40Z" fill="#2e2e3e"/>');
+      s.add('<path d="M50 30L50 42" stroke="#2e2e3e" stroke-width="5" stroke-linecap="round"/>');
+      for (const x of [37, 63]) s.add(`<circle cx="${x}" cy="44" r="4.6" fill="#fff"/><circle cx="${x}" cy="45" r="2.8" fill="#1a1a2a"/><circle cx="${x - 1}" cy="43.5" r="1" fill="#fff"/>`);
+      s.add('<path d="M30 56Q50 50 70 56Q66 74 50 74Q34 74 30 56Z" fill="#f2f2f6"/>');
+      s.add('<ellipse cx="50" cy="58" rx="4.5" ry="3.2" fill="#1a1a2a"/>');
+      smile(s, 62, 5);
+    });
+  },
+  lion: (s) => {
+    const fur = { hi: '#fff0b0', mid: '#ffc84a', lo: '#d89020', ink: '#6a420a' };
+    const mane = { hi: '#ffb070', mid: '#e0702a', lo: '#a04412', ink: '#5a2008' };
+    customer(s, fur, () => {
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * Math.PI * 2, x = 50 + Math.cos(a) * 34, y = 46 + Math.sin(a) * 34;
+        s.add(circ(Number(x.toFixed(1)), Number(y.toFixed(1)), 12, s.rad(mane), mane.ink, 'stroke-width="2.4"'));
+      }
+      s.add(circ(28, 22, 7, s.rad(fur), fur.ink, 'stroke-width="2.4"') + circ(72, 22, 7, s.rad(fur), fur.ink, 'stroke-width="2.4"'));
+    }, () => {
+      eyes(s, 42, 12, 4.5);
+      s.add(ell(50, 57, 13, 9, '#fff8e0', fur.ink, 'stroke-width="2"'));
+      s.add('<path d="M44 51L56 51L50 57Z" fill="#8a4a2a" stroke="#3a1a08" stroke-width="1.6" stroke-linejoin="round"/>');
+      s.add('<path d="M44 61Q47 64 50 60Q53 64 56 61" fill="none" stroke="#2a1a3a" stroke-width="2" stroke-linecap="round"/>');
+      cheeks(s, 52, 24);
+    });
+  },
+  critic: (s) => {
+    const fur = { hi: '#e8c8a8', mid: '#a87a5a', lo: '#704a30', ink: '#3a2212' };
+    s.halo('#ffe08a');
+    customer(s, fur, () => {}, () => {
+      // Top hat.
+      s.add(shape('M28 22L72 22L74 26L26 26Z', '#2a2a3a', '#0a0a14'));
+      s.add(shape('M34 22L36 -6L64 -6L66 22Z', s.rad({ hi: '#6a6a7a', mid: '#2e2e3a', lo: '#18181f', ink: '#0a0a10' }), '#0a0a10'));
+      s.add('<path d="M35 14L65 14" stroke="#e8403a" stroke-width="5"/>');
+      eyes(s, 40, 12, 4);
+      s.add(circ(62, 40, 8, 'rgba(220,240,255,.5)', P.metal.ink, 'stroke-width="2.4"'));
+      s.add(`<path d="M70 42Q76 56 72 70" fill="none" stroke="${P.metal.mid}" stroke-width="1.4"/>`);
+      s.add('<path d="M36 32L44 34M56 34L64 31" stroke="#2a1a3a" stroke-width="2.4" stroke-linecap="round"/>');
+      s.add(ell(50, 56, 20, 10, s.rad({ hi: '#f8e8d8', mid: '#d8b898', lo: '#a88060', ink: fur.ink }), fur.ink, 'stroke-width="2"'));
+      s.add('<ellipse cx="50" cy="50" rx="5" ry="3.5" fill="#2a1a1a"/>');
+      s.add(shape('M30 58Q40 50 50 56Q60 50 70 58Q64 66 50 62Q36 66 30 58Z', '#fff', '#8a8aa0', 'stroke-width="1.8"'));
+      s.add(shape('M40 62L38 80L44 64Z', '#fffaf0', '#8a7a60', 'stroke-width="1.8"') + shape('M60 62L62 80L56 64Z', '#fffaf0', '#8a7a60', 'stroke-width="1.8"'));
+    }, false);
+    // A bow tie instead of a napkin.
+    s.add(shape('M50 78L36 70L36 86Z', '#e8403a', '#6a1010', 'stroke-width="2"') + shape('M50 78L64 70L64 86Z', '#e8403a', '#6a1010', 'stroke-width="2"'));
+    s.add(circ(50, 78, 3.5, '#c82a2a', '#6a1010', 'stroke-width="1.6"'));
+    s.sparkle(88, 14, 5, '#fff6c4'); s.sparkle(12, 20, 4, '#fff6c4');
   },
 };
 
 // ------------------------------------------------------------------ API
 
 const chainArt: Record<ChainId, ((s: Svg) => void)[]> = {
-  earth: earthArt, water: waterArt, wind: windArt, fire: flameArt, coin: coinArt, mana: manaArt,
+  bakery: bakeryArt, drinks: drinksArt, dessert: dessertArt, grill: grillArt, coin: coinArt, energy: energyArt,
 };
 
 const cache = new Map<string, string>();
@@ -865,7 +1020,7 @@ const cache = new Map<string, string>();
 /**
  * Painted art overrides. Any key listed in public/art/manifest.json is served
  * from public/art/<key>.png instead of the code-drawn SVG, so real art can be
- * swapped in one item at a time. Keys: `crystal-1`, `gen-geode`, `mon-slime`,
+ * swapped in one item at a time. Keys: `bakery-1`, `gen-oven`, `cus-bunny`,
  * `icon-coin`, ... (see artKeys()).
  */
 const overrides = new Set<string>();
@@ -899,45 +1054,43 @@ export const generatorArt = (g: GenId, lv = 1) =>
   lv > 1 && !overrides.has(`gen-${g}-${lv}`) && overrides.has(`gen-${g}`)
     ? toUrl(`gen-${g}`, (s) => genArt[g](s, 1), 0.9)
     : toUrl(lv > 1 ? `gen-${g}-${lv}` : `gen-${g}`, (s) => genArt[g](s, lv), 0.9);
-export const monsterImg = (k: MonsterKind) => toUrl(`mon-${k}`, monsterArt[k], 0.94);
+export const customerImg = (k: CustomerKind) => toUrl(`cus-${k}`, customerArt[k], 0.94);
 export const pieceArt = (p: Piece) => (p.kind === 'gen' ? generatorArt(p.gen, p.level ?? 1) : itemArt(p.chain, p.level));
 
+const TOQUE = { hi: '#ffffff', mid: '#f4f4fa', lo: '#c8cad8', ink: '#4a4e6a' };
+
+function toque(s: Svg, cx: number, by: number, k: number) {
+  s.add(shape(`M${cx - 16 * k} ${by}L${cx - 16 * k} ${by - 12 * k}Q${cx - 30 * k} ${by - 16 * k} ${cx - 26 * k} ${by - 30 * k}Q${cx - 20 * k} ${by - 42 * k} ${cx - 6 * k} ${by - 36 * k}Q${cx} ${by - 48 * k} ${cx + 10 * k} ${by - 38 * k}Q${cx + 26 * k} ${by - 44 * k} ${cx + 28 * k} ${by - 28 * k}Q${cx + 30 * k} ${by - 16 * k} ${cx + 16 * k} ${by - 12 * k}L${cx + 16 * k} ${by}Z`, s.rad(TOQUE), TOQUE.ink));
+  s.add(`<path d="M${cx - 16 * k} ${by - 6 * k}L${cx + 16 * k} ${by - 6 * k}M${cx - 6 * k} ${by - 12 * k}L${cx - 6 * k} ${by - 1}M${cx + 6 * k} ${by - 12 * k}L${cx + 6 * k} ${by - 1}" stroke="${TOQUE.lo}" stroke-width="${1.8 * k}"/>`);
+}
+
 export const iconArt = {
-  owl: () => toUrl('icon-owl', (s) => {
-    const fur = { hi: '#d8c0f0', mid: '#8a6ab8', lo: '#4e3478', ink: '#2e1d4a' };
-    const belly = { hi: '#fff8e8', mid: '#f0dcb8', lo: '#c8a878', ink: '#6a5236' };
+  /** Chef Pip, the kitchen mouse who tells the story. */
+  chef: () => toUrl('icon-chef', (s) => {
+    const fur = { hi: '#f0eef8', mid: '#b8b4cc', lo: '#7e7896', ink: '#3e3a56' };
     s.shadow(30);
-    s.add(shape('M22 40L18 18L36 30Z', s.rad(fur), fur.ink) + shape('M78 40L82 18L64 30Z', s.rad(fur), fur.ink));
-    s.add(shape('M50 22Q84 22 84 58Q84 92 50 92Q16 92 16 58Q16 22 50 22Z', s.rad(fur), fur.ink));
-    s.add(shape('M14 56Q8 74 22 86Q26 70 24 58Z', s.rad(fur), fur.ink) + shape('M86 56Q92 74 78 86Q74 70 76 58Z', s.rad(fur), fur.ink));
-    s.add(shape('M50 54Q70 56 70 74Q70 90 50 90Q30 90 30 74Q30 56 50 54Z', s.rad(belly), belly.ink));
-    s.add(`<path d="M38 70Q42 74 46 70M54 70Q58 74 62 70M44 80Q48 84 52 80M50 80Q54 84 58 80" fill="none" stroke="${belly.lo}" stroke-width="1.8"/>`);
-    for (const x of [37, 63]) {
-      s.add(`<circle cx="${x}" cy="46" r="11" fill="#fff" stroke="${fur.ink}" stroke-width="2.4"/>`);
-      s.add(`<circle cx="${x + 1}" cy="47" r="5.5" fill="#2a1a3a"/><circle cx="${x - 1}" cy="45" r="2" fill="#fff"/>`);
-      s.add(`<circle cx="${x}" cy="46" r="13" fill="none" stroke="#e9c46a" stroke-width="2.6"/>`);
-    }
-    s.add('<path d="M48 46L52 46" stroke="#e9c46a" stroke-width="2.6"/>');
-    s.add(shape('M46 56L54 56L50 64Z', '#ffb43c', '#8a5010', 'stroke-width="2"'));
-    s.add(shape('M30 24Q46 -6 70 6Q58 12 60 26Q46 20 30 24Z', s.rad(P.arcane), P.arcane.ink));
-    s.add(shape('M26 26Q48 18 66 28L64 32Q48 24 28 30Z', s.rad(P.coin), P.coin.ink, 'stroke-width="2"'));
-    s.sparkle(66, 10, 3.5, '#ffe680');
+    s.add(shape('M14 100Q14 76 50 72Q86 76 86 100Z', s.rad(TOQUE), TOQUE.ink));
+    s.add('<path d="M44 74L50 84L56 74" fill="#e8403a" stroke="#6a1010" stroke-width="2" stroke-linejoin="round"/>');
+    s.add(circ(22, 34, 16, s.rad(fur), fur.ink) + circ(78, 34, 16, s.rad(fur), fur.ink));
+    s.add('<circle cx="22" cy="34" r="9" fill="#ffc0d0"/><circle cx="78" cy="34" r="9" fill="#ffc0d0"/>');
+    s.add(shape('M50 30Q78 30 78 54Q78 76 50 78Q22 76 22 54Q22 30 50 30Z', s.rad(fur), fur.ink));
+    eyes(s, 50, 11, 4.5); cheeks(s, 62, 19);
+    s.add('<circle cx="50" cy="60" r="4" fill="#ff7aa8" stroke="#8a2458" stroke-width="1.4"/>');
+    s.add('<path d="M44 66Q47 69 50 65Q53 69 56 66" fill="none" stroke="#2a1a3a" stroke-width="2" stroke-linecap="round"/>');
+    s.add('<path d="M26 58L38 60M26 64L38 63M74 58L62 60M74 64L62 63" stroke="#3e3a56" stroke-width="1.4" stroke-linecap="round"/>');
+    toque(s, 50, 34, 0.75);
   }),
-  tower: () => toUrl('icon-tower', (s) => {
-    s.add(shape('M30 92L34 40L66 40L70 92Z', s.rad(P.stone), P.stone.ink));
-    s.add(shape('M26 42L50 4L74 42Z', s.rad(P.arcane), P.arcane.ink));
-    s.add(shape('M44 92L44 76Q50 70 56 76L56 92Z', '#5a3a26', P.wood.ink, 'stroke-width="2"'));
-    s.add(shape('M45 52Q50 46 55 52L55 62L45 62Z', '#ffd36a', P.stone.ink, 'stroke-width="2"'));
-    s.add(`<path d="M50 4L50 -6M50 -6L60 -2L50 1" fill="#ff8a3c" stroke="${P.stone.ink}" stroke-width="2"/>`);
+  diner: () => toUrl('icon-diner', (s) => {
+    s.add(shape('M14 46L86 46L86 92L14 92Z', s.rad({ hi: '#fff8e8', mid: '#f6e4c4', lo: '#d0b88a', ink: '#6a4a24' }), '#6a4a24'));
+    s.add(shape('M40 92L40 64L60 64L60 92Z', s.rad(P.wood), P.wood.ink));
+    s.add(shape('M20 56L34 56L34 72L20 72Z', '#9fdcff', '#2a5a8a', 'stroke-width="2"') + shape('M66 56L80 56L80 72L66 72Z', '#9fdcff', '#2a5a8a', 'stroke-width="2"'));
+    s.add(shape('M8 30L92 30L94 46L6 46Z', '#fff', '#8a2a2a'));
+    s.add('<path d="M18 30L16 46M30 30L29 46M42 30L42 46M54 30L54 46M66 30L67 46M78 30L80 46" stroke="#e8403a" stroke-width="7"/>');
+    s.add(shape('M6 46Q12 52 18 46Q24 52 30 46Q36 52 42 46Q48 52 54 46Q60 52 66 46Q72 52 78 46Q84 52 94 46', 'none', '#8a2a2a', 'stroke-width="2.4"'));
+    s.add(shape('M30 8L70 8L70 26L30 26Z', s.rad(P.coin), P.coin.ink, 'stroke-width="2.4"'));
+    s.add(`<path d="M50 12Q45 12 45 17Q45 22 50 22Q55 22 55 17Q55 12 50 12Z" fill="#fff6c4"/><path d="M50 22L50 26" stroke="${P.coin.ink}" stroke-width="2"/>`);
   }),
-  hat: () => toUrl('icon-hat', (s) => {
-    s.shadow(32, 90);
-    s.add(shape('M14 80Q50 64 86 80Q86 90 50 90Q14 90 14 80Z', s.rad(P.arcane), P.arcane.ink));
-    s.add(shape('M28 78Q36 50 48 30Q56 12 78 10Q62 22 64 40Q68 60 72 78Q50 84 28 78Z', s.rad(P.arcane), P.arcane.ink));
-    s.add(shape('M28 74Q50 80 72 74L73 80Q50 86 28 80Z', s.rad(P.coin), P.coin.ink));
-    for (const [x, y, r] of [[48, 54, 5], [58, 36, 4], [40, 66, 3]]) s.sparkle(x, y, r, '#ffe680');
-    s.add(hl('M36 66Q42 46 52 32', 2.6, 0.45));
-  }),
+  toque: () => toUrl('icon-toque', (s) => { s.shadow(30, 90); toque(s, 50, 88, 1.6); s.sparkle(80, 20, 5, '#ffe680'); }),
   coin: () => toUrl('icon-coin', (s) => coinShape(s, 50, 50, 38)),
   gem: () => toUrl('icon-gem', (s) => {
     const p = { hi: '#ffe0f4', mid: '#ff6fb8', lo: '#c0247a', ink: '#7a1450' };
@@ -961,24 +1114,27 @@ export const iconArt = {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#fff8c8', mid: '#ffd23c', lo: '#e8961c', ink: '#8a5a10' }), '#8a5a10'));
     s.add('<path d="M38 34L50 10L46 40Z" fill="#fff" opacity=".5"/>');
   }),
-  scroll: () => toUrl('icon-scroll', (s) => {
-    s.add(shape('M24 18L76 18L76 82L24 82Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink));
-    for (const y of [32, 42, 52, 62]) s.add(`<path d="M32 ${y}L${y === 62 ? 54 : 68} ${y}" stroke="${P.paper.lo}" stroke-width="3" stroke-linecap="round"/>`);
-    for (const y of [16, 84]) s.add(shape(`M18 ${y - 7}L82 ${y - 7}Q88 ${y} 82 ${y + 7}L18 ${y + 7}Q12 ${y} 18 ${y - 7}Z`, s.rad(P.wood), P.wood.ink));
-    s.add(shape('M66 66Q76 60 80 70Q84 80 72 82Q62 82 64 72Z', s.rad({ hi: '#ff9a9a', mid: '#d8302a', lo: '#8a1410', ink: '#5a0a08' }), '#5a0a08', 'stroke-width="2"'));
-    s.add(shape('M66 80L62 92L68 88L70 94L73 82Z', '#d8302a', '#5a0a08', 'stroke-width="1.6"'));
+  /** An order pad, for the daily quests. */
+  pad: () => toUrl('icon-pad', (s) => {
+    s.add(shape('M22 16L74 16L74 90L22 90Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink));
+    for (const y of [36, 48, 60, 72]) s.add(`<path d="M30 ${y}L${y === 72 ? 52 : 66} ${y}" stroke="#8ab0e0" stroke-width="3" stroke-linecap="round"/>`);
+    s.add('<path d="M30 36L34 40L40 32" fill="none" stroke="#3aa04a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>');
+    s.add(shape('M20 12L76 12L76 22L20 22Z', s.rad({ hi: '#ffb0b0', mid: '#e8403a', lo: '#a01a1a', ink: '#5a0a0a' }), '#5a0a0a'));
+    for (const x of [30, 42, 54, 66]) s.add(`<circle cx="${x}" cy="17" r="2.4" fill="${P.stone.mid}" stroke="${P.stone.ink}" stroke-width="1.2"/>`);
+    s.add(shape('M66 88L88 50L94 54L72 92L64 94Z', s.rad(P.coin), P.coin.ink, 'stroke-width="2.4"'));
+    s.add('<path d="M64 94L66 88L72 92Z" fill="#3a2a1a"/>');
   }),
-  bag: () => toUrl('icon-bag', (s) => {
-    const leather = { hi: '#f2c48a', mid: '#b8743c', lo: '#7a4420', ink: '#4a2610' };
+  /** The fridge where spare pieces are kept. */
+  fridge: () => toUrl('icon-fridge', (s) => {
     s.shadow(34);
-    s.add(shape('M30 30Q30 10 50 10Q70 10 70 30', 'none', leather.ink, 'stroke-width="9"') + shape('M30 30Q30 10 50 10Q70 10 70 30', 'none', leather.mid, 'stroke-width="4.5"'));
-    s.add(shape('M18 36Q16 30 24 28L76 28Q84 30 82 36L86 82Q86 92 76 92L24 92Q14 92 14 82Z', s.rad(leather), leather.ink));
-    s.add(`<path d="M20 60Q50 66 80 60" fill="none" stroke="${leather.lo}" stroke-width="2" stroke-dasharray="3 3"/>`);
-    s.add(shape('M16 34Q50 26 84 34L82 56Q50 66 18 56Z', s.rad({ ...leather, mid: '#c8844a' }), leather.ink));
-    s.add(shape('M42 50L58 50L58 66L42 66Z', s.rad(P.metal), P.metal.ink, 'stroke-width="2.4"'));
-    s.add(`<rect x="47" y="55" width="6" height="6" rx="1" fill="${P.metal.lo}"/>`);
-    s.add(hl('M24 40Q40 34 56 34', 2.6, 0.5));
-    s.sparkle(78, 20, 4, '#fff6c4');
+    s.add(shape('M22 10Q22 4 28 4L72 4Q78 4 78 10L78 90Q78 96 72 96L28 96Q22 96 22 90Z', s.rad(MINT), MINT.ink));
+    s.add(`<path d="M22 38L78 38" stroke="${MINT.ink}" stroke-width="3"/>`);
+    s.add(shape('M66 14L66 30', 'none', P.stone.ink, 'stroke-width="6"') + shape('M66 46L66 70', 'none', P.stone.ink, 'stroke-width="6"'));
+    s.add('<path d="M66 14L66 30M66 46L66 70" stroke="#e6e2ec" stroke-width="3" stroke-linecap="round"/>');
+    s.add(hl('M28 12L28 32M28 46L28 88', 3, 0.6));
+    s.add(circ(40, 56, 7, s.rad(BERRY), BERRY.ink, 'stroke-width="2"'));
+    s.add(shape('M36 72L48 72L48 82L36 82Z', s.rad(LEMON), LEMON.ink, 'stroke-width="2"'));
+    s.sparkle(84, 14, 4, '#fff');
   }),
   star: () => toUrl('icon-star', (s) => {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#c9ecff', mid: '#5aaaf0', lo: '#2a6ac8', ink: '#163e80' }), '#163e80'));
@@ -990,7 +1146,7 @@ export function artKeys(): string[] {
   const out: string[] = [];
   for (const c of Object.keys(chainArt) as ChainId[]) chainArt[c].forEach((_, i) => out.push(`${c}-${i + 1}`));
   for (const g of Object.keys(genArt) as GenId[]) for (let lv = 1; lv <= GEN_LEVELS.length; lv++) out.push(lv > 1 ? `gen-${g}-${lv}` : `gen-${g}`);
-  for (const m of Object.keys(monsterArt) as MonsterKind[]) out.push(`mon-${m}`);
+  for (const m of Object.keys(customerArt) as CustomerKind[]) out.push(`cus-${m}`);
   out.push(...Object.keys(iconArt).map((k) => `icon-${k}`));
   return out;
 }
@@ -1000,6 +1156,6 @@ export function allArt(): string[] {
   const out: string[] = [];
   for (const c of Object.keys(chainArt) as ChainId[]) chainArt[c].forEach((_, i) => out.push(itemArt(c, i + 1)));
   for (const g of Object.keys(genArt) as GenId[]) for (let lv = 1; lv <= GEN_LEVELS.length; lv++) out.push(generatorArt(g, lv));
-  for (const m of Object.keys(monsterArt) as MonsterKind[]) out.push(monsterImg(m));
+  for (const m of Object.keys(customerArt) as CustomerKind[]) out.push(customerImg(m));
   return out;
 }

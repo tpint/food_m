@@ -10,11 +10,11 @@ const css = readFileSync(`${dir}/${files.find((f) => f.endsWith('.css'))}`, 'utf
 const js = readFileSync(`${dir}/${files.find((f) => f.endsWith('.js'))}`, 'utf8');
 const html = readFileSync('index.html', 'utf8');
 const body = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script type="module"'));
-const out = `<title>Arcane Merge</title>
+const out = `<title>Sunny Spoon</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
 <style>${css}</style>
 ${body.trim()}
 <script type="module">${js.replace(/<\/script/gi, '<\\/script')}</script>
 `;
-writeFileSync('dist-artifact/arcane-merge.html', out);
-console.log('wrote dist-artifact/arcane-merge.html', (out.length / 1024).toFixed(1), 'KB');
+writeFileSync('dist-artifact/sunny-spoon.html', out);
+console.log('wrote dist-artifact/sunny-spoon.html', (out.length / 1024).toFixed(1), 'KB');

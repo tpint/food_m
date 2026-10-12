@@ -3,8 +3,8 @@
 
 import { CHAPTERS, ChapterDef, TaskDef } from './story';
 import {
-  ACTIVE_MONSTERS, BOARD_COLS, BOARD_ROWS, BOSS, BOSS_EVERY, CHAINS, ChainId, ENERGY_REGEN_MS,
-  GEN_LEVELS, GENERATORS, GenId, MAGIC_CHAINS, MAX_ENERGY, MONSTERS, MonsterKind, REFRESH_BASE_COST,
+  ACTIVE_CUSTOMERS, BOARD_COLS, BOARD_ROWS, CHAINS, CRITIC, CRITIC_EVERY, CUSTOMERS, ChainId, CustomerKind,
+  ENERGY_REGEN_MS, FOOD_CHAINS, GEN_LEVELS, GENERATORS, GenId, MAX_ENERGY, REFRESH_BASE_COST,
   REFRESH_COST_GROWTH, SPAWN_COST, maxLevel, xpForLevel,
 } from './config';
 
@@ -22,20 +22,22 @@ export interface Need {
   level: number;
 }
 
-export interface Monster {
+export interface Customer {
   id: number;
-  kind: MonsterKind;
+  kind: CustomerKind;
   name: string;
-  needs: Need[];
+  /** The dishes this customer ordered. */
+  order: Need[];
   coins: number;
   xp: number;
   gems: number;
   stars: number;
-  boss: boolean;
+  /** A food critic: a bigger order and bigger rewards. */
+  critic: boolean;
 }
 
 export interface GameState {
-  v: 2;
+  v: 1;
   cols: number;
   rows: number;
   board: Cell[];
@@ -45,30 +47,31 @@ export interface GameState {
   gems: number;
   xp: number;
   level: number;
-  monsters: Monster[];
-  nextMonsterId: number;
-  defeated: number;
-  /** Tower restoration (added after v2 shipped; filled in by load()). */
+  customers: Customer[];
+  nextCustomerId: number;
+  /** Customers served, all time. */
+  served: number;
+  /** Restaurant restoration. */
   stars: number;
   chapter: number;
   tasksDone: string[];
   storySeen: string[];
-  /** Extra Stars every monster drops (a chapter reward). */
+  /** Extra Stars every customer gives (a chapter reward). */
   starBonus?: number;
-  /** Monster rerolls since the last defeat; each one makes the next cost more. */
+  /** Customer refreshes since the last order served; each one makes the next cost more. */
   refreshes?: number;
   /** Today's quests (filled in by ensureDaily). */
   daily?: Daily;
-  /** Pieces stored in the inventory bag, and how many slots it has. */
-  bag?: Piece[];
-  bagSlots?: number;
+  /** Pieces stored in the fridge (the inventory), and how many slots it has. */
+  fridge?: Piece[];
+  fridgeSlots?: number;
   /** When the player last changed something (ms); the newest of local and cloud wins. */
   savedAt?: number;
 }
 
-export type QuestKind = 'defeat' | 'merge' | 'conjure' | 'mergeHigh';
+export type QuestKind = 'serve' | 'merge' | 'cook' | 'mergeHigh';
 /** Quests drawn from each day. */
-export const QUEST_KINDS: QuestKind[] = ['defeat', 'merge', 'conjure', 'mergeHigh'];
+export const QUEST_KINDS: QuestKind[] = ['serve', 'merge', 'cook', 'mergeHigh'];
 
 export interface Quest {
   kind: QuestKind;
@@ -117,7 +120,7 @@ export function samePiece(a: Piece | null, b: Piece | null): boolean {
 
 export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
   const s: GameState = {
-    v: 2,
+    v: 1,
     cols: BOARD_COLS,
     rows: BOARD_ROWS,
     board: Array.from({ length: BOARD_COLS * BOARD_ROWS }, () => ({ piece: null })),
@@ -127,9 +130,9 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
     gems: 10,
     xp: 0,
     level: 1,
-    monsters: [],
-    nextMonsterId: 1,
-    defeated: 0,
+    customers: [],
+    nextCustomerId: 1,
+    served: 0,
     stars: 0,
     chapter: 0,
     tasksDone: [],
@@ -138,26 +141,26 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
 
   // A row of starter items across the board (the two rows above start empty).
   for (let x = 0; x < s.cols; x++) {
-    const chain = pick(rng, MAGIC_CHAINS);
+    const chain = pick(rng, FOOD_CHAINS);
     const level = 1 + Math.floor(rng() * 4);
     s.board[idx(s, x, 2)] = { piece: item(chain, Math.min(level, 4)) };
   }
 
-  // Generators along the bottom, a few starter items in the middle.
+  // Kitchen stations along the bottom, a few starter items in the middle.
   const place = (x: number, y: number, p: Piece) => (s.board[idx(s, x, y)] = { piece: p });
-  place(0, 8, gen('geode'));
-  place(2, 8, gen('well'));
-  place(4, 8, gen('windmill'));
-  place(6, 8, gen('forge'));
-  place(1, 5, item('water', 1));
-  place(2, 5, item('water', 1));
-  place(5, 7, item('water', 1)); // drag this onto the pair to learn merge-3
-  place(4, 5, item('fire', 1));
-  place(5, 6, item('earth', 1));
+  place(0, 8, gen('oven'));
+  place(2, 8, gen('fountain'));
+  place(4, 8, gen('mixer'));
+  place(6, 8, gen('bbq'));
+  place(1, 5, item('drinks', 1));
+  place(2, 5, item('drinks', 1));
+  place(5, 7, item('drinks', 1)); // drag this onto the pair to learn merge-3
+  place(4, 5, item('grill', 1));
+  place(5, 6, item('bakery', 1));
   place(3, 6, item('coin', 1));
-  place(1, 7, item('mana', 1));
+  place(1, 7, item('energy', 1));
 
-  while (s.monsters.length < ACTIVE_MONSTERS) s.monsters.push(makeMonster(s, rng));
+  while (s.customers.length < ACTIVE_CUSTOMERS) s.customers.push(makeCustomer(s, rng));
   return s;
 }
 
@@ -309,7 +312,7 @@ export function spawnFrom(s: GameState, genIdx: number, rng: Rng = Math.random):
   }
   const piece = item(def.chain, level);
   s.board[at].piece = piece;
-  questProgress(s, 'conjure');
+  questProgress(s, 'cook');
   return { ok: true, at, piece, free };
 }
 
@@ -336,7 +339,7 @@ export function upgradeGen(s: GameState, i: number): UpgradeCheck {
   return chk;
 }
 
-/** Tap a coin / mana item to turn it into resources. */
+/** Tap a coin / energy item to turn it into resources. */
 export function collect(s: GameState, i: number): { resource: 'coins' | 'energy'; amount: number } | null {
   const c = s.board[i];
   if (!c.piece || c.piece.kind !== 'item') return null;
@@ -364,43 +367,43 @@ export function sell(s: GameState, i: number): number {
   return v;
 }
 
-// ---------------------------------------------------------------- monsters
+// ---------------------------------------------------------------- customers
 
-/** A new monster. Pass `keep` to replace one in place (same id, boss or not). */
-export function makeMonster(s: GameState, rng: Rng = Math.random, keep?: Monster): Monster {
-  const boss = keep ? keep.boss : (s.nextMonsterId % BOSS_EVERY) === 0;
-  const unlocked = MONSTERS.filter((m) => m.minLevel <= s.level);
-  const fresh = unlocked.filter((m) => !s.monsters.some((x) => x.kind === m.kind));
-  const def = boss ? BOSS : pick(rng, fresh.length ? fresh : unlocked);
-  // Merging takes 3, so each level costs 3x the last; keep asks gentle.
-  const top = Math.min(7, 2 + Math.floor((s.level - 1) / 3) + (boss ? 1 : 0));
-  const count = boss ? 3 : s.level < 3 ? 1 : 1 + Math.floor(rng() * 2);
+/** A new customer. Pass `keep` to replace one in place (same id, critic or not). */
+export function makeCustomer(s: GameState, rng: Rng = Math.random, keep?: Customer): Customer {
+  const critic = keep ? keep.critic : (s.nextCustomerId % CRITIC_EVERY) === 0;
+  const unlocked = CUSTOMERS.filter((m) => m.minLevel <= s.level);
+  const fresh = unlocked.filter((m) => !s.customers.some((x) => x.kind === m.kind));
+  const def = critic ? CRITIC : pick(rng, fresh.length ? fresh : unlocked);
+  // Merging takes 3, so each level costs 3x the last; keep orders gentle.
+  const top = Math.min(7, 2 + Math.floor((s.level - 1) / 3) + (critic ? 1 : 0));
+  const count = critic ? 3 : s.level < 3 ? 1 : 1 + Math.floor(rng() * 2);
 
-  const chains = shuffle(rng, [...MAGIC_CHAINS]).slice(0, count);
-  const needs: Need[] = chains.map((chain) => {
+  const chains = shuffle(rng, [...FOOD_CHAINS]).slice(0, count);
+  const order: Need[] = chains.map((chain) => {
     // Bias towards the upper end of what the player can currently reach.
     const level = Math.max(1, Math.min(top, Math.ceil(Math.sqrt(rng()) * top)));
     return { chain, level };
   });
 
-  const power = needs.reduce((t, n) => t + Math.pow(3, n.level - 1), 0);
+  const power = order.reduce((t, n) => t + Math.pow(3, n.level - 1), 0);
   return {
-    id: keep ? keep.id : s.nextMonsterId++,
+    id: keep ? keep.id : s.nextCustomerId++,
     kind: def.kind,
     name: def.name,
-    needs,
-    coins: Math.round(power * 2 + 4) * (boss ? 2 : 1),
-    xp: needs.reduce((t, n) => t + n.level * 2, 0) + (boss ? 10 : 0),
-    gems: boss ? 5 : 0,
-    stars: boss ? 3 : needs.length >= 2 ? 2 : 1,
-    boss,
+    order,
+    coins: Math.round(power * 2 + 4) * (critic ? 2 : 1),
+    xp: order.reduce((t, n) => t + n.level * 2, 0) + (critic ? 10 : 0),
+    gems: critic ? 5 : 0,
+    stars: critic ? 3 : order.length >= 2 ? 2 : 1,
+    critic,
   };
 }
 
-/** Board cells (one per need) that would be consumed to defeat a monster, or null. */
-export function findSpell(s: GameState, m: Monster): number[] | null {
+/** Board cells (one per dish) that would be served to fill an order, or null. */
+export function findOrder(s: GameState, m: Customer): number[] | null {
   const used = new Set<number>();
-  for (const n of m.needs) {
+  for (const n of m.order) {
     const i = s.board.findIndex((c, j) =>
       !used.has(j) && c.piece?.kind === 'item' && c.piece.chain === n.chain && c.piece.level === n.level);
     if (i < 0) return null;
@@ -409,57 +412,58 @@ export function findSpell(s: GameState, m: Monster): number[] | null {
   return [...used];
 }
 
-/** True if this item satisfies a need of any active monster. */
+/** True if this item is part of any customer's order. */
 export function isWanted(s: GameState, p: Piece | null): boolean {
   if (!p || p.kind !== 'item') return false;
-  return s.monsters.some((m) => m.needs.some((n) => n.chain === p.chain && n.level === p.level));
+  return s.customers.some((m) => m.order.some((n) => n.chain === p.chain && n.level === p.level));
 }
 
-export interface CastResult {
+export interface ServeResult {
   cells: number[];
-  monster: Monster;
+  customer: Customer;
   levelUp: boolean;
 }
 
-export function cast(s: GameState, monsterId: number, rng: Rng = Math.random): CastResult | null {
-  const mi = s.monsters.findIndex((m) => m.id === monsterId);
+/** Serve a customer their whole order from the board and collect the rewards. */
+export function serve(s: GameState, customerId: number, rng: Rng = Math.random): ServeResult | null {
+  const mi = s.customers.findIndex((m) => m.id === customerId);
   if (mi < 0) return null;
-  const m = s.monsters[mi];
-  const cells = findSpell(s, m);
+  const m = s.customers[mi];
+  const cells = findOrder(s, m);
   if (!cells) return null;
 
   for (const i of cells) s.board[i].piece = null;
   s.coins += m.coins;
   s.gems += m.gems;
   s.stars += (m.stars ?? 1) + (s.starBonus ?? 0);
-  s.defeated++;
+  s.served++;
   s.refreshes = 0;
-  questProgress(s, 'defeat');
+  questProgress(s, 'serve');
   const levelUp = addXp(s, m.xp);
-  s.monsters.splice(mi, 1, makeMonster(s, rng));
-  return { cells, monster: m, levelUp };
+  s.customers.splice(mi, 1, makeCustomer(s, rng));
+  return { cells, customer: m, levelUp };
 }
 
 export const refreshCost = (s: GameState) =>
   REFRESH_BASE_COST * Math.pow(REFRESH_COST_GROWTH, s.refreshes ?? 0);
 
 export type RefreshResult =
-  | { ok: true; cost: number; old: Monster[] }
+  | { ok: true; cost: number; old: Customer[] }
   | { ok: false; reason: 'coins'; cost: number };
 
 /**
- * Pay coins to swap every monster for a new one. Each keeps its id and boss
- * status, so rerolling can't skip or summon a boss.
+ * Pay coins to swap every customer for a new one. Each keeps its id and critic
+ * status, so refreshing can't skip or call in a critic.
  */
-export function refreshMonsters(s: GameState, rng: Rng = Math.random): RefreshResult {
+export function refreshCustomers(s: GameState, rng: Rng = Math.random): RefreshResult {
   const cost = refreshCost(s);
   if (s.coins < cost) return { ok: false, reason: 'coins', cost };
   s.coins -= cost;
   s.refreshes = (s.refreshes ?? 0) + 1;
-  const old = s.monsters;
-  s.monsters = [];
-  // Built one by one so the new monsters differ from each other where possible.
-  for (const m of old) s.monsters.push(makeMonster(s, rng, m));
+  const old = s.customers;
+  s.customers = [];
+  // Built one by one so the new customers differ from each other where possible.
+  for (const m of old) s.customers.push(makeCustomer(s, rng, m));
   return { ok: true, cost, old };
 }
 
@@ -476,50 +480,50 @@ export function addXp(s: GameState, xp: number): boolean {
   return up;
 }
 
-// ---------------------------------------------------------------- inventory bag
+// ---------------------------------------------------------------- fridge (inventory)
 
-export const BAG_START_SLOTS = 5;
-export const BAG_MAX_SLOTS = 15;
+export const FRIDGE_START_SLOTS = 5;
+export const FRIDGE_MAX_SLOTS = 15;
 
-export const bagSlots = (s: GameState) => s.bagSlots ?? BAG_START_SLOTS;
-/** Gems for the next bag slot: 10, then 5 more for each slot bought. */
-export const bagSlotCost = (s: GameState) => 10 + 5 * (bagSlots(s) - BAG_START_SLOTS);
+export const fridgeSlots = (s: GameState) => s.fridgeSlots ?? FRIDGE_START_SLOTS;
+/** Gems for the next fridge slot: 10, then 5 more for each slot bought. */
+export const fridgeSlotCost = (s: GameState) => 10 + 5 * (fridgeSlots(s) - FRIDGE_START_SLOTS);
 
 export type StoreResult = { ok: true; piece: Piece } | { ok: false; reason: 'full' | 'invalid' };
 
-/** Move the piece on board cell `i` into the bag. */
-export function storeInBag(s: GameState, i: number): StoreResult {
+/** Move the piece on board cell `i` into the fridge. */
+export function storeInFridge(s: GameState, i: number): StoreResult {
   const c = s.board[i];
   if (!c?.piece) return { ok: false, reason: 'invalid' };
-  s.bag ??= [];
-  if (s.bag.length >= bagSlots(s)) return { ok: false, reason: 'full' };
+  s.fridge ??= [];
+  if (s.fridge.length >= fridgeSlots(s)) return { ok: false, reason: 'full' };
   const piece = c.piece;
-  s.bag.push(piece);
+  s.fridge.push(piece);
   c.piece = null;
   return { ok: true, piece };
 }
 
 export type TakeResult = { ok: true; at: number; piece: Piece } | { ok: false; reason: 'full' | 'invalid' };
 
-/** Put bag slot `slot` back on the board, on the free cell nearest `near` (default: the bottom middle). */
-export function takeFromBag(s: GameState, slot: number, near = s.board.length - 1 - Math.floor(s.cols / 2)): TakeResult {
-  const piece = s.bag?.[slot];
+/** Put fridge slot `slot` back on the board, on the free cell nearest `near` (default: the bottom middle). */
+export function takeFromFridge(s: GameState, slot: number, near = s.board.length - 1 - Math.floor(s.cols / 2)): TakeResult {
+  const piece = s.fridge?.[slot];
   if (!piece) return { ok: false, reason: 'invalid' };
   const at = nearestEmpty(s, near);
   if (at < 0) return { ok: false, reason: 'full' };
   s.board[at].piece = piece;
-  s.bag!.splice(slot, 1);
+  s.fridge!.splice(slot, 1);
   return { ok: true, at, piece };
 }
 
 export type BuySlotResult = { ok: true; cost: number } | { ok: false; reason: 'max' | 'gems'; cost?: number };
 
-export function buyBagSlot(s: GameState): BuySlotResult {
-  if (bagSlots(s) >= BAG_MAX_SLOTS) return { ok: false, reason: 'max' };
-  const cost = bagSlotCost(s);
+export function buyFridgeSlot(s: GameState): BuySlotResult {
+  if (fridgeSlots(s) >= FRIDGE_MAX_SLOTS) return { ok: false, reason: 'max' };
+  const cost = fridgeSlotCost(s);
   if (s.gems < cost) return { ok: false, reason: 'gems', cost };
   s.gems -= cost;
-  s.bagSlots = bagSlots(s) + 1;
+  s.fridgeSlots = fridgeSlots(s) + 1;
   return { ok: true, cost };
 }
 
@@ -546,9 +550,9 @@ export function makeQuest(s: GameState, kind: QuestKind): Quest {
   const L = s.level;
   const q = { kind, progress: 0, claimed: false, coins: 20 + L * 5, gems: 2 };
   switch (kind) {
-    case 'defeat': return { ...q, target: 3 + Math.floor(L / 5), coins: q.coins + 10 };
+    case 'serve': return { ...q, target: 3 + Math.floor(L / 5), coins: q.coins + 10 };
     case 'merge': return { ...q, target: 12 + L };
-    case 'conjure': return { ...q, target: 25 + L * 2 };
+    case 'cook': return { ...q, target: 25 + L * 2 };
     case 'mergeHigh': return { ...q, target: 1, level: Math.min(6, 3 + Math.floor(L / 4)), gems: 3 };
   }
 }
@@ -556,19 +560,7 @@ export function makeQuest(s: GameState, kind: QuestKind): Quest {
 /** Give the player today's quests if they don't have them yet. Returns true when new ones were made. */
 export function ensureDaily(s: GameState, now = Date.now(), rng: Rng = Math.random): boolean {
   const day = dayKey(now);
-  if (s.daily?.day === day) {
-    // The "collect coins" quest was removed: swap any left in today's set for an unused kind,
-    // already claimed if the old one was (its reward was paid).
-    const qs = s.daily.quests;
-    qs.forEach((q, i) => {
-      if (QUEST_KINDS.includes(q.kind)) return;
-      const kind = QUEST_KINDS.find((k) => !qs.some((o) => o.kind === k))!;
-      const fresh = makeQuest(s, kind);
-      if (q.claimed) { fresh.claimed = true; fresh.progress = fresh.target; }
-      qs[i] = fresh;
-    });
-    return false;
-  }
+  if (s.daily?.day === day) return false;
   const kinds = shuffle(rng, [...QUEST_KINDS]).slice(0, QUESTS_PER_DAY);
   s.daily = { day, quests: kinds.map((k) => makeQuest(s, k)), bonusClaimed: false };
   return true;
@@ -612,7 +604,7 @@ export function claimDailyBonus(s: GameState): typeof DAILY_BONUS | null {
   return DAILY_BONUS;
 }
 
-// ---------------------------------------------------------------- tower
+// ---------------------------------------------------------------- restaurant
 
 export function currentChapter(s: GameState): ChapterDef | null {
   return CHAPTERS[s.chapter] ?? null;
@@ -667,25 +659,21 @@ export function restore(s: GameState): RestoreResult {
 
 // ---------------------------------------------------------------- save
 
-// v2: elements replaced the old crystal/herb/flame/arcane chains.
-const SAVE_KEY = 'arcane-merge-save-v2';
+const SAVE_KEY = 'food-merge-save-v1';
 
 export function save(s: GameState, storage: Pick<Storage, 'setItem'> = localStorage) {
   try { storage.setItem(SAVE_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
 }
 
-/** Check a parsed save (local or cloud) and fill in fields added after v2 shipped. */
+/** Check a parsed save (local or cloud) and fill in optional fields. */
 export function validateSave(data: unknown): GameState | null {
   const s = data as GameState | null;
-  if (!s || typeof s !== 'object' || s.v !== 2 || !Array.isArray(s.board) || s.board.length !== s.cols * s.rows) return null;
-  if (!Array.isArray(s.monsters)) return null;
-  // Saves from before the tower existed start at the first chapter.
+  if (!s || typeof s !== 'object' || s.v !== 1 || !Array.isArray(s.board) || s.board.length !== s.cols * s.rows) return null;
+  if (!Array.isArray(s.customers)) return null;
   s.stars ??= 0;
   s.chapter ??= 0;
   s.tasksDone ??= [];
   s.storySeen ??= [];
-  // Bubble and cobweb (locked) tiles were removed; locked cells in an old save simply open.
-  for (const c of s.board) delete (c as Cell & { lock?: number }).lock;
   return s;
 }
 
