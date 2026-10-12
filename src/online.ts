@@ -27,6 +27,10 @@ function loadPlayer(): Player {
     const p = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Player | null;
     if (p?.token) return p;
   } catch { /* storage unavailable */ }
+  return newPlayer();
+}
+
+function newPlayer(): Player {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
   const token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
@@ -63,6 +67,8 @@ async function ensureRegistered() {
 export interface CloudStatus { savedAt: number | null; error: boolean }
 const cloud: CloudStatus = { savedAt: null, error: false };
 let onCloud: (s: CloudStatus) => void = () => {};
+/** Uploads and score reports waiting to be sent; dropped when the account is reset. */
+const queued: { save?: () => void; score?: () => void } = {};
 
 export const online = {
   get name() { return player.name; },
@@ -90,6 +96,7 @@ export const online = {
       }
       onCloud({ ...cloud });
     };
+    queued.save = () => { latest = null; clearTimeout(timer); };
     return (save: { savedAt?: number }, now = false) => {
       latest = { json: save, at: save.savedAt ?? Date.now() };
       clearTimeout(timer);
@@ -124,6 +131,19 @@ export const online = {
     return res;
   },
 
+  /**
+   * Forget this device's player and start as a new apprentice. The old
+   * player's cloud save and leaderboard entry stay on the server, so a
+   * recovery code made before the reset can still bring them back.
+   */
+  reset() {
+    queued.save?.();
+    queued.score?.();
+    player = newPlayer();
+    cloud.savedAt = null;
+    cloud.error = false;
+    storePlayer();
+  },
 
   /** Change the display name (1-16 characters). Throws with a readable message if refused. */
   async rename(name: string) {
@@ -152,6 +172,7 @@ export const online = {
         if (pending?.defeated === defeated) pending = null;
       } catch { /* offline or blocked: try again with the next report */ }
     };
+    queued.score = () => { pending = null; clearTimeout(timer); };
     return (defeated: number, level: number) => {
       pending = { defeated, level };
       clearTimeout(timer);

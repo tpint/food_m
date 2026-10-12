@@ -983,6 +983,7 @@ function renderProfile() {
   $('#btn-new-code').textContent = code ? 'Make a new code' : 'Create my recovery code';
   $('#code-confirm').classList.add('hidden');
   $('#restore-confirm').classList.add('hidden');
+  $('#reset-confirm').classList.add('hidden');
 }
 
 function openProfile() {
@@ -1059,6 +1060,27 @@ $('#btn-restore-yes').addEventListener('click', async () => {
     sfx.error();
     toast(err instanceof Error && err.message.includes('not found') ? 'That recovery code was not found. Check it and try again.' : "Couldn't restore. Check your connection; this works on the game's website.");
   }
+});
+
+$('#btn-reset').addEventListener('click', () => {
+  $('#reset-loss').textContent = `level ${state.level}, ${state.defeated} monsters defeated, chapter ${Math.min(state.chapter + 1, CHAPTERS.length)}`;
+  $('#reset-code-note').textContent = online.code
+    ? `Your old game stays in the cloud: recovery code ${online.code} still brings it back.`
+    : "You have no recovery code, so the old game can't be brought back.";
+  $('#reset-confirm').classList.remove('hidden');
+});
+$('#btn-reset-no').addEventListener('click', () => $('#reset-confirm').classList.add('hidden'));
+$('#btn-reset-yes').addEventListener('click', () => {
+  online.reset();
+  replaceState(newGame());
+  const ch = CHAPTERS[0];
+  state.storySeen.push(`${ch.id}-intro`);
+  persist();
+  renderProfile();
+  profileEl.classList.add('hidden');
+  sfx.levelUp();
+  toast(`A fresh start! Welcome, ${online.name}.`, true, 2200);
+  setTimeout(() => tell(ch.intro), 600);
 });
 
 /** On startup, use the cloud save if it is newer than this device's (e.g. played on another device). */

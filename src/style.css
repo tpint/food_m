@@ -492,6 +492,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .confirm-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
 .link-btn { align-self: flex-start; padding: 2px 0; border: 0; background: none; color: #e8d8ff; font: 600 13px var(--font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .link-btn.inline { color: var(--violet-lo); }
+.link-btn.danger { margin-top: 10px; color: #b8302a; }
 .hint.warn .link-btn.inline { color: #6a1a14; }
 
 /* ------------------------------------------------------------ fx */
