@@ -38,7 +38,7 @@ npm run build      # production build in dist/
 - **Merge**: put three identical items side by side (drag one onto or next to the other two) to make one of the next level.
   Five touching items make two. Two alone won't merge. Items you can merge with glow blue while you drag.
 - **Monsters**: the items each monster is weak to are shown in front of it. Items you have on the board get a ✓.
-  When you have them all, press **Cast!** to defeat it and collect coins, XP and gems.
+  When you have them all, press **Attack!** to defeat it and collect coins, XP and gems.
   Badges over the monster show the XP, coins and stars it gives; tap it for its name and full rewards.
   Every 6th monster is a boss. New monsters join as you level up: Shadow Spider (level 2), Wisp Ghost (3),
   Cinder Imp and Tide Crab (4), Moss Golem (5), Frost Wolf (6), Gnarlroot (8) and Grumble Cyclops (10).

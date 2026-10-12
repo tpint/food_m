@@ -219,7 +219,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .check::before { content: ''; width: 7px; height: 4px; margin-top: -2px; border-left: 2.2px solid #fff; border-bottom: 2.2px solid #fff; transform: rotate(-45deg); }
 .monster .need:not(.have) .check { display: none; }
 
-/* Cast! pops up over the tray once every item is on the board. */
+/* Attack! pops up over the tray once every item is on the board. */
 .monster .cast {
   position: absolute; left: 50%; bottom: calc(var(--cell) * .7 + 10px); z-index: 4; transform: translateX(-50%) scale(0);
   padding: 3px 14px 4px; border-radius: 12px; font: 700 14px var(--font); cursor: pointer;

@@ -261,7 +261,7 @@ function monsterCard(m: Monster): HTMLElement {
       <span class="reward"><img src="${iconArt.coin()}" alt="coins">${m.coins} <img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span>${m.gems ? ` <img src="${iconArt.gem()}" alt="gems">${m.gems}` : ''}</span>
     </div>
     <div class="tray"><div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
-    <button class="cast stroked">Cast!</button>`;
+    <button class="cast stroked">Attack!</button>`;
   el.querySelector('.cast')!.addEventListener('click', (e) => { e.stopPropagation(); doCast(m.id); });
   el.querySelector('.portrait')!.addEventListener('click', () => showMonsterInfo(m));
   setTimeout(() => el.classList.remove('enter'), 600);
