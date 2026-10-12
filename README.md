@@ -34,6 +34,10 @@ npm run build      # production build in dist/
   the Archmage's owl, tells a bit more of the story. Chapter 1 is *The Dusty Library* (6 tasks; reward: coins, gems and the sealed board rows
   start to clear). Chapter 2 is *The Alchemy Lab* (6 tasks; reward: coins, gems and every grimoire gains a level).
   Chapters live in `src/game/story.ts`; each chapter's room is drawn in `src/render/room.ts`.
+- **Leaderboard**: the trophy button shows the top 50 by monsters defeated, this week (resets Monday 00:00 UTC) or
+  all time, plus your own rank. Each device gets a hidden player ID and an "Apprentice ####" name you can change.
+  Scores are stored in Supabase (`src/online.ts`); the database only accepts score increases at a realistic rate,
+  so an edited save cannot jump to the top. The leaderboard works on the public website only.
 - **Locked area**: veiled (bubble) items are freed when you merge a matching item onto them. Merging next to
   sealed (shadow) cells turns them into veiled ones.
 - **Coins / Mana items**: tap one twice (or press Collect) to cash it in. Other items can be sold for coins.
@@ -57,6 +61,7 @@ Every push to `main` deploys to GitHub Pages: https://tpint.github.io/magic_m/
 | `src/render/scene.ts` | Blurred wizard's-study backdrop and the cobweb on sealed tiles |
 | `src/game/story.ts` | Tower chapters, restoration tasks and story text |
 | `src/render/room.ts` | The tower room scene with a broken and a fixed layer per task |
+| `src/online.ts` | Leaderboard client (Supabase database functions `arcane_register`, `arcane_submit`, `arcane_board`) |
 | `src/render/circle.ts` | Arcane casting circle shown while a spell charges |
 | `src/render/fx.ts` | Canvas particles (merge bursts, rings, sparkle trails) |
 | `src/render/sfx.ts` | Sound effects synthesised with WebAudio (no audio files) |

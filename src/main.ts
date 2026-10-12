@@ -10,6 +10,7 @@ import { sceneArt, webArt } from './render/scene';
 import { magicCircle } from './render/circle';
 import { roomAnchor, roomSvg, updateRoom } from './render/room';
 import { CHAPTERS, COMING_SOON, MENTOR } from './game/story';
+import { Board, Period, online, untilReset } from './online';
 import { sfx } from './render/sfx';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -320,6 +321,8 @@ async function doCast(id: number) {
   el.classList.add('dying');
   shower(target.x, target.y, m.boss ? ['#ffcf4a', '#ff8a3c', '#fff'] : ['#ffd147', '#b98cff', '#fff']);
   floater(`+${res.monster.coins}`, target.x, target.y - 20);
+
+  online.submit(state.defeated, state.level);
 
   // A star flies to the Tower button.
   fly(iconArt.gstar(), target, center($('#btn-tower img')), { ms: 700, delay: 250, color: '#ffd23c', size: 30 })
@@ -746,6 +749,92 @@ $('#tasks').addEventListener('click', (e) => {
   if ((e.target as HTMLElement).closest('[data-restore]')) doRestore();
 });
 
+// ------------------------------------------------------------------ leaderboard
+
+const leadersEl = $('#leaders');
+let period: Period = 'week';
+let boardReq = 0;
+
+const escapeHtml = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+function boardMessage(text: string, retry = false) {
+  const m = $('#board-msg');
+  m.classList.toggle('hidden', !text);
+  m.innerHTML = escapeHtml(text) + (retry ? '<br><button class="btn stroked" id="board-retry">Try again</button>' : '');
+  if (retry) $('#board-retry').addEventListener('click', loadBoard);
+}
+
+function renderMe(b: Board | null) {
+  $('#me-name').textContent = b?.me?.name ?? online.name;
+  $('#me-rank').textContent = b?.me?.rank ? `#${b.me.rank}` : '–';
+  $('#me-score').textContent = String(b?.me?.score ?? (period === 'week' ? 0 : state.defeated));
+}
+
+async function loadBoard() {
+  const req = ++boardReq;
+  $('#leaders-sub').textContent = period === 'week' ? `Monsters defeated · resets in ${untilReset()}` : 'Monsters defeated · all time';
+  renderMe(null);
+  $('#board-list').innerHTML = '';
+  boardMessage('Summoning the scores...');
+  try {
+    const b = await online.board(period);
+    if (req !== boardReq) return;
+    renderMe(b);
+    boardMessage(b.top.length ? '' : period === 'week' ? 'No monsters defeated yet this week. Be the first on the board!' : 'No scores yet. Be the first on the board!');
+    $('#board-list').innerHTML = b.top.map((r) => {
+      const medal = r.rank <= 3 ? ` medal r${r.rank}` : '';
+      return `<li class="row${r.me ? ' me' : ''}"><span class="row-rank${medal}">${r.rank}</span>`
+        + `<span class="row-name"><b>${escapeHtml(r.name)}${r.me ? ' (you)' : ''}</b><small>Level ${r.level}</small></span>`
+        + `<span class="row-score">${r.score}</span></li>`;
+    }).join('');
+  } catch {
+    if (req !== boardReq) return;
+    boardMessage("Can't reach the leaderboard right now. Check your internet connection. (It only works on the game's website.)", true);
+  }
+}
+
+function openLeaders() {
+  sfx.pick();
+  leadersEl.classList.remove('hidden');
+  $('#rename-form').classList.add('hidden');
+  $('#me-name').classList.remove('hidden');
+  loadBoard();
+}
+
+$('#btn-leaders').addEventListener('click', openLeaders);
+$('#btn-leaders-back').addEventListener('click', () => leadersEl.classList.add('hidden'));
+leadersEl.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) => t.addEventListener('click', () => {
+  period = t.dataset.period as Period;
+  leadersEl.querySelectorAll('.tab').forEach((o) => { o.classList.toggle('active', o === t); o.setAttribute('aria-selected', String(o === t)); });
+  sfx.pick();
+  loadBoard();
+}));
+$('#btn-rename').addEventListener('click', () => {
+  const form = $('#rename-form');
+  const open = form.classList.toggle('hidden') === false;
+  $('#me-name').classList.toggle('hidden', open);
+  if (open) {
+    const input = $<HTMLInputElement>('#rename-input');
+    input.value = online.name;
+    input.focus();
+    input.select();
+  }
+});
+$('#rename-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = $<HTMLInputElement>('#rename-input');
+  try {
+    await online.rename(input.value);
+    $('#rename-form').classList.add('hidden');
+    $('#me-name').classList.remove('hidden');
+    toast(`You are now ${online.name}`);
+    loadBoard();
+  } catch (err) {
+    sfx.error();
+    toast(err instanceof Error && err.message.startsWith('Names') ? err.message : "Couldn't save your name. Check your connection.");
+  }
+});
+
 // ------------------------------------------------------------------ story
 
 interface StoryLine { text: string; extra?: string; then?: () => void }
@@ -805,6 +894,9 @@ async function boot() {
     if (tickEnergy(state)) { renderHud(); persist(); } else updateTimer();
   }, 1000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(state); });
+
+  // Catch up on monsters defeated while offline.
+  if (state.defeated > 0) online.submit(state.defeated, state.level);
 
   $<HTMLImageElement>('#story-owl').src = iconArt.owl();
   // Play the current chapter's intro once (also for players who finished

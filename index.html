@@ -19,6 +19,7 @@
       <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val stroked">100</span><small class="timer"></small></div>
       <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
       <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
+      <button class="tower-btn" id="btn-leaders" aria-label="Open the leaderboard"><img data-icon="trophy" alt="" /></button>
       <button class="tower-btn" id="btn-tower" aria-label="Open the tower"><img data-icon="tower" alt="" /><span class="star-badge stroked" id="star-badge">0</span></button>
     </header>
 
@@ -54,6 +55,38 @@
       <div class="room-frame" id="room"></div>
       <div class="tower-progress"><div id="tower-fill"></div><span id="tower-progress-text" class="stroked">0 / 6 restored</span></div>
       <ol id="tasks"></ol>
+    </div>
+  </section>
+
+  <section id="leaders" class="hidden" aria-label="Leaderboard">
+    <div class="tower-inner">
+      <header class="tower-head">
+        <button class="round" id="btn-leaders-back" aria-label="Back to the board">←</button>
+        <div class="tower-title">
+          <small id="leaders-sub">Monsters defeated</small>
+          <b class="stroked">Leaderboard</b>
+        </div>
+      </header>
+      <div class="tabs" role="tablist">
+        <button class="tab active" role="tab" data-period="week" aria-selected="true">This week</button>
+        <button class="tab" role="tab" data-period="all" aria-selected="false">All time</button>
+      </div>
+      <div class="me-card" id="me-card">
+        <div class="me-rank stroked" id="me-rank">–</div>
+        <div class="me-main">
+          <small>You</small>
+          <b id="me-name">Apprentice</b>
+          <form id="rename-form" class="hidden">
+            <label for="rename-input" class="sr">Display name</label>
+            <input id="rename-input" maxlength="16" autocomplete="nickname" />
+            <button class="btn stroked" type="submit">Save</button>
+          </form>
+        </div>
+        <div class="me-score"><span class="stroked" id="me-score">0</span><small>monsters</small></div>
+        <button class="round" id="btn-rename" aria-label="Change your name">✎</button>
+      </div>
+      <p class="board-msg hidden" id="board-msg"></p>
+      <ol id="board-list"></ol>
     </div>
   </section>
 

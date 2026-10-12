@@ -765,6 +765,16 @@ export const iconArt = {
   energy: () => toUrl('icon-energy', (s) => {
     s.add(shape('M58 6L20 56L46 56L38 94L82 40L54 40Z', s.rad({ hi: '#fff6b0', mid: '#ffd23c', lo: '#e89a1c', ink: '#8a5a10' }), '#8a5a10'));
   }),
+  trophy: () => toUrl('icon-trophy', (s) => {
+    const gold = { hi: '#fff6c2', mid: '#ffd147', lo: '#e09a1c', ink: '#8a5a10' };
+    s.add(shape('M28 22Q8 22 12 40Q16 54 34 54', 'none', gold.ink, 'stroke-width="7"') + shape('M72 22Q92 22 88 40Q84 54 66 54', 'none', gold.ink, 'stroke-width="7"'));
+    s.add(shape('M28 22Q8 22 12 40Q16 54 34 54', 'none', gold.mid, 'stroke-width="3.5"') + shape('M72 22Q92 22 88 40Q84 54 66 54', 'none', gold.mid, 'stroke-width="3.5"'));
+    s.add(shape('M26 12L74 12L72 40Q70 62 50 66Q30 62 28 40Z', s.rad(gold), gold.ink));
+    s.add(shape('M44 64L56 64L58 78L42 78Z', s.rad(gold), gold.ink));
+    s.add(shape('M30 78L70 78L72 92L28 92Z', s.rad(P.wood), P.wood.ink));
+    s.add(shape('M50 22L54 32L65 33L57 40L59 51L50 45L41 51L43 40L35 33L46 32Z', '#fff8d0', gold.ink, 'stroke-width="2"'));
+    s.add('<path d="M33 18L36 44" stroke="#fff" stroke-width="3" opacity=".6" stroke-linecap="round"/>');
+  }),
   gstar: () => toUrl('icon-gstar', (s) => {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#fff8c8', mid: '#ffd23c', lo: '#e8961c', ink: '#8a5a10' }), '#8a5a10'));
     s.add('<path d="M38 34L50 10L46 40Z" fill="#fff" opacity=".5"/>');

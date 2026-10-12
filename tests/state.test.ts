@@ -5,6 +5,7 @@ import {
 } from '../src/game/state';
 import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
+import { untilReset } from '../src/online';
 
 function seeded(seed = 1) {
   return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -286,5 +287,13 @@ describe('tower restoration', () => {
     expect(loaded.stars).toBe(0);
     expect(loaded.chapter).toBe(0);
     expect(loaded.tasksDone).toEqual([]);
+  });
+});
+
+describe('leaderboard reset countdown', () => {
+  it('counts down to Monday 00:00 UTC', () => {
+    expect(untilReset(new Date('2026-10-11T22:30:00Z'))).toBe('1h 30m'); // Sunday night
+    expect(untilReset(new Date('2026-10-12T00:00:00Z'))).toBe('7d 0h'); // just reset
+    expect(untilReset(new Date('2026-10-14T12:00:00Z'))).toBe('4d 12h'); // Wednesday noon
   });
 });
