@@ -23,17 +23,18 @@ Example `manifest.json` after adding `water-1.png` and `mon-slime.png`:
 These are painted PNGs (384 px) made by the scripts in `scripts/art/`:
 - the grimoire generators (`gen-*`, all four elements, levels 1–10),
 - the element items (`earth-*`, `water-*`, `wind-*`, `fire-*`, levels 1–7),
-- every monster (`mon-*`, the boss dragon included).
+- every monster (`mon-*`, the boss dragon included),
+- the gold and mana chains (`coin-1` … `coin-4`, `mana-1` … `mana-3`) and the UI icons (`icon-*`).
 
-Coins, mana and icons still use the code-drawn SVGs.
+Only the bag icon (`icon-bag`) is still code-drawn.
 
-`paint-generators.mjs`, `items.mjs` and `monsters.mjs` build a detailed SVG for each image.
+`paint-generators.mjs`, `items.mjs`, `monsters.mjs` and `extras.mjs` build a detailed SVG for each image.
 The render scripts draw it at 3× and downsample to 384 px.
 
 ```bash
 npm i -D sharp                                            # one-off; Playwright already comes with @playwright/test
 node scripts/art/render-generators.mjs public/art 384           # all 40 generators
 node scripts/art/render-generators.mjs public/art 384 forge     # just one element
-node scripts/art/render-items-monsters.mjs public/art 384       # items and monsters
+node scripts/art/render-items-monsters.mjs public/art 384       # items, monsters, gold, mana and icons
 ONLY=fire,mon-imp node scripts/art/render-items-monsters.mjs    # only keys starting with these
 ```

@@ -78,5 +78,22 @@
   "mon-crab",
   "mon-wolf",
   "mon-treant",
-  "mon-cyclops"
+  "mon-cyclops",
+  "coin-1",
+  "coin-2",
+  "coin-3",
+  "coin-4",
+  "mana-1",
+  "mana-2",
+  "mana-3",
+  "icon-owl",
+  "icon-tower",
+  "icon-hat",
+  "icon-coin",
+  "icon-gem",
+  "icon-energy",
+  "icon-trophy",
+  "icon-gstar",
+  "icon-scroll",
+  "icon-star"
 ]

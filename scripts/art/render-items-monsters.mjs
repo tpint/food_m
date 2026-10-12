@@ -15,6 +15,8 @@ const build = (key, draw, fill) => {
 };
 for (const [c, arr] of Object.entries(ITEMS)) arr.forEach((d, i) => build(`${c}-${i + 1}`, d, itemFill(i + 1)));
 for (const [k, d] of Object.entries(MON)) build(`mon-${k}`, d, 0.94);
+const { EXTRAS } = await import('./extras.mjs');
+for (const [k, e] of Object.entries(EXTRAS)) build(k, e.draw, e.fill);
 fs.mkdirSync(out, { recursive: true });
 const b = await chromium.launch(); const p = await b.newPage();
 await p.setContent('<html><body><svg id="m" xmlns="http://www.w3.org/2000/svg" style="position:absolute;left:-9999px;width:100px;height:100px"></svg></body></html>');
