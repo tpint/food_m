@@ -12,12 +12,9 @@ export type Piece =
   | { kind: 'item'; chain: ChainId; level: number }
   | { kind: 'gen'; gen: GenId; level?: number };
 
-/** 0 = open, 2 = sealed (hidden under cobwebs). Old saves may hold 1 (a bubble); load() opens those. */
-export type Lock = 0 | 2;
 
 export interface Cell {
   piece: Piece | null;
-  lock: Lock;
 }
 
 export interface Need {
@@ -123,7 +120,7 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
     v: 2,
     cols: BOARD_COLS,
     rows: BOARD_ROWS,
-    board: Array.from({ length: BOARD_COLS * BOARD_ROWS }, () => ({ piece: null, lock: 0 as Lock })),
+    board: Array.from({ length: BOARD_COLS * BOARD_ROWS }, () => ({ piece: null })),
     energy: MAX_ENERGY,
     energyTs: now,
     coins: 50,
@@ -139,18 +136,15 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
     storySeen: [],
   };
 
-  // Top three rows: a misty, locked area full of items, like the cobwebbed
-  // part of a Love & Pies board. The row nearest the play area starts open.
-  for (let y = 0; y < 3; y++) {
-    for (let x = 0; x < s.cols; x++) {
-      const chain = pick(rng, MAGIC_CHAINS);
-      const level = 1 + Math.floor(rng() * (2 + y));
-      s.board[idx(s, x, y)] = { piece: item(chain, Math.min(level, 4)), lock: y === 2 ? 0 : 2 };
-    }
+  // A row of starter items across the board (the two rows above start empty).
+  for (let x = 0; x < s.cols; x++) {
+    const chain = pick(rng, MAGIC_CHAINS);
+    const level = 1 + Math.floor(rng() * 4);
+    s.board[idx(s, x, 2)] = { piece: item(chain, Math.min(level, 4)) };
   }
 
   // Generators along the bottom, a few starter items in the middle.
-  const place = (x: number, y: number, p: Piece) => (s.board[idx(s, x, y)] = { piece: p, lock: 0 });
+  const place = (x: number, y: number, p: Piece) => (s.board[idx(s, x, y)] = { piece: p });
   place(0, 8, gen('geode'));
   place(2, 8, gen('well'));
   place(4, 8, gen('windmill'));
@@ -192,7 +186,7 @@ export type MoveResult =
   | { type: 'none' }
   | { type: 'move'; from: number; to: number }
   | { type: 'swap'; from: number; to: number }
-  | { type: 'merge'; from: number; to: number; result: Piece; results: number[]; consumed: number[]; revealed: number[] }
+  | { type: 'merge'; from: number; to: number; result: Piece; results: number[]; consumed: number[] }
   | { type: 'need3'; from: number; to: number };
 
 /** Items needed to merge, and the bonus rule: 5 matching items make 2. */
@@ -200,8 +194,7 @@ export const MERGE_COUNT = 3;
 const BONUS_COUNT = 5;
 
 /**
- * Orthogonally connected cells holding the same item as `start`, nearest
- * first. Veiled cells count (merging frees them); sealed cells do not.
+ * Orthogonally connected cells holding the same item as `start`, nearest first.
  */
 export function matchGroup(s: GameState, start: number, p: Piece, skip = -1): number[] {
   const seen = new Set<number>([start]);
@@ -217,8 +210,7 @@ export function matchGroup(s: GameState, start: number, p: Piece, skip = -1): nu
       const j = idx(s, nx, ny);
       if (seen.has(j) || j === skip) continue;
       seen.add(j);
-      const c = s.board[j];
-      if (c.lock !== 2 && samePiece(c.piece, p)) queue.push(j);
+      if (samePiece(s.board[j].piece, p)) queue.push(j);
     }
   }
   return out;
@@ -237,14 +229,12 @@ export function mergeYield(n: number): { made: number; used: number } {
  */
 function mergeAt(s: GameState, from: number, to: number, consumed: number[], made: number, p: Extract<Piece, { kind: 'item' }>): MoveResult {
   const result = item(p.chain, p.level + 1);
-  for (const i of consumed) s.board[i] = { piece: null, lock: 0 };
+  for (const i of consumed) s.board[i] = { piece: null };
   const results = consumed.slice(0, made);
   for (const i of results) s.board[i].piece = { ...result };
-  const revealed: number[] = [];
-  for (const i of results) revealed.push(...revealAround(s, i));
   questProgress(s, 'merge');
   questProgress(s, 'mergeHigh', made, result.level);
-  return { type: 'merge', from, to, result, results, consumed, revealed };
+  return { type: 'merge', from, to, result, results, consumed };
 }
 
 /** Drag the piece at `from` onto cell `to`. */
@@ -252,7 +242,7 @@ export function movePiece(s: GameState, from: number, to: number): MoveResult {
   if (from === to) return { type: 'none' };
   const a = s.board[from];
   const b = s.board[to];
-  if (!a.piece || a.lock !== 0 || b.lock === 2) return { type: 'none' };
+  if (!a.piece) return { type: 'none' };
   const p = a.piece;
   const mergeable = p.kind === 'item' && p.level < maxLevel(p.chain);
 
@@ -281,28 +271,12 @@ export function movePiece(s: GameState, from: number, to: number): MoveResult {
   return { type: 'swap', from, to };
 }
 
-/** A merge next to sealed cells opens them. */
-function revealAround(s: GameState, i: number): number[] {
-  const { x, y } = pos(s, i);
-  const out: number[] = [];
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-    const nx = x + dx, ny = y + dy;
-    if (nx < 0 || ny < 0 || nx >= s.cols || ny >= s.rows) continue;
-    const c = s.board[idx(s, nx, ny)];
-    if (c.lock === 2) {
-      c.lock = 0;
-      out.push(idx(s, nx, ny));
-    }
-  }
-  return out;
-}
-
-/** Nearest empty open cell to `origin` (Chebyshev distance, then Manhattan). */
+/** Nearest empty cell to `origin` (Chebyshev distance, then Manhattan). */
 export function nearestEmpty(s: GameState, origin: number): number {
   const o = pos(s, origin);
   let best = -1, bestD = Infinity;
   s.board.forEach((c, i) => {
-    if (c.piece || c.lock) return;
+    if (c.piece) return;
     const p = pos(s, i);
     const d = Math.max(Math.abs(p.x - o.x), Math.abs(p.y - o.y)) * 100 + Math.abs(p.x - o.x) + Math.abs(p.y - o.y);
     if (d < bestD) { bestD = d; best = i; }
@@ -316,7 +290,7 @@ export type SpawnResult =
 
 export function spawnFrom(s: GameState, genIdx: number, rng: Rng = Math.random): SpawnResult {
   const c = s.board[genIdx];
-  if (!c.piece || c.piece.kind !== 'gen' || c.lock) return { ok: false, reason: 'invalid' };
+  if (!c.piece || c.piece.kind !== 'gen') return { ok: false, reason: 'invalid' };
   if (s.energy < SPAWN_COST) return { ok: false, reason: 'energy' };
   const at = nearestEmpty(s, genIdx);
   if (at < 0) return { ok: false, reason: 'full' };
@@ -345,7 +319,7 @@ export type UpgradeCheck =
 
 export function canUpgrade(s: GameState, i: number): UpgradeCheck {
   const c = s.board[i];
-  if (!c.piece || c.piece.kind !== 'gen' || c.lock) return { ok: false, reason: 'invalid' };
+  if (!c.piece || c.piece.kind !== 'gen') return { ok: false, reason: 'invalid' };
   const lv = GEN_LEVELS[genLevel(c.piece) - 1];
   if (lv.upgradeCost === undefined) return { ok: false, reason: 'max' };
   if (s.level < (lv.upgradeReq ?? 0)) return { ok: false, reason: 'level', cost: lv.upgradeCost, req: lv.upgradeReq };
@@ -365,7 +339,7 @@ export function upgradeGen(s: GameState, i: number): UpgradeCheck {
 /** Tap a coin / mana item to turn it into resources. */
 export function collect(s: GameState, i: number): { resource: 'coins' | 'energy'; amount: number } | null {
   const c = s.board[i];
-  if (!c.piece || c.piece.kind !== 'item' || c.lock) return null;
+  if (!c.piece || c.piece.kind !== 'item') return null;
   const def = CHAINS[c.piece.chain].collect;
   if (!def) return null;
   const amount = def.amounts[c.piece.level - 1];
@@ -382,7 +356,7 @@ export function sellValue(p: Piece): number {
 
 export function sell(s: GameState, i: number): number {
   const c = s.board[i];
-  if (!c.piece || c.lock) return 0;
+  if (!c.piece) return 0;
   const v = sellValue(c.piece);
   if (!v) return 0;
   s.coins += v;
@@ -428,7 +402,7 @@ export function findSpell(s: GameState, m: Monster): number[] | null {
   const used = new Set<number>();
   for (const n of m.needs) {
     const i = s.board.findIndex((c, j) =>
-      !used.has(j) && !c.lock && c.piece?.kind === 'item' && c.piece.chain === n.chain && c.piece.level === n.level);
+      !used.has(j) && c.piece?.kind === 'item' && c.piece.chain === n.chain && c.piece.level === n.level);
     if (i < 0) return null;
     used.add(i);
   }
@@ -516,7 +490,7 @@ export type StoreResult = { ok: true; piece: Piece } | { ok: false; reason: 'ful
 /** Move the piece on board cell `i` into the bag. */
 export function storeInBag(s: GameState, i: number): StoreResult {
   const c = s.board[i];
-  if (!c?.piece || c.lock) return { ok: false, reason: 'invalid' };
+  if (!c?.piece) return { ok: false, reason: 'invalid' };
   s.bag ??= [];
   if (s.bag.length >= bagSlots(s)) return { ok: false, reason: 'full' };
   const piece = c.piece;
@@ -651,7 +625,7 @@ export function currentTask(s: GameState): TaskDef | null {
 }
 
 export type RestoreResult =
-  | { ok: true; task: TaskDef; chapterDone: ChapterDef | null; unsealed: number[]; upgraded: number[]; placed: number[] }
+  | { ok: true; task: TaskDef; chapterDone: ChapterDef | null; upgraded: number[]; placed: number[] }
   | { ok: false; reason: 'stars' | 'none'; cost?: number };
 
 /** Spend Stars on the next task. Finishing the last task completes the chapter. */
@@ -662,15 +636,11 @@ export function restore(s: GameState): RestoreResult {
   s.stars -= task.cost;
   s.tasksDone.push(task.id);
   const ch = currentChapter(s)!;
-  if (currentTask(s)) return { ok: true, task, chapterDone: null, unsealed: [], upgraded: [], placed: [] };
+  if (currentTask(s)) return { ok: true, task, chapterDone: null, upgraded: [], placed: [] };
 
   // Chapter complete: pay out its reward and move on.
   s.coins += ch.reward.coins;
   s.gems += ch.reward.gems;
-  const unsealed: number[] = [];
-  if (ch.reward.unsealBoard) {
-    s.board.forEach((c, i) => { if (c.lock === 2) { c.lock = 0; unsealed.push(i); } });
-  }
   const upgraded: number[] = [];
   if (ch.reward.upgradeGens) {
     s.board.forEach((c, i) => {
@@ -692,7 +662,7 @@ export function restore(s: GameState): RestoreResult {
   }
   if (ch.reward.starBonus) s.starBonus = (s.starBonus ?? 0) + ch.reward.starBonus;
   s.chapter++;
-  return { ok: true, task, chapterDone: ch, unsealed, upgraded, placed };
+  return { ok: true, task, chapterDone: ch, upgraded, placed };
 }
 
 // ---------------------------------------------------------------- save
@@ -714,8 +684,8 @@ export function validateSave(data: unknown): GameState | null {
   s.chapter ??= 0;
   s.tasksDone ??= [];
   s.storySeen ??= [];
-  // Bubble (veiled) tiles were removed; any left in an old save are simply open.
-  for (const c of s.board) if ((c.lock as number) === 1) c.lock = 0;
+  // Bubble and cobweb (locked) tiles were removed; locked cells in an old save simply open.
+  for (const c of s.board) delete (c as Cell & { lock?: number }).lock;
   return s;
 }
 

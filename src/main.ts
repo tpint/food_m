@@ -8,7 +8,7 @@ import {
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
 import { burst, elementCharge, elementHit, puff, shower, trail } from './render/fx';
-import { sceneArt, webArt } from './render/scene';
+import { sceneArt } from './render/scene';
 import { magicCircle } from './render/circle';
 import { spellAttack } from './render/spells';
 import { roomAnchor, roomSvg, updateRoom } from './render/room';
@@ -194,7 +194,6 @@ function buildBoard() {
 function renderCell(i: number, anim?: 'pop' | 'merge' | 'squish') {
   const c = state.board[i];
   const el = cells[i];
-  el.classList.toggle('sealed', c.lock === 2);
   const p = c.piece;
   const key = p ? (p.kind === 'gen' ? `g${p.gen}${genLevel(p)}` : `${p.chain}${p.level}`) : '';
   if (key !== cellKeys[i]) {
@@ -205,7 +204,7 @@ function renderCell(i: number, anim?: 'pop' | 'merge' | 'squish') {
   }
   const pe = el.firstElementChild;
   if (pe) {
-    pe.classList.toggle('want', !c.lock && isWanted(state, p));
+    pe.classList.toggle('want', isWanted(state, p));
     if (anim) restartAnim(pe, anim);
   }
 }
@@ -285,7 +284,7 @@ function renderMonsters() {
     const used = new Set<number>();
     el.querySelectorAll<HTMLElement>('.need').forEach((n) => {
       const chain = n.dataset.chain, level = Number(n.dataset.level);
-      const at = state.board.findIndex((c, j) => !used.has(j) && !c.lock && c.piece?.kind === 'item' && c.piece.chain === chain && c.piece.level === level);
+      const at = state.board.findIndex((c, j) => !used.has(j) && c.piece?.kind === 'item' && c.piece.chain === chain && c.piece.level === level);
       if (at >= 0) used.add(at);
       n.classList.toggle('have', at >= 0);
     });
@@ -496,7 +495,6 @@ function select(i: number) {
   if (!p) return;
   const name = pieceName(p);
 
-  if (c.lock === 2) return setInfo(null, 'Sealed by shadow', 'Merge items next to it to lift the seal.');
 
   if (p.kind === 'gen') {
     const def = GENERATORS[p.gen];
@@ -604,15 +602,15 @@ function doSell(i: number) {
 function onTap(i: number) {
   const c = state.board[i];
   if (!c.piece) { select(-1); return; }
-  if (!c.lock && c.piece.kind === 'gen') {
+  if (c.piece.kind === 'gen') {
     // First tap selects (free, shows Upgrade); tapping the selected generator conjures.
     if (selected === i) doSpawn(i);
     else { sfx.pick(); restartAnim(cells[i].firstElementChild!, 'squish'); select(i); }
     return;
   }
-  if (!c.lock && c.piece.kind === 'item' && CHAINS[c.piece.chain].collect && selected === i) { doCollect(i); return; }
+  if (c.piece.kind === 'item' && CHAINS[c.piece.chain].collect && selected === i) { doCollect(i); return; }
   sfx.pick();
-  if (!c.lock) restartAnim(cells[i].firstElementChild!, 'squish');
+  restartAnim(cells[i].firstElementChild!, 'squish');
   select(i);
 }
 
@@ -652,11 +650,6 @@ function onDrop(from: number, to: number) {
       }
       if (r.results.length > 1) floater('Bonus x2!', target.x, target.y - 24);
       sfx.merge(lvl);
-      for (const u of r.revealed) {
-        renderCell(u, 'squish');
-        const up = center(cells[u]);
-        puff(up.x, up.y, '#b8d8ff');
-      }
       renderBoard();
       renderMonsters();
       select(to);
@@ -700,7 +693,7 @@ addEventListener('pointermove', (e) => {
   const c = state.board[drag.from];
   if (!drag.active) {
     if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8) return;
-    if (!c.piece || c.lock) return;
+    if (!c.piece) return;
     drag.active = true;
     sfx.pick();
     const g = document.createElement('div');
@@ -711,7 +704,7 @@ addEventListener('pointermove', (e) => {
     cells[drag.from].firstElementChild?.classList.add('dragging-src');
     // Highlight every merge partner, like the blue glow in Love & Pies.
     state.board.forEach((o, j) => {
-      if (j !== drag!.from && o.lock !== 2 && o.piece?.kind === 'item' && c.piece?.kind === 'item'
+      if (j !== drag!.from && o.piece?.kind === 'item' && c.piece?.kind === 'item'
         && o.piece.chain === c.piece.chain && o.piece.level === c.piece.level && c.piece.level < maxLevel(c.piece.chain)) {
         cells[j].classList.add('hint');
       }
@@ -860,7 +853,6 @@ function doRestore() {
       lines.push({ text: COMING_SOON });
     }
     renderBoard();
-    for (const i of r.unsealed) renderCell(i, 'squish');
     for (const i of r.upgraded) renderCell(i, 'merge');
     for (const i of r.placed) renderCell(i, 'pop');
     renderMonsters();
@@ -1393,7 +1385,6 @@ for (const [panel, back] of [['#tower', '#btn-back'], ['#leaders', '#btn-leaders
 async function boot() {
   await loadArtOverrides();
   document.documentElement.style.setProperty('--scene', sceneArt());
-  document.documentElement.style.setProperty('--web', webArt());
   document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
     img.src = iconArt[img.dataset.icon as keyof typeof iconArt]();
   });

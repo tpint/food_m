@@ -14,7 +14,7 @@ function seeded(seed = 1) {
 
 function empty(): GameState {
   const s = newGame(seeded(), 0);
-  s.board.forEach((c) => { c.piece = null; c.lock = 0; });
+  s.board.forEach((c) => { c.piece = null; });
   return s;
 }
 
@@ -83,26 +83,17 @@ describe('board moves', () => {
     expect(movePiece(s, 0, 1).type).toBe('swap');
   });
 
-  it('a merge opens sealed neighbours, which then move freely', () => {
-    const s = empty();
-    const above = 1, target = 1 + s.cols, side = 2 + s.cols, src = 1 + 3 * s.cols;
-    s.board[above] = { piece: item('earth', 3), lock: 2 };
-    s.board[target].piece = item('fire', 2);
-    s.board[side].piece = item('fire', 2);
-    s.board[src].piece = item('fire', 2);
-    const r = movePiece(s, src, target);
-    expect(r.type).toBe('merge');
-    expect(r.type === 'merge' && r.revealed).toEqual([above]);
-    expect(s.board[target]).toEqual({ piece: item('fire', 3), lock: 0 });
-    expect(s.board[above]).toEqual({ piece: item('earth', 3), lock: 0 });
-    expect(movePiece(s, above, 3 * s.cols).type).toBe('move');
-  });
-
-  it('starts with no bubble tiles and opens any in an old save', () => {
-    expect(newGame(seeded(), 0).board.every((c) => c.lock === 0 || c.lock === 2)).toBe(true);
+  it('has no locked tiles: new games start open and old saves open theirs', () => {
+    const g = newGame(seeded(), 0);
+    expect(g.board.every((c) => !('lock' in c))).toBe(true);
+    expect(g.board.slice(0, 2 * g.cols).every((c) => c.piece === null)).toBe(true);
     const old = JSON.parse(JSON.stringify(empty()));
-    old.board[3].lock = 1;
-    expect(validateSave(old)!.board[3].lock).toBe(0);
+    old.board[3] = { piece: item('earth', 3), lock: 2 };
+    old.board[4] = { piece: item('earth', 3), lock: 1 };
+    const s = validateSave(old)!;
+    expect(s.board[3]).toEqual({ piece: item('earth', 3) });
+    expect(s.board[4]).toEqual({ piece: item('earth', 3) });
+    expect(movePiece(s, 3, 3 * s.cols).type).toBe('move');
   });
 });
 
@@ -171,13 +162,6 @@ describe('monsters', () => {
     m.needs.forEach((_, i) => expect(s.board[10 + i].piece).toBeNull());
   });
 
-  it('ignores locked items when looking for a spell', () => {
-    const s = empty();
-    const m = s.monsters[0];
-    m.needs = [{ chain: 'water', level: 2 }];
-    s.board[0] = { piece: item('water', 2), lock: 2 };
-    expect(findSpell(s, m)).toBeNull();
-  });
 });
 
 describe('monster refresh', () => {
@@ -314,17 +298,15 @@ describe('tower restoration', () => {
     expect(currentTask(s)).toEqual(CHAPTERS[0].tasks[1]);
   });
 
-  it('completing the chapter pays out and unseals the board', () => {
+  it('completing the chapter pays out and places its reward items', () => {
     const s = empty();
-    s.board[0].lock = 2;
-    s.board[1].lock = 2;
     s.stars = 999;
     const coins = s.coins, gems = s.gems;
     let last;
     for (let i = 0; i < CHAPTERS[0].tasks.length; i++) last = restore(s);
     expect(last!.ok && last!.chapterDone?.id).toBe('library');
-    expect(last!.ok && last!.unsealed).toEqual([0, 1]);
-    expect(s.board[0].lock).toBe(0);
+    const placed = last!.ok ? last!.placed : [];
+    expect(placed.map((i) => s.board[i].piece)).toEqual([item('coin', 3), item('mana', 2)]);
     expect(s.coins).toBe(coins + CHAPTERS[0].reward.coins);
     expect(s.gems).toBe(gems + CHAPTERS[0].reward.gems);
     expect(s.chapter).toBe(1);
@@ -511,7 +493,7 @@ describe('monster roster', () => {
 });
 
 describe('inventory bag', () => {
-  it('stores items and generators, and refuses locked or empty cells', () => {
+  it('stores items and generators, and refuses empty cells', () => {
     const s = empty();
     s.board[3].piece = item('fire', 4);
     s.board[4].piece = gen('well', 3);
@@ -520,8 +502,6 @@ describe('inventory bag', () => {
     expect(s.board[3].piece).toBeNull();
     expect(s.bag).toEqual([item('fire', 4), gen('well', 3)]);
     expect(storeInBag(s, 3)).toEqual({ ok: false, reason: 'invalid' });
-    s.board[5] = { piece: item('earth', 1), lock: 2 };
-    expect(storeInBag(s, 5)).toEqual({ ok: false, reason: 'invalid' });
   });
 
   it('is full at its slot count', () => {

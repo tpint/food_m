@@ -23,7 +23,6 @@ export interface ChapterDef {
   reward: {
     coins: number;
     gems: number;
-    unsealBoard?: boolean;
     upgradeGens?: boolean;
     /** Items placed on free board cells. */
     items?: { chain: ChainId; level: number; count: number }[];
@@ -55,8 +54,8 @@ export const CHAPTERS: ChapterDef[] = [
       'The library breathes again, and the tower feels a little less afraid.',
       'The Grimoire showed me the Alchemy Lab below us. Elowen sealed something there before she vanished. We will need stronger magic for that, so keep merging!',
     ],
-    rewardText: '100 coins, 10 gems, and the sealed rows on your board clear',
-    reward: { coins: 100, gems: 10, unsealBoard: true },
+    rewardText: '100 coins, 10 gems, a Coin Pouch and a Mana Vial',
+    reward: { coins: 100, gems: 10, items: [{ chain: 'coin', level: 3, count: 1 }, { chain: 'mana', level: 2, count: 1 }] },
   },
   {
     id: 'lab',

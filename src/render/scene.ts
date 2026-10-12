@@ -1,6 +1,5 @@
 // Backdrop art: a sunny wizard's study behind the board (shown blurred, so it
-// adds atmosphere without competing with the items) and the cobweb that covers
-// sealed tiles.
+// adds atmosphere without competing with the items).
 
 const url = (svg: string) => `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
 
@@ -78,23 +77,4 @@ export function sceneArt(): string {
   s += `<ellipse cx="200" cy="800" rx="170" ry="40" fill="#ff5a8a"/><ellipse cx="200" cy="800" rx="150" ry="32" fill="none" stroke="#ffe066" stroke-width="3" opacity=".7"/>`;
   s += `<rect width="400" height="860" fill="url(#vig)"/></svg>`;
   return url(s);
-}
-
-/** Cobweb drawn over sealed tiles: one web spun from the top-left corner. */
-export function webArt(): string {
-  const angles = [4, 26, 48, 70, 88];
-  const pt = (a: number, r: number) => [Math.cos((a * Math.PI) / 180) * r, Math.sin((a * Math.PI) / 180) * r];
-  const spokes = angles.map((a) => { const [x, y] = pt(a, 120); return `M2 2L${x.toFixed(1)} ${y.toFixed(1)}`; }).join('');
-  let rings = '';
-  for (const r of [26, 52, 80]) {
-    const pts = angles.map((a) => pt(a, r));
-    rings += `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
-    for (let i = 1; i < pts.length; i++) {
-      // Threads sag toward the corner between spokes.
-      const mid = pt((angles[i - 1] + angles[i]) / 2, r * 0.86);
-      rings += `Q${mid[0].toFixed(1)} ${mid[1].toFixed(1)} ${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)}`;
-    }
-  }
-  const d = spokes + rings;
-  return url(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="${d}" fill="none" stroke="#5a3e80" stroke-width="3.4" stroke-linecap="round" opacity=".18"/><path d="${d}" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".85"/></svg>`);
 }
