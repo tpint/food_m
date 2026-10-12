@@ -246,7 +246,7 @@ function monsterCard(m: Monster): HTMLElement {
   el.className = `monster enter${m.boss ? ' boss' : ''}`;
   el.dataset.id = String(m.id);
   el.innerHTML = `
-    <div class="portrait"><img src="${monsterImg(m.kind)}" alt=""></div>
+    <div class="portrait"><img src="${monsterImg(m.kind)}" alt=""><span class="xp-badge stroked" title="Experience for defeating it">+${m.xp} XP</span></div>
     <div class="name">${m.name}</div>
     <div class="hp">${m.needs.map(() => '<span class="seg"></span>').join('')}</div>
     <div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div>
@@ -324,7 +324,9 @@ function doRefresh() {
 $('#btn-refresh').addEventListener('click', (e) => { e.stopPropagation(); doRefresh(); });
 
 function showMonsterInfo(m: Monster) {
-  setInfo(monsterImg(m.kind), m.name, `Weak to: ${m.needs.map((n) => CHAINS[n.chain].levels[n.level - 1]).join(' + ')}. Gather them on the board, then Cast!`);
+  const stars = (m.stars ?? 1) + (state.starBonus ?? 0);
+  const loot = [`${m.coins} coins`, `${m.xp} XP`, `${stars} star${stars === 1 ? '' : 's'}`, ...(m.gems ? [`${m.gems} gems`] : [])];
+  setInfo(monsterImg(m.kind), m.name, `Weak to: ${m.needs.map((n) => CHAINS[n.chain].levels[n.level - 1]).join(' + ')}. Defeat it for ${loot.join(', ')}.`);
 }
 
 async function doCast(id: number) {
@@ -406,6 +408,10 @@ async function doCast(id: number) {
   el.classList.add('dying');
   shower(target.x, target.y, m.boss ? ['#ffcf4a', '#ff8a3c', '#fff'] : ['#ffd147', '#b98cff', '#fff']);
   floater(`+${res.monster.coins}`, target.x, target.y - 20);
+  setTimeout(() => {
+    const xp = center($('#xpbar'));
+    floater(`+${res.monster.xp} XP`, xp.x, xp.y);
+  }, 300);
 
   online.submit(state.defeated, state.level);
 

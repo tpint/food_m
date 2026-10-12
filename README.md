@@ -37,6 +37,7 @@ npm run build      # production build in dist/
   Five touching items make two. Two alone won't merge. Items you can merge with glow blue while you drag.
 - **Monsters**: each card shows the items the monster is weak to. Items that match get a ✓.
   When you have them all, press **Cast!** to defeat it and collect coins, XP and gems.
+  The badge on each portrait shows the XP it gives; tap the portrait for its full rewards.
   Every 6th monster is a boss.
 - **New monsters**: don't like the current lineup? The ⟳ button above the monster cards swaps all three for new ones.
   It costs 10 coins, and the price doubles with every refresh until you defeat a monster, which resets it to 10.
