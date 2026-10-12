@@ -54,6 +54,7 @@ html, body {
   position: fixed; inset: -20px; z-index: 0; pointer-events: none;
   background: #8fd6ff var(--scene) center / cover no-repeat;
   filter: blur(3px) saturate(1.25) brightness(1.04);
+  transition: background-image .8s ease;
 }
 
 img { -webkit-user-drag: none; user-select: none; pointer-events: none; }

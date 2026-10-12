@@ -776,6 +776,11 @@ function updateTowerBadge() {
 /** The chapter whose room is shown: the current one, or the last one once all are done. */
 const viewChapter = () => Math.min(state.chapter, CHAPTERS.length - 1);
 
+/** The blurred backdrop follows the chapter being restored. */
+function updateScene() {
+  document.documentElement.style.setProperty('--scene', sceneArt(CHAPTERS[viewChapter()].id));
+}
+
 function renderTower(fresh?: string, chapterIdx = viewChapter()) {
   const idx = chapterIdx;
   const ch = CHAPTERS[idx];
@@ -833,6 +838,7 @@ function doRestore() {
   shower(x, y, ['#ffe680', '#b98cff', '#fff']);
   const lines: StoryLine[] = [{ text: r.task.story }];
   if (r.chapterDone) {
+    updateScene();
     for (const t of r.chapterDone.outro) lines.push({ text: t });
     const next = CHAPTERS[state.chapter];
     lines.push({
@@ -1155,6 +1161,7 @@ function replaceState(next: GameState) {
   select(-1);
   layout();
   roomFor = '';
+  updateScene();
   ensureDaily(state);
   questsReady = claimableQuests(state);
   updateQuestBadge();
@@ -1383,7 +1390,7 @@ for (const [panel, back] of [['#tower', '#btn-back'], ['#leaders', '#btn-leaders
 
 async function boot() {
   await loadArtOverrides();
-  document.documentElement.style.setProperty('--scene', sceneArt());
+  updateScene();
   document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
     img.src = iconArt[img.dataset.icon as keyof typeof iconArt]();
   });

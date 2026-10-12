@@ -53,6 +53,9 @@ npm run build      # production build in dist/
   conjure, and merge an item up to a given level. Targets and rewards scale with your level.
   Claim each for coins and gems; claiming all three opens a chest (+10 gems, +50 mana). New quests arrive at local midnight.
   Tuning lives in `makeQuest` / `DAILY_BONUS` in `src/game/state.ts`.
+- **Backdrop**: the blurred scene behind the board is the room of the chapter you are restoring, from a sunny library to a
+  bubbling alchemy lab, a starry observatory, a leafy greenhouse and the purple-and-gold sanctum. It changes when you
+  finish a chapter.
 - **Tower restoration**: monsters also drop **Stars** (bosses drop 3). Tap the tower button (top right) to open the
   Tower screen and spend Stars on restoration tasks, in order. Each task visibly repairs the room and Professor Hoot,
   the Archmage's owl, tells a bit more of the story. Five chapters, one room each:
@@ -99,7 +102,7 @@ Bump `version` in `package.json` for each release.
 | `src/game/config.ts` | Data: merge chains, generators, monsters, tuning numbers |
 | `src/game/state.ts` | Pure game logic (merge, spawn, energy, monsters, save). No DOM. |
 | `src/render/art.ts` | Procedural SVG art. Each chain keeps one colour palette, and the silhouette changes at every level |
-| `src/render/scene.ts` | Blurred wizard's-study backdrop |
+| `src/render/scene.ts` | Blurred backdrop behind the board, one scene per tower chapter (library, lab, observatory, greenhouse, sanctum) |
 | `src/game/story.ts` | Tower chapters, restoration tasks and story text |
 | `src/render/room.ts` | The tower room scene with a broken and a fixed layer per task |
 | `scripts/promo.mjs` | Renders the promo video in `media/` (`node scripts/promo.mjs <url> <out.mp4>` with the dev server running) |
