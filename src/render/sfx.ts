@@ -29,18 +29,23 @@ function tone(freq: number, start: number, dur: number, type: OscillatorType = '
 
 let noiseBuf: AudioBuffer | null = null;
 
-/** Filtered white noise: the base of whooshes, splashes and rumbles. */
-function noise(start: number, dur: number, type: BiquadFilterType, f0: number, f1: number, vol: number) {
-  if (muted) return;
-  const a = ctx();
+/** One second of white noise, made once and looped. */
+function noiseBuffer(a: AudioContext): AudioBuffer {
   if (!noiseBuf) {
     noiseBuf = a.createBuffer(1, a.sampleRate, a.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
+  return noiseBuf;
+}
+
+/** Filtered white noise: the base of whooshes, splashes and rumbles. */
+function noise(start: number, dur: number, type: BiquadFilterType, f0: number, f1: number, vol: number) {
+  if (muted) return;
+  const a = ctx();
   const t = a.currentTime + start;
   const src = a.createBufferSource();
-  src.buffer = noiseBuf;
+  src.buffer = noiseBuffer(a);
   src.loop = true;
   const f = a.createBiquadFilter();
   f.type = type;
@@ -53,6 +58,138 @@ function noise(start: number, dur: number, type: BiquadFilterType, f0: number, f
   src.connect(f).connect(g).connect(a.destination);
   src.start(t);
   src.stop(t + dur + 0.05);
+}
+
+// ------------------------------------------------------------------ voice toolkit
+// Small building blocks for the richer sounds below (spell flights, monster
+// cries). Envelopes are lists of [time, value] points relative to `start`.
+
+type Pts = [number, number][];
+
+function curve(param: AudioParam, t0: number, pts: Pts, exp = false) {
+  param.setValueAtTime(Math.max(exp ? 0.0001 : 0, pts[0][1]), t0 + pts[0][0]);
+  for (const [t, v] of pts.slice(1)) {
+    if (exp) param.exponentialRampToValueAtTime(Math.max(0.0001, v), t0 + t);
+    else param.linearRampToValueAtTime(v, t0 + t);
+  }
+}
+
+let echoIn: AudioNode | null = null;
+
+/** Shared echo for the bigger monsters: delay with filtered feedback. */
+function echo(): AudioNode {
+  const a = ctx();
+  if (!echoIn) {
+    const input = a.createGain();
+    const delay = a.createDelay(1);
+    delay.delayTime.value = 0.22;
+    const fb = a.createGain();
+    fb.gain.value = 0.38;
+    const lp = a.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 2200;
+    const wet = a.createGain();
+    wet.gain.value = 0.45;
+    input.connect(delay).connect(lp).connect(fb).connect(delay);
+    lp.connect(wet).connect(a.destination);
+    echoIn = input;
+  }
+  return echoIn;
+}
+
+let driveCurve: Float32Array<ArrayBuffer> | null = null;
+
+/** Soft distortion for growls and roars. */
+function drive(): WaveShaperNode {
+  const a = ctx();
+  if (!driveCurve) {
+    driveCurve = new Float32Array(new ArrayBuffer(1024 * 4));
+    for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; driveCurve[i] = Math.tanh(x * 3.2); }
+  }
+  const w = a.createWaveShaper();
+  w.curve = driveCurve;
+  return w;
+}
+
+interface VoiceOpts {
+  filter?: { type: BiquadFilterType; freq: Pts; q?: number };
+  vibrato?: { rate: number; depth: number };
+  tremolo?: { rate: number; depth: number };
+  distort?: boolean;
+  echo?: number;          // send level to the shared echo
+}
+
+/** Route `src` through optional filter / distortion into a gain envelope. */
+function chain(a: AudioContext, src: AudioNode, t: number, gain: Pts, o: VoiceOpts): GainNode {
+  let node: AudioNode = src;
+  if (o.filter) {
+    const f = a.createBiquadFilter();
+    f.type = o.filter.type;
+    f.Q.value = o.filter.q ?? 1;
+    curve(f.frequency, t, o.filter.freq, true);
+    node.connect(f);
+    node = f;
+  }
+  if (o.distort) { const d = drive(); node.connect(d); node = d; }
+  const g = a.createGain();
+  curve(g.gain, t, gain);
+  node.connect(g);
+  g.connect(a.destination);
+  if (o.echo) { const e = a.createGain(); e.gain.value = o.echo; g.connect(e).connect(echo()); }
+  if (o.tremolo) {
+    const lfo = a.createOscillator(), depth = a.createGain();
+    lfo.frequency.value = o.tremolo.rate;
+    depth.gain.value = o.tremolo.depth;
+    lfo.connect(depth).connect(g.gain);
+    lfo.start(t);
+    lfo.stop(t + gain[gain.length - 1][0] + 0.05);
+  }
+  return g;
+}
+
+function osc(type: OscillatorType, start: number, freq: Pts, gain: Pts, o: VoiceOpts = {}) {
+  if (muted) return;
+  const a = ctx();
+  const t = a.currentTime + start;
+  const os = a.createOscillator();
+  os.type = type;
+  curve(os.frequency, t, freq, true);
+  if (o.vibrato) {
+    const lfo = a.createOscillator(), depth = a.createGain();
+    lfo.frequency.value = o.vibrato.rate;
+    depth.gain.value = o.vibrato.depth;
+    lfo.connect(depth).connect(os.frequency);
+    lfo.start(t);
+    lfo.stop(t + gain[gain.length - 1][0] + 0.05);
+  }
+  chain(a, os, t, gain, o);
+  const end = gain[gain.length - 1][0];
+  os.start(t);
+  os.stop(t + end + 0.05);
+}
+
+function hiss(start: number, gain: Pts, filter: VoiceOpts['filter'], o: VoiceOpts = {}) {
+  if (muted) return;
+  const a = ctx();
+  const t = a.currentTime + start;
+  const src = a.createBufferSource();
+  src.buffer = noiseBuffer(a);
+  src.loop = true;
+  src.playbackRate.value = 0.7 + Math.random() * 0.6;
+  chain(a, src, t, gain, { ...o, filter });
+  const end = gain[gain.length - 1][0];
+  src.start(t, Math.random() * 0.5);
+  src.stop(t + end + 0.05);
+}
+
+const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+
+/** Short random clicks/bursts spread over a time span (crackle, gravel, splashes). */
+function bursts(start: number, span: number, n: number, f: number, q: number, vol: number, len = 0.02) {
+  for (let i = 0; i < n; i++) {
+    const t = start + Math.random() * span;
+    hiss(t, [[0, 0], [0.003, vol * rnd(0.5, 1)], [len, 0]], { type: 'bandpass', freq: [[0, f * rnd(0.7, 1.4)], [len, f]], q });
+  }
 }
 
 const scale = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.5];
@@ -91,5 +228,92 @@ export const sfx = {
     else if (el === 'wind') { noise(0, d * 1.6, 'bandpass', 500, 2600, 0.1 * k); tone(900, 0, d, 'sine', 0.03, 1.6); }
     else { noise(0, d * 1.2, 'lowpass', 600, 80, 0.18 * k); tone(70, 0, d, 'sine', 0.2 * k, 0.6); }
   },
+  /**
+   * The sound of a spell swooping through the air for `dur` seconds. It
+   * swells as it approaches (a little doppler rise) and each element has its
+   * own texture; higher levels are louder, fuller and add layers.
+   */
+  spellFly(el: 'earth' | 'water' | 'wind' | 'fire', level: number, dur: number) {
+    const k = 0.55 + level * 0.09;
+    const d = dur, peak = d * 0.75;
+    const swell: Pts = [[0, 0], [peak, 1], [d + 0.08, 0]];
+    const env = (v: number): Pts => swell.map(([t, x]) => [t, x * v * k]);
+    if (el === 'fire') {
+      // Roaring whoosh plus ember crackle; big fires add a low rumble.
+      hiss(0, env(0.22), { type: 'lowpass', freq: [[0, 500], [peak, 3200], [d + 0.08, 900]], q: 0.8 });
+      hiss(0, env(0.08), { type: 'bandpass', freq: [[0, 1200], [peak, 2400], [d + 0.08, 1500]], q: 2 });
+      bursts(0, d, 6 + level * 3, 3800, 6, 0.09 * k, 0.012);
+      if (level >= 4) osc('sawtooth', 0, [[0, 60], [peak, 85], [d, 55]], env(0.05), { filter: { type: 'lowpass', freq: [[0, 180], [d, 260]] } });
+    } else if (el === 'water') {
+      // Rushing water and rising bubbles.
+      hiss(0, env(0.18), { type: 'bandpass', freq: [[0, 700], [peak, 2200], [d + 0.08, 1100]], q: 1.2 });
+      hiss(0, env(0.06), { type: 'highpass', freq: [[0, 3000], [d, 5000]], q: 0.7 });
+      for (let i = 0; i < 3 + level * 2; i++) {
+        const t = Math.random() * d, f = rnd(260, 520);
+        osc('sine', t, [[0, f], [0.05, f * rnd(2, 3)]], [[0, 0], [0.008, 0.07 * k], [0.06, 0]]);
+      }
+      if (level >= 5) hiss(0, env(0.1), { type: 'lowpass', freq: [[0, 300], [peak, 900], [d + 0.08, 400]] });
+    } else if (el === 'wind') {
+      // Airy rush with a whistling tone that bends upward; gusts at higher levels.
+      hiss(0, env(0.34), { type: 'bandpass', freq: [[0, 500], [peak, 1800], [d + 0.08, 900]], q: 3 });
+      osc('sine', 0, [[0, 700], [peak, 1500], [d + 0.08, 1100]], env(0.055), { vibrato: { rate: 7, depth: 25 } });
+      if (level >= 3) osc('sine', 0.05, [[0, 1050], [peak, 2200], [d + 0.08, 1600]], env(0.018), { vibrato: { rate: 9, depth: 40 } });
+      if (level >= 5) hiss(0, env(0.12), { type: 'bandpass', freq: [[0, 200], [peak * 0.5, 900], [d + 0.08, 300]], q: 1.5 }, { tremolo: { rate: 6, depth: 0.08 } });
+    } else {
+      // Heavy, low whoosh with gravel; big boulders add a deep sub.
+      hiss(0, env(0.3), { type: 'lowpass', freq: [[0, 180], [peak, 800], [d + 0.08, 250]], q: 1 });
+      bursts(0, d, 4 + level * 2, 450, 3, 0.14 * k, 0.03);
+      osc('sine', 0, [[0, 70], [peak, 95], [d + 0.08, 55]], env(0.12));
+      if (level >= 5) osc('triangle', 0, [[0, 42], [d, 36]], env(0.1));
+    }
+  },
+
+  /** A monster's parting cry. Tougher monsters get echo, distortion and bass. */
+  monsterCry(kind: 'slime' | 'bat' | 'ghost' | 'mushroom' | 'imp' | 'golem' | 'dragon') {
+    switch (kind) {
+      case 'slime': // wet, wobbly bloop falling away
+        osc('triangle', 0, [[0, 420], [0.45, 110]], [[0, 0], [0.02, 0.16], [0.4, 0.08], [0.5, 0]], { vibrato: { rate: 16, depth: 40 } });
+        osc('sine', 0.12, [[0, 300], [0.25, 140]], [[0, 0], [0.02, 0.1], [0.28, 0]]);
+        hiss(0, [[0, 0], [0.02, 0.08], [0.3, 0]], { type: 'lowpass', freq: [[0, 900], [0.3, 200]] });
+        break;
+      case 'bat': // three falling squeaks with wing flutter
+        [0, 0.11, 0.22].forEach((t, i) => osc('sine', t, [[0, 2600 - i * 200], [0.09 + i * 0.08, 1500 - i * 300]], [[0, 0], [0.01, 0.1], [0.1 + i * 0.08, 0]], { vibrato: { rate: 40, depth: 80 } }));
+        hiss(0, [[0, 0], [0.05, 0.06], [0.45, 0]], { type: 'bandpass', freq: [[0, 800], [0.45, 500]], q: 2 }, { tremolo: { rate: 22, depth: 0.05 } });
+        break;
+      case 'mushroom': // a grumpy "hmmph" and a puff of spores
+        osc('sawtooth', 0, [[0, 210], [0.12, 230], [0.45, 105]], [[0, 0], [0.03, 0.12], [0.35, 0.08], [0.5, 0]], { filter: { type: 'bandpass', freq: [[0, 700], [0.5, 450]], q: 3 } });
+        hiss(0.32, [[0, 0], [0.02, 0.14], [0.3, 0]], { type: 'highpass', freq: [[0, 1500], [0.3, 3000]] });
+        break;
+      case 'ghost': // tier 2: eerie rising-then-fading wail with echo
+        osc('sine', 0, [[0, 420], [0.35, 760], [1.0, 260]], [[0, 0], [0.15, 0.12], [0.7, 0.1], [1.05, 0]], { vibrato: { rate: 5.5, depth: 22 }, echo: 0.8 });
+        osc('sine', 0.05, [[0, 630], [0.4, 1140], [1.0, 390]], [[0, 0], [0.2, 0.04], [1.0, 0]], { vibrato: { rate: 6.3, depth: 30 }, echo: 0.6 });
+        hiss(0, [[0, 0], [0.3, 0.05], [1.0, 0]], { type: 'bandpass', freq: [[0, 1200], [1.0, 600]], q: 4 }, { echo: 0.5 });
+        break;
+      case 'imp': // tier 3: devilish cackle and a fiery hiss
+        for (let i = 0; i < 5; i++) {
+          const t = i * 0.09, f = 300 + i * 40;
+          osc('sawtooth', t, [[0, f], [0.07, f * 1.25]], [[0, 0], [0.01, 0.18], [0.07, 0]], { filter: { type: 'bandpass', freq: [[0, 1100], [0.07, 900]], q: 4 }, distort: true, echo: 0.4 });
+        }
+        hiss(0.4, [[0, 0], [0.05, 0.2], [0.6, 0]], { type: 'lowpass', freq: [[0, 3500], [0.6, 600]] }, { echo: 0.5 });
+        bursts(0.4, 0.5, 10, 3500, 6, 0.08, 0.012);
+        break;
+      case 'golem': // tier 4: deep stone groan, crumble and a low thud
+        osc('sawtooth', 0, [[0, 85], [0.3, 95], [1.1, 42]], [[0, 0], [0.1, 0.16], [0.8, 0.12], [1.15, 0]], { filter: { type: 'lowpass', freq: [[0, 420], [1.15, 180]], q: 4 }, distort: true, echo: 0.5 });
+        osc('sine', 0.6, [[0, 60], [0.4, 32]], [[0, 0], [0.02, 0.35], [0.5, 0]]);
+        hiss(0.5, [[0, 0], [0.05, 0.2], [0.9, 0]], { type: 'lowpass', freq: [[0, 700], [0.9, 150]] }, { echo: 0.4 });
+        bursts(0.55, 0.8, 16, 600, 3, 0.16, 0.035);
+        break;
+      case 'dragon': { // boss: layered, distorted roar sweeping open, deep sub and a long echo
+        const g: Pts = [[0, 0], [0.12, 0.13], [0.9, 0.12], [1.5, 0]];
+        const sweep = { type: 'bandpass' as BiquadFilterType, freq: [[0, 380], [0.5, 1400], [1.5, 300]] as Pts, q: 2.5 };
+        osc('sawtooth', 0, [[0, 110], [0.4, 150], [1.5, 70]], g, { filter: sweep, distort: true, echo: 0.9, vibrato: { rate: 9, depth: 6 } });
+        osc('sawtooth', 0, [[0, 164], [0.4, 222], [1.5, 104]], g.map(([t, v]) => [t, v * 0.7]), { filter: sweep, distort: true, echo: 0.7 });
+        hiss(0, [[0, 0], [0.1, 0.22], [1.0, 0.15], [1.5, 0]], { type: 'lowpass', freq: [[0, 800], [0.5, 2600], [1.5, 400]] }, { echo: 0.6 });
+        osc('sine', 0, [[0, 52], [1.5, 38]], [[0, 0], [0.1, 0.3], [1.2, 0.25], [1.55, 0]]);
+        break;
+      }
+    }
+  },
+
   levelUp: () => [0, 2, 4, 5, 7].forEach((s, i) => tone(scale[s] , i * 0.1, 0.5, 'triangle', 0.12)),
 };

@@ -77,7 +77,11 @@ Straight top-down grid with soft 2D art, following the four merge-art rules:
 1. **Silhouette progression**: e.g. bubbles → seashell → splash → tide orb → fountain → trident → great wave.
 2. **Strict colour coding**: Earth = brown, Water = blue, Wind = mint/white, Fire = orange/red, Gold = yellow, Mana = pink.
 3. **Low-contrast board**: cream tiles with very little contrast. The dark backdrop sits outside the board.
-4. **Juicy VFX**: casting draws an arcane circle under each item while it charges (more rings, runes,
+4. **Sound**: all sounds are synthesised live with WebAudio (`src/render/sfx.ts`): each element has its own swoop while a
+   spell flies (roaring fire, rushing water with bubbles, whistling wind, rumbling earth) and every monster has its own
+   parting cry, with echo, distortion and bass for the tougher ones. `node scripts/soundfiles.mjs <url> <dir>` renders them
+   to WAV files for listening. In the console, `arcane.sfx.monsterCry('dragon')` plays one.
+5. **Juicy VFX**: casting draws an arcane circle under each item while it charges (more rings, runes,
    polygrams and satellite circles at higher levels; a pillar of light at level 7), then merge flash + bounce, particle bursts, shockwave rings, coin showers and sounds. Each element has its own
    spell hit when cast at a monster (fire burst, water splash, wind vortex, earth rocks), and it grows with item level:
    level 4+ adds a fire pillar / geyser / tornado / ground cracks and screen shake, level 5+ a coloured flash, level 7 a finale.

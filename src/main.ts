@@ -300,7 +300,9 @@ async function doCast(id: number) {
       setTimeout(() => {
         circle?.release();
         renderCell(f.cell);
-        sfx.cast();
+        // Each element swoops through the air in its own way.
+        if (isElement(f.chain)) sfx.spellFly(f.chain, f.level, 0.52);
+        else sfx.cast();
         fly(f.src, f.from, target, {
           ms: 520, color: f.color,
           // Bigger spells fly bigger.
@@ -325,7 +327,9 @@ async function doCast(id: number) {
   // Let the biggest effect play out before the monster vanishes.
   await new Promise((r) => setTimeout(r, 200 + Math.max(...flights.map((f) => f.level)) * 90));
 
-  sfx.defeat();
+  // The monster's parting cry, then the victory jingle.
+  sfx.monsterCry(m.kind);
+  setTimeout(() => sfx.defeat(), m.boss ? 900 : ['ghost', 'imp', 'golem'].includes(m.kind) ? 600 : 350);
   el.classList.add('dying');
   shower(target.x, target.y, m.boss ? ['#ffcf4a', '#ff8a3c', '#fff'] : ['#ffd147', '#b98cff', '#fff']);
   floater(`+${res.monster.coins}`, target.x, target.y - 20);
@@ -654,6 +658,8 @@ Object.assign(window, {
     reset() { state = newGame(); save(state); location.reload(); },
     energy(n = 100) { state.energy += n; renderHud(); persist(); },
     get state() { return state; },
+    /** Play any sound from the console, e.g. arcane.sfx.monsterCry('dragon'). */
+    sfx,
   },
 });
 
