@@ -213,12 +213,36 @@ export const sfx = {
   error: () => tone(160, 0, 0.18, 'sawtooth', 0.06, 0.7),
   cast: () => { tone(300, 0, 0.5, 'sawtooth', 0.05, 4); tone(600, 0.1, 0.4, 'triangle', 0.08, 2.5); },
   defeat: () => [0, 2, 4, 7].forEach((s, i) => tone(scale[s % 8] * (s >= 7 ? 2 : 1), i * 0.08, 0.35, 'triangle', 0.1)),
-  /** Rising hum while a spell charges; longer and richer for higher levels. */
-  charge(level: number, ms: number) {
+  /**
+   * The arcane circle drawing itself while magic is pulled out of an item:
+   * a low uneasy drone, a breath being drawn up through a resonant filter,
+   * glassy pings in an exotic scale as the strokes land, and a last inhale
+   * before the spell flies. Each element has its own root; higher levels are
+   * fuller, with more pings.
+   */
+  charge(level: number, ms: number, el?: 'earth' | 'water' | 'wind' | 'fire') {
     const d = ms / 1000;
-    tone(160 + level * 20, 0, d, 'triangle', 0.05, 2.5);
-    if (level >= 4) tone(240 + level * 30, 0.05, d, 'sine', 0.04, 2);
-    if (level >= 6) noise(0, d, 'bandpass', 400, 3000, 0.04);
+    const root = el ? { earth: 73.4, water: 98, wind: 110, fire: 82.4 }[el] : 92.5;
+    const v = 0.028 + level * 0.0035;
+    // Drone: the root and a slightly sour tritone above it, slowly swelling.
+    osc('sine', 0, [[0, root], [d, root * 1.06]], [[0, 0], [d * 0.6, v], [d, v * 1.2], [d + 0.2, 0]],
+      { tremolo: { rate: 4 + level * 0.6, depth: v * 0.35 }, echo: 0.2 });
+    osc('triangle', 0.03, [[0, root * Math.SQRT2 * 1.004], [d, root * Math.SQRT2 * 1.09]], [[0, 0], [d * 0.7, v * 0.45], [d + 0.15, 0]],
+      { filter: { type: 'lowpass', freq: [[0, 300], [d, 1400 + level * 120]] } });
+    // Power being drawn out: breathy noise rising through a resonant band.
+    hiss(0, [[0, 0], [d * 0.8, 0.022 + level * 0.003], [d, 0.04], [d + 0.08, 0]],
+      { type: 'bandpass', freq: [[0, 260], [d, 2200 + level * 300]], q: 7 }, { echo: 0.25 });
+    // Glassy pings in a Hijaz-like scale, one per stroke of the circle.
+    const steps = [0, 1, 4, 5, 7, 8, 11, 12];
+    const n = 2 + level;
+    for (let i = 0; i < n; i++) {
+      const f = root * 8 * Math.pow(2, steps[(i * 3 + level) % steps.length] / 12);
+      osc('sine', (i / n) * d * 0.9, [[0, f], [0.7, f * 0.996]], [[0, 0], [0.008, 0.02], [0.7, 0]],
+        { vibrato: { rate: 5.5, depth: f * 0.004 }, echo: 0.5 });
+    }
+    // The last inhale as the magic leaves the item.
+    hiss(d * 0.72, [[0, 0], [d * 0.28, 0.03 + level * 0.003], [d * 0.28 + 0.04, 0]],
+      { type: 'highpass', freq: [[0, 700], [d * 0.28, 5200]] });
   },
   /** Element hit sounds; higher levels are louder and longer. */
   element(el: 'earth' | 'water' | 'wind' | 'fire', level: number) {

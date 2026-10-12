@@ -368,7 +368,7 @@ async function doCast(id: number) {
       } else {
         piece?.classList.add('charging');
       }
-      sfx.charge(f.level, charge);
+      sfx.charge(f.level, charge, isElement(f.chain) ? f.chain : undefined);
       setTimeout(() => {
         circle?.release();
         renderCell(f.cell);
