@@ -228,7 +228,7 @@ function monsterCard(m: Monster): HTMLElement {
     <div class="name">${m.name}</div>
     <div class="hp">${m.needs.map(() => '<span class="seg"></span>').join('')}</div>
     <div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div>
-    <div class="reward"><img src="${iconArt.coin()}" alt="">${m.coins} <img src="${iconArt.gstar()}" alt="stars">${m.stars ?? 1}${m.gems ? ` <img src="${iconArt.gem()}" alt="">${m.gems}` : ''}</div>
+    <div class="reward"><img src="${iconArt.coin()}" alt="">${m.coins} <img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span>${m.gems ? ` <img src="${iconArt.gem()}" alt="">${m.gems}` : ''}</div>
     <button class="cast stroked">Cast!</button>`;
   el.querySelector('.cast')!.addEventListener('click', (e) => { e.stopPropagation(); doCast(m.id); });
   el.querySelector('.portrait')!.addEventListener('click', () => showMonsterInfo(m));
@@ -258,6 +258,9 @@ function renderMonsters() {
       n.classList.toggle('have', at >= 0);
     });
     el.classList.toggle('ready', !!findSpell(state, m));
+    // Keep the star reward current (a chapter can add a bonus while cards are showing).
+    const starN = el.querySelector('.star-n');
+    if (starN) starN.textContent = String((m.stars ?? 1) + (state.starBonus ?? 0));
   });
 }
 
@@ -660,6 +663,8 @@ Object.assign(window, {
     get state() { return state; },
     /** Play any sound from the console, e.g. arcane.sfx.monsterCry('dragon'). */
     sfx,
+    /** Tower chapters (read-only reference for testing). */
+    chapters: CHAPTERS,
   },
 });
 
@@ -742,7 +747,8 @@ function doRestore() {
       // Move to the next room once the chapter's story is over.
       then: () => renderTower(),
     });
-    if (!online.code) {
+    if (!online.code && !state.storySeen.includes('code-tip')) {
+      state.storySeen.push('code-tip');
       lines.push({ text: 'Hoo, one more thing! Tap your level star to make a recovery code. Then your progress is safe even if you switch devices.' });
     }
     if (next) {
@@ -754,6 +760,8 @@ function doRestore() {
     renderBoard();
     for (const i of r.unsealed) renderCell(i, 'squish');
     for (const i of r.upgraded) renderCell(i, 'merge');
+    for (const i of r.placed) renderCell(i, 'pop');
+    renderMonsters();
   }
   setTimeout(() => tell(lines), 700);
   renderHud();

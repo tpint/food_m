@@ -31,8 +31,13 @@ npm run build      # production build in dist/
   Every 6th monster is a boss.
 - **Tower restoration**: monsters also drop **Stars** (bosses drop 3). Tap the tower button (top right) to open the
   Tower screen and spend Stars on restoration tasks, in order. Each task visibly repairs the room and Professor Hoot,
-  the Archmage's owl, tells a bit more of the story. Chapter 1 is *The Dusty Library* (6 tasks; reward: coins, gems and the sealed board rows
-  start to clear). Chapter 2 is *The Alchemy Lab* (6 tasks; reward: coins, gems and every grimoire gains a level).
+  the Archmage's owl, tells a bit more of the story. Five chapters, one room each:
+  1. *The Dusty Library*: sealed board rows start to clear.
+  2. *The Alchemy Lab* (Earth Seal): every grimoire gains a level.
+  3. *The Observatory* (Wind Seal): two Mana Flasks appear on the board.
+  4. *The Moonlit Greenhouse* (Water Seal): every monster drops 1 extra Star from then on.
+  5. *The Archmage's Sanctum* (Fire Seal, free Elowen from the Shadow Mirror): every grimoire gains another level.
+  Each also pays coins and gems.
   Chapters live in `src/game/story.ts`; each chapter's room is drawn in `src/render/room.ts`.
 - **Leaderboard**: the trophy button shows the top 50 by monsters defeated, this week (resets Monday 00:00 UTC) or
   all time, plus your own rank. Each device gets a hidden player ID and an "Apprentice ####" name you can change.

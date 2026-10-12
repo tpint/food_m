@@ -55,6 +55,8 @@ export interface GameState {
   chapter: number;
   tasksDone: string[];
   storySeen: string[];
+  /** Extra Stars every monster drops (a chapter reward). */
+  starBonus?: number;
   /** When the player last changed something (ms); the newest of local and cloud wins. */
   savedAt?: number;
 }
@@ -421,7 +423,7 @@ export function cast(s: GameState, monsterId: number, rng: Rng = Math.random): C
   for (const i of cells) s.board[i].piece = null;
   s.coins += m.coins;
   s.gems += m.gems;
-  s.stars += m.stars ?? 1;
+  s.stars += (m.stars ?? 1) + (s.starBonus ?? 0);
   s.defeated++;
   const levelUp = addXp(s, m.xp);
   s.monsters.splice(mi, 1, makeMonster(s, rng));
@@ -454,7 +456,7 @@ export function currentTask(s: GameState): TaskDef | null {
 }
 
 export type RestoreResult =
-  | { ok: true; task: TaskDef; chapterDone: ChapterDef | null; unsealed: number[]; upgraded: number[] }
+  | { ok: true; task: TaskDef; chapterDone: ChapterDef | null; unsealed: number[]; upgraded: number[]; placed: number[] }
   | { ok: false; reason: 'stars' | 'none'; cost?: number };
 
 /** Spend Stars on the next task. Finishing the last task completes the chapter. */
@@ -465,7 +467,7 @@ export function restore(s: GameState): RestoreResult {
   s.stars -= task.cost;
   s.tasksDone.push(task.id);
   const ch = currentChapter(s)!;
-  if (currentTask(s)) return { ok: true, task, chapterDone: null, unsealed: [], upgraded: [] };
+  if (currentTask(s)) return { ok: true, task, chapterDone: null, unsealed: [], upgraded: [], placed: [] };
 
   // Chapter complete: pay out its reward and move on.
   s.coins += ch.reward.coins;
@@ -483,8 +485,19 @@ export function restore(s: GameState): RestoreResult {
       }
     });
   }
+  // Reward items go on free cells, nearest the bottom of the board first.
+  const placed: number[] = [];
+  for (const it of ch.reward.items ?? []) {
+    for (let k = 0; k < it.count; k++) {
+      const at = nearestEmpty(s, s.board.length - 1 - Math.floor(s.cols / 2));
+      if (at < 0) break;
+      s.board[at].piece = item(it.chain, it.level);
+      placed.push(at);
+    }
+  }
+  if (ch.reward.starBonus) s.starBonus = (s.starBonus ?? 0) + ch.reward.starBonus;
   s.chapter++;
-  return { ok: true, task, chapterDone: ch, unsealed, upgraded };
+  return { ok: true, task, chapterDone: ch, unsealed, upgraded, placed };
 }
 
 // ---------------------------------------------------------------- save

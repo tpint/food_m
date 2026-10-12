@@ -256,6 +256,26 @@ describe('tower restoration', () => {
     expect(currentTask(s)).toEqual(CHAPTERS[1].tasks[0]);
   });
 
+  it('chapter 3 places items, chapter 4 adds a star bonus', () => {
+    const s = empty();
+    s.stars = 9999;
+    const upTo = (n: number) => CHAPTERS.slice(0, n).reduce((t, c) => t + c.tasks.length, 0);
+    let last;
+    for (let i = 0; i < upTo(3); i++) last = restore(s);
+    expect(last!.ok && last!.chapterDone?.id).toBe('observatory');
+    expect(last!.ok && last!.placed.length).toBe(2);
+    expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.chain === 'mana' && c.piece.level === 3)).toHaveLength(2);
+    for (let i = upTo(3); i < upTo(4); i++) last = restore(s);
+    expect(last!.ok && last!.chapterDone?.id).toBe('greenhouse');
+    expect(s.starBonus).toBe(1);
+    // Monsters now drop one extra star.
+    const m = s.monsters[0];
+    m.needs.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
+    const before = s.stars;
+    cast(s, m.id, seeded(9));
+    expect(s.stars).toBe(before + m.stars + 1);
+  });
+
   it('has nothing left to restore after the last chapter', () => {
     const s = empty();
     s.chapter = CHAPTERS.length;
