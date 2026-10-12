@@ -49,7 +49,7 @@ npm run build      # production build in dist/
   what is inside, and tap a stored piece to put it back on the nearest free tile. The bag starts with 5 slots; more
   cost gems (10, then 5 more each time, up to 15 slots). Tuning lives in `BAG_START_SLOTS` / `BAG_MAX_SLOTS` /
   `bagSlotCost` in `src/game/state.ts`.
-- **Menu**: the button at the top right (showing a scroll, a trophy and a tower) opens Daily quests, the Leaderboard and
+- **Menu**: the ☰ button at the top right opens Daily quests, the Leaderboard and
   the Tower. It shows a red "!" when a quest reward or a tower restoration is ready.
 - **Daily quests**: open **Daily quests** from the menu button (top right) for three quests a day, picked from: defeat monsters, merge,
   conjure, and merge an item up to a given level. Targets and rewards scale with your level.
