@@ -7,7 +7,8 @@ The game then uses the PNG instead of the code-drawn SVG for that item.
 - Frame the object the way the SVGs are framed: centred, filling about 80–90% of the square.
 - Keys: `earth-1` … `earth-7`, `water-1` … `water-7`, `wind-1` … `wind-7`,
   `fire-1` … `fire-7`, `coin-1` … `coin-4`, `mana-1` … `mana-3`,
-  `gen-geode`, `gen-well`, `gen-windmill`, `gen-forge`,
+  `gen-geode`, `gen-well`, `gen-windmill`, `gen-forge` (level 1, and every level that has no own PNG),
+  `gen-geode-2` … `gen-geode-5` (and the same for `well`, `windmill`, `forge`),
   `mon-slime`, `mon-bat`, `mon-mushroom`, `mon-ghost`, `mon-imp`, `mon-golem`, `mon-dragon`,
   `icon-hat`, `icon-coin`, `icon-gem`, `icon-energy`, `icon-star`.
 

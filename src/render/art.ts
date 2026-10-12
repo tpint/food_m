@@ -5,7 +5,7 @@
 // Each merge chain sticks to one palette and each level changes silhouette:
 // small round -> tall -> wide -> ornate.
 
-import { ChainId, GenId, MonsterKind } from '../game/config';
+import { ChainId, GEN_LEVELS, GenId, MonsterKind } from '../game/config';
 import type { Piece } from '../game/state';
 
 interface Pal { hi: string; mid: string; lo: string; ink: string }
@@ -36,6 +36,8 @@ class Svg {
   defs: string[] = [];
   body: string[] = [];
   fx: string[] = [];
+  /** Drawn behind the body but left out of the framing, so it never shrinks the object. */
+  behind: string[] = [];
   haloColor = '';
   shadowRx = 0;
   private g = new Map<string, string>();
@@ -110,7 +112,7 @@ class Svg {
       back.push(`<ellipse cx="${cx}" cy="${bottom - 3}" rx="${rx}" ry="${rx * 0.2}" fill="#3a2350" opacity=".22"/>`);
     }
     const f = (n: number) => n.toFixed(2);
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(vx)} ${f(vy)} ${f(size)} ${f(size)}"><defs>${defs}</defs>${back.join('')}${body}${this.fx.join('')}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(vx)} ${f(vy)} ${f(size)} ${f(size)}"><defs>${defs}</defs>${back.join('')}${this.behind.join('')}${body}${this.fx.join('')}</svg>`;
   }
 }
 
@@ -529,48 +531,89 @@ function alchemy(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cx: number, cy
 /**
  * An open grimoire in the element's cover colour, with its alchemical
  * symbol on the left page; `emerge` draws the element rising from the pages.
+ * Each generator level dresses the book up a little more:
+ * 1 plain leather and iron, 2 gold corners, 3 gilt trim, a spine gem and a rune
+ * ring, 4 glowing script, a gold ribbon and floating runes, 5 golden rays and corner gems.
  */
-function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, emerge: () => void) {
-  // Ribbon bookmark hanging from the spine.
+function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, lv: number, emerge: () => void) {
+  const glow = { earth: '#ffd27a', water: '#8fe0ff', wind: '#a8ffe0', fire: '#ffb04a' }[el];
+  const fittings = lv >= 2 ? P.metal : P.stone;
+  if (lv >= 5) {
+    // Golden rays fanning out behind everything.
+    const rays: string[] = [];
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2, b = a + 0.13;
+      rays.push(`M50 58L${(50 + Math.cos(a) * 70).toFixed(1)} ${(58 + Math.sin(a) * 70).toFixed(1)}L${(50 + Math.cos(b) * 70).toFixed(1)} ${(58 + Math.sin(b) * 70).toFixed(1)}Z`);
+    }
+    s.behind.push(`<path d="${rays.join('')}" fill="#ffd84a" opacity=".6"/>`);
+  }
+  if (lv >= 3) {
+    // A rune ring the book hovers over.
+    s.behind.push(`<ellipse cx="50" cy="94" rx="50" ry="11" fill="${glow}" fill-opacity=".25" stroke="${glow}" stroke-width="2.6"/>`);
+    s.behind.push(`<ellipse cx="50" cy="94" rx="42" ry="8" fill="none" stroke="#fff" stroke-width="1.4" stroke-dasharray="3 4" opacity=".9"/>`);
+  }
+  // Ribbon bookmark(s) hanging from the spine.
   s.add(shape('M48 88L48 100L51 97L54 100L54 88Z', cover.mid, cover.ink, 'stroke-width="2"'));
+  if (lv >= 4) s.add(shape('M55 87L58 98L60 94L63 96L60 86Z', s.rad(P.metal), P.metal.ink, 'stroke-width="1.8"'));
   s.add(shape('M50 52Q32 42 8 48L10 90Q32 84 50 94Q68 84 90 90L92 48Q68 42 50 52Z', s.rad(cover), cover.ink));
+  if (lv >= 3) {
+    // Gilt trim just inside the cover edge.
+    s.add(`<path d="M50 55Q32 46 11 51L13 87Q32 81 50 91Q68 81 87 87L89 51Q68 46 50 55" fill="none" stroke="${P.metal.mid}" stroke-width="1.8" opacity=".9"/>`);
+  }
   // Page block edges.
   s.add(`<path d="M13 86Q33 81 50 89Q67 81 87 86M12 83Q33 78 50 86Q67 78 88 83" fill="none" stroke="${P.paper.lo}" stroke-width="2"/>`);
   s.add(shape('M50 48Q33 38 13 44L15 82Q33 78 50 86Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink, 'stroke-width="2.4"'));
   s.add(shape('M50 48Q67 38 87 44L85 82Q67 78 50 86Z', s.lin(P.paper.mid, P.paper.hi, false), P.paper.ink, 'stroke-width="2.4"'));
+  if (lv >= 4) s.add(`<circle cx="32" cy="62" r="13" fill="${glow}" opacity=".45"/>`);
   alchemy(s, el, 32, 63, 9, cover.mid);
   for (let i = 0; i < 4; i++) {
-    s.add(`<path d="M57 ${52 + i * 7}Q66 ${49 + i * 7} 79 ${53 + i * 7 - (i % 2) * 2}" fill="none" stroke="${cover.lo}" stroke-width="1.8" stroke-linecap="round" opacity=".6"/>`);
+    s.add(`<path d="M57 ${52 + i * 7}Q66 ${49 + i * 7} 79 ${53 + i * 7 - (i % 2) * 2}" fill="none" stroke="${lv >= 4 ? cover.mid : cover.lo}" stroke-width="1.8" stroke-linecap="round" opacity="${lv >= 4 ? 0.9 : 0.6}"/>`);
   }
-  // Gold corner guards.
-  for (const [x, f] of [[10, 1], [90, -1]] as const) {
-    s.add(shape(`M${x} 90L${x} 80L${x + f * 10} 88Z`, s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
+  if (lv >= 2) {
+    // Gold corner guards, top and bottom.
+    for (const [x, f] of [[10, 1], [90, -1]] as const) {
+      s.add(shape(`M${x} 90L${x} 80L${x + f * 10} 88Z`, s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
+      s.add(shape(`M${x - f * 2} 48L${x - f * 1.6} 57L${x + f * 8} 47Z`, s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
+    }
   }
-  s.add(`<circle cx="50" cy="91" r="3.5" fill="${s.rad(P.metal)}" stroke="${P.metal.ink}" stroke-width="1.6"/>`);
+  // Spine stud: iron, then gold, then a gem in the element's colour.
+  s.add(`<circle cx="50" cy="91" r="${lv >= 3 ? 4.5 : 3.5}" fill="${s.rad(fittings)}" stroke="${fittings.ink}" stroke-width="1.6"/>`);
+  if (lv >= 3) s.add(`<circle cx="50" cy="91" r="2.4" fill="${s.rad(cover, 'gem')}"/><circle cx="49.2" cy="90.2" r=".9" fill="#fff"/>`);
+
   emerge();
+  if (lv >= 5) {
+    // Gems set in the gold corners.
+    for (const x of [13, 87]) s.add(`<circle cx="${x}" cy="85" r="2.6" fill="${s.rad(cover, 'gem')}" stroke="${P.metal.ink}" stroke-width="1.2"/>`);
+  }
+  if (lv >= 4) {
+    for (const [x, y, r] of [[12, 30, 4], [88, 34, 3.5], [82, 12, 3]]) s.sparkle(x, y, r, glow);
+    // Small floating runes.
+    s.fx.push(`<path d="M16 16l4 -6l4 6M18 13h4M78 52l3 -5l3 5l-3 3z" fill="none" stroke="${glow}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity=".95"/>`);
+  }
+  if (lv >= 5) for (const [x, y, r] of [[22, 8, 4], [70, 4, 3.5], [92, 60, 3]]) s.sparkle(x, y, r, '#fff6b0');
 }
 
-const genArt: Record<GenId, (s: Svg) => void> = {
-  geode: (s) => {
+const genArt: Record<GenId, (s: Svg, lv: number) => void> = {
+  geode: (s, lv) => {
     s.halo('#f2d08a'); s.shadow(38, 96);
-    grimoire(s, 'earth', { hi: '#e8c08a', mid: '#9a6438', lo: '#5e3a20', ink: '#3a2210' }, () => {
+    grimoire(s, 'earth', { hi: '#e8c08a', mid: '#9a6438', lo: '#5e3a20', ink: '#3a2210' }, lv, () => {
       const amber = { hi: '#fff0c8', mid: '#e6b066', lo: '#a8662c', ink: '#5a3214' };
       crystal(s, 40, 52, 11, 22, -22, amber); crystal(s, 60, 52, 11, 24, 20, amber); crystal(s, 50, 50, 14, 34, 0, amber);
       stone(s, 22, 30, 5, 3.5); stone(s, 80, 24, 6, 4); stone(s, 70, 40, 3.5, 2.5);
       tuft(s, 14, 50, 0.7); tuft(s, 86, 50, 0.7);
     });
   },
-  well: (s) => {
+  well: (s, lv) => {
     s.halo('#9fdcff'); s.shadow(38, 96);
-    grimoire(s, 'water', { hi: '#9fd4ff', mid: '#2f7fd8', lo: '#164a8a', ink: '#0e2e5a' }, () => {
+    grimoire(s, 'water', { hi: '#9fd4ff', mid: '#2f7fd8', lo: '#164a8a', ink: '#0e2e5a' }, lv, () => {
       s.add(shape('M40 48Q34 34 44 24Q52 16 62 20Q54 22 52 30Q60 30 62 38Q54 34 50 40Q48 44 56 48Z', s.rad(WATER), WATER.ink));
       s.add(shape('M44 24Q52 16 62 20Q56 22 54 26Q50 22 44 24Z', s.rad(FOAM), FOAM.ink, 'stroke-width="2"'));
       drop(s, 30, 34, 3.5); drop(s, 72, 30, 3); bubble(s, 68, 44, 3.5); bubble(s, 26, 46, 2.5);
     });
   },
-  windmill: (s) => {
+  windmill: (s, lv) => {
     s.halo('#b8f5e0'); s.shadow(38, 96);
-    grimoire(s, 'wind', { hi: '#d8fff0', mid: '#3cb894', lo: '#1e6e5a', ink: '#0e4438' }, () => {
+    grimoire(s, 'wind', { hi: '#d8fff0', mid: '#3cb894', lo: '#1e6e5a', ink: '#0e4438' }, lv, () => {
       const bands = [[50, 20, 18, 4], [51, 29, 14, 3.5], [50, 37, 10, 3], [49, 44, 6, 2.5]];
       for (const [x, y, rx, ry] of bands) {
         s.add(shape(`M${x - rx} ${y}Q${x - rx} ${y + ry * 1.5} ${x} ${y + ry * 1.5}Q${x + rx} ${y + ry * 1.5} ${x + rx} ${y}Q${x + rx} ${y - ry} ${x} ${y - ry}Q${x - rx} ${y - ry} ${x - rx} ${y}Z`, s.rad(WIND), WIND.ink, 'stroke-width="2.2"'));
@@ -579,9 +622,9 @@ const genArt: Record<GenId, (s: Svg) => void> = {
       s.add(shape('M78 18L84 14L83 21Z', '#8cc65a', '#2e5a22', 'stroke-width="1.4"'));
     });
   },
-  forge: (s) => {
+  forge: (s, lv) => {
     s.halo('#ffb46a'); s.shadow(38, 96);
-    grimoire(s, 'fire', { hi: '#ff9a7a', mid: '#d8402a', lo: '#8a1e14', ink: '#5a1008' }, () => {
+    grimoire(s, 'fire', { hi: '#ff9a7a', mid: '#d8402a', lo: '#8a1e14', ink: '#5a1008' }, lv, () => {
       fire(s, 50, 52, 30, 40); fire(s, 34, 52, 12, 16); fire(s, 66, 52, 12, 18);
       s.add('<circle cx="30" cy="26" r="2" fill="#ffd27a"/><circle cx="72" cy="20" r="1.6" fill="#ffd27a"/><circle cx="62" cy="10" r="1.4" fill="#ffb63c"/>');
     });
@@ -716,9 +759,13 @@ function toUrl(key: string, draw: (s: Svg) => void, fill = 0.86): string {
 // Higher levels fill a little more of the tile, so size grows with the chain too.
 export const itemArt = (chain: ChainId, level: number) =>
   toUrl(`${chain}-${level}`, chainArt[chain][level - 1], Math.min(0.95, 0.68 + level * 0.04));
-export const generatorArt = (g: GenId) => toUrl(`gen-${g}`, genArt[g], 0.9);
+/** Level 1 uses the plain key; a painted `gen-x` override covers every level unless `gen-x-N` exists. */
+export const generatorArt = (g: GenId, lv = 1) =>
+  lv > 1 && !overrides.has(`gen-${g}-${lv}`) && overrides.has(`gen-${g}`)
+    ? toUrl(`gen-${g}`, (s) => genArt[g](s, 1), 0.9)
+    : toUrl(lv > 1 ? `gen-${g}-${lv}` : `gen-${g}`, (s) => genArt[g](s, lv), 0.9);
 export const monsterImg = (k: MonsterKind) => toUrl(`mon-${k}`, monsterArt[k], 0.94);
-export const pieceArt = (p: Piece) => (p.kind === 'gen' ? generatorArt(p.gen) : itemArt(p.chain, p.level));
+export const pieceArt = (p: Piece) => (p.kind === 'gen' ? generatorArt(p.gen, p.level ?? 1) : itemArt(p.chain, p.level));
 
 export const iconArt = {
   owl: () => toUrl('icon-owl', (s) => {
@@ -788,7 +835,7 @@ export const iconArt = {
 export function artKeys(): string[] {
   const out: string[] = [];
   for (const c of Object.keys(chainArt) as ChainId[]) chainArt[c].forEach((_, i) => out.push(`${c}-${i + 1}`));
-  for (const g of Object.keys(genArt) as GenId[]) out.push(`gen-${g}`);
+  for (const g of Object.keys(genArt) as GenId[]) for (let lv = 1; lv <= GEN_LEVELS.length; lv++) out.push(lv > 1 ? `gen-${g}-${lv}` : `gen-${g}`);
   for (const m of Object.keys(monsterArt) as MonsterKind[]) out.push(`mon-${m}`);
   out.push(...Object.keys(iconArt).map((k) => `icon-${k}`));
   return out;
@@ -798,7 +845,7 @@ export function artKeys(): string[] {
 export function allArt(): string[] {
   const out: string[] = [];
   for (const c of Object.keys(chainArt) as ChainId[]) chainArt[c].forEach((_, i) => out.push(itemArt(c, i + 1)));
-  for (const g of Object.keys(genArt) as GenId[]) out.push(generatorArt(g));
+  for (const g of Object.keys(genArt) as GenId[]) for (let lv = 1; lv <= GEN_LEVELS.length; lv++) out.push(generatorArt(g, lv));
   for (const m of Object.keys(monsterArt) as MonsterKind[]) out.push(monsterImg(m));
   return out;
 }
