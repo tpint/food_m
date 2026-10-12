@@ -91,7 +91,13 @@ export const GEN_LEVELS: GenLevel[] = [
   { odds: [70, 25, 5], freeChance: 0.05, upgradeCost: 120, upgradeReq: 3 },
   { odds: [55, 32, 13], freeChance: 0.1, upgradeCost: 300, upgradeReq: 5 },
   { odds: [42, 36, 18, 4], freeChance: 0.15, upgradeCost: 700, upgradeReq: 7 },
-  { odds: [32, 36, 22, 10], freeChance: 0.2 },
+  { odds: [32, 36, 22, 10], freeChance: 0.2, upgradeCost: 1500, upgradeReq: 9 },
+  // Levels 6-10 add a small chance of a level 5 drop and keep improving the odds.
+  { odds: [26, 34, 25, 13, 2], freeChance: 0.22, upgradeCost: 2500, upgradeReq: 11 },
+  { odds: [20, 32, 28, 16, 4], freeChance: 0.25, upgradeCost: 4000, upgradeReq: 13 },
+  { odds: [15, 30, 30, 19, 6], freeChance: 0.28, upgradeCost: 6000, upgradeReq: 15 },
+  { odds: [10, 28, 32, 22, 8], freeChance: 0.31, upgradeCost: 9000, upgradeReq: 18 },
+  { odds: [6, 24, 34, 26, 10], freeChance: 0.35 },
 ];
 
 export interface MonsterDef {

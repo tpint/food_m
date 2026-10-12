@@ -533,11 +533,29 @@ function alchemy(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cx: number, cy
  * symbol on the left page; `emerge` draws the element rising from the pages.
  * Each generator level dresses the book up a little more:
  * 1 plain leather and iron, 2 gold corners, 3 gilt trim, a spine gem and a rune
- * ring, 4 glowing script, a gold ribbon and floating runes, 5 golden rays and corner gems.
+ * ring, 4 glowing script, a gold ribbon and floating runes, 5 golden rays and corner gems,
+ * 6 an orbit of element motes, 7 crystal shards and a gem-studded cover, 8 a floating
+ * crown, 9 gilded wings, 10 a starry sky behind it and rays in the element's colour.
  */
 function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, lv: number, emerge: () => void) {
   const glow = { earth: '#ffd27a', water: '#8fe0ff', wind: '#a8ffe0', fire: '#ffb04a' }[el];
   const fittings = lv >= 2 ? P.metal : P.stone;
+  if (lv >= 10) {
+    // A disc of night sky full of stars.
+    s.behind.push(`<circle cx="50" cy="56" r="56" fill="#2a1a5a" opacity=".55"/><circle cx="50" cy="56" r="56" fill="none" stroke="${glow}" stroke-width="2" opacity=".8"/>`);
+    for (let k = 0; k < 18; k++) {
+      const a = k * 2.39996, r = 18 + ((k * 37) % 36);
+      s.behind.push(`<circle cx="${(50 + Math.cos(a) * r).toFixed(1)}" cy="${(56 + Math.sin(a) * r).toFixed(1)}" r="${(0.8 + (k % 3) * 0.5).toFixed(1)}" fill="#fff"/>`);
+    }
+  }
+  if (lv >= 9) {
+    // Gilded wings spreading from behind the covers.
+    for (const f of [1, -1]) {
+      const x = (n: number) => (50 + f * n).toFixed(1);
+      s.behind.push(`<path d="M${x(30)} 66C${x(36)} 34 ${x(44)} 18 ${x(50)} 6Q${x(47)} 20 ${x(50)} 26Q${x(44)} 30 ${x(48)} 38Q${x(42)} 40 ${x(45)} 48Q${x(39)} 50 ${x(40)} 58Z" fill="${s.rad(P.metal)}" stroke="${P.metal.ink}" stroke-width="1.8" stroke-linejoin="round"/>`);
+      s.behind.push(`<path d="M${x(34)} 58L${x(46)} 24M${x(36)} 60L${x(45)} 38M${x(37)} 62L${x(42)} 50" stroke="${P.metal.lo}" stroke-width="1.3" stroke-linecap="round"/>`);
+    }
+  }
   if (lv >= 5) {
     // Golden rays fanning out behind everything.
     const rays: string[] = [];
@@ -546,6 +564,19 @@ function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, l
       rays.push(`M50 58L${(50 + Math.cos(a) * 70).toFixed(1)} ${(58 + Math.sin(a) * 70).toFixed(1)}L${(50 + Math.cos(b) * 70).toFixed(1)} ${(58 + Math.sin(b) * 70).toFixed(1)}Z`);
     }
     s.behind.push(`<path d="${rays.join('')}" fill="#ffd84a" opacity=".6"/>`);
+    if (lv >= 10) {
+      // A second fan of rays in the element's colour, between the gold ones.
+      const more: string[] = [];
+      for (let k = 0; k < 12; k++) {
+        const a = ((k + 0.5) / 12) * Math.PI * 2, b = a + 0.09;
+        more.push(`M50 58L${(50 + Math.cos(a) * 64).toFixed(1)} ${(58 + Math.sin(a) * 64).toFixed(1)}L${(50 + Math.cos(b) * 64).toFixed(1)} ${(58 + Math.sin(b) * 64).toFixed(1)}Z`);
+      }
+      s.behind.push(`<path d="${more.join('')}" fill="${glow}" opacity=".7"/>`);
+    }
+  }
+  if (lv >= 6) {
+    // The back half of an orbit; the front half is drawn over the book.
+    s.behind.push(`<path d="M6 60A44 14 -12 0 1 94 42" fill="none" stroke="${glow}" stroke-width="2" opacity=".85"/>`);
   }
   if (lv >= 3) {
     // A rune ring the book hovers over.
@@ -580,7 +611,31 @@ function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, l
   s.add(`<circle cx="50" cy="91" r="${lv >= 3 ? 4.5 : 3.5}" fill="${s.rad(fittings)}" stroke="${fittings.ink}" stroke-width="1.6"/>`);
   if (lv >= 3) s.add(`<circle cx="50" cy="91" r="2.4" fill="${s.rad(cover, 'gem')}"/><circle cx="49.2" cy="90.2" r=".9" fill="#fff"/>`);
 
+  if (lv >= 7) {
+    // Gems set along the cover edge.
+    for (const [x, y] of [[9, 62], [9, 76], [91, 62], [91, 76]]) s.add(`<circle cx="${x}" cy="${y}" r="2.2" fill="${s.rad(cover, 'gem')}" stroke="${P.metal.ink}" stroke-width="1"/>`);
+  }
+
   emerge();
+  if (lv >= 7) {
+    // Crystal shards floating either side of the book.
+    for (const [x, y, t] of [[13, 34, -18], [87, 30, 16]]) {
+      s.fx.push(`<path d="M${x} ${y - 9}L${x + 4} ${y}L${x} ${y + 9}L${x - 4} ${y}Z" transform="rotate(${t} ${x} ${y})" fill="${glow}" stroke="${cover.ink}" stroke-width="1.4" stroke-linejoin="round"/>`);
+      s.fx.push(`<path d="M${x} ${y - 9}L${x + 4} ${y}L${x} ${y}Z" transform="rotate(${t} ${x} ${y})" fill="#fff" opacity=".6"/>`);
+    }
+  }
+  if (lv >= 6) {
+    // Front half of the orbit, with motes of the element riding it.
+    s.fx.push(`<path d="M94 42A44 14 -12 0 1 6 60" fill="none" stroke="${glow}" stroke-width="2.4" opacity=".95"/>`);
+    for (const [x, y, r] of [[18, 66, 3.2], [62, 70, 2.6], [88, 50, 2.2]]) {
+      s.fx.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="${glow}" stroke="#fff" stroke-width="1"/>`);
+    }
+  }
+  if (lv >= 8) {
+    // A small crown resting on top of the rising element.
+    s.fx.push(`<path d="M41 20L42.5 12L46.5 16L50 9L53.5 16L57.5 12L59 20Z" fill="${s.rad(P.metal)}" stroke="${P.metal.ink}" stroke-width="1.8" stroke-linejoin="round"/>`);
+    s.fx.push(`<circle cx="50" cy="17" r="1.8" fill="${s.rad(cover, 'gem')}" stroke="${P.metal.ink}" stroke-width="1"/><circle cx="50" cy="9" r="1.3" fill="${glow}"/>`);
+  }
   if (lv >= 5) {
     // Gems set in the gold corners.
     for (const x of [13, 87]) s.add(`<circle cx="${x}" cy="85" r="2.6" fill="${s.rad(cover, 'gem')}" stroke="${P.metal.ink}" stroke-width="1.2"/>`);

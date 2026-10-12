@@ -250,6 +250,31 @@ describe('generator upgrades', () => {
     expect(canUpgrade(s, 0)).toEqual({ ok: false, reason: 'max' });
   });
 
+  it('has ten levels, each costing more and needing a higher player level', () => {
+    expect(GEN_LEVELS).toHaveLength(10);
+    const ups = GEN_LEVELS.slice(0, -1);
+    for (let i = 1; i < ups.length; i++) {
+      expect(ups[i].upgradeCost!).toBeGreaterThan(ups[i - 1].upgradeCost!);
+      expect(ups[i].upgradeReq!).toBeGreaterThan(ups[i - 1].upgradeReq!);
+      expect(GEN_LEVELS[i].freeChance).toBeGreaterThan(GEN_LEVELS[i - 1].freeChance);
+    }
+    expect(GEN_LEVELS[9].upgradeCost).toBeUndefined();
+  });
+
+  it('upgrades from level 5 to 6 and level 10 can drop level 5 items', () => {
+    const s = empty();
+    s.board[0].piece = gen('well', 5);
+    s.coins = 1e6;
+    s.level = GEN_LEVELS[4].upgradeReq! - 1;
+    expect(canUpgrade(s, 0)).toMatchObject({ ok: false, reason: 'level' });
+    s.level++;
+    expect(upgradeGen(s, 0)).toMatchObject({ ok: true });
+    expect(genLevel(s.board[0].piece!)).toBe(6);
+    s.board[0].piece = gen('well', 10);
+    const r = spawnFrom(s, 0, () => 0.999);
+    expect(r.ok && r.piece).toEqual(item('water', 5));
+  });
+
   it('higher levels can drop higher level items and conjure for free', () => {
     const s = empty();
     s.board[0].piece = gen('windmill', 5);

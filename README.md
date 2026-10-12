@@ -31,8 +31,10 @@ npm run build      # production build in dist/
 - **Generators**: tap one to select it (free; shows its info and Upgrade button), then tap it again to conjure an item. Each conjure costs 1 ⚡ mana.
   Mana refills over time (+1 every 20 s, up to 100).
 - **Upgrade generators**: select a generator and press **Upgrade** (costs coins, needs a minimum player level).
-  Each level (up to 5) raises the odds of higher-level drops and adds a chance of a free conjure. Tuning lives in `GEN_LEVELS`.
-  Each level also dresses the grimoire up: gold corners, then gilt trim and a rune ring, glowing script, and golden rays at level 5.
+  Each level (up to 10) raises the odds of higher-level drops and adds a chance of a free conjure; from level 6 a
+  grimoire can drop level 5 items. Tuning lives in `GEN_LEVELS`.
+  Each level also dresses the grimoire up: gold corners, then gilt trim and a rune ring, glowing script, golden rays at
+  level 5, an orbit of element motes, crystal shards and a gem-studded cover, a crown, gilded wings, and a starry sky at level 10.
 - **Merge**: put three identical items side by side (drag one onto or next to the other two) to make one of the next level.
   Five touching items make two. Two alone won't merge. Items you can merge with glow blue while you drag.
 - **Monsters**: each card shows the items the monster is weak to. Items that match get a ✓.
