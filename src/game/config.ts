@@ -1,7 +1,9 @@
 // Static game data: merge chains, generators and monsters.
 
-export type ChainId = 'crystal' | 'herb' | 'flame' | 'arcane' | 'coin' | 'mana';
-export type GenId = 'geode' | 'planter' | 'forge' | 'lectern';
+export type ChainId = 'earth' | 'water' | 'wind' | 'fire' | 'coin' | 'mana';
+export type GenId = 'geode' | 'well' | 'windmill' | 'forge';
+/** The four elements players brew spells from. */
+export type ElementId = 'earth' | 'water' | 'wind' | 'fire';
 export type MonsterKind = 'slime' | 'bat' | 'ghost' | 'mushroom' | 'imp' | 'golem' | 'dragon';
 
 export interface ChainDef {
@@ -16,29 +18,29 @@ export interface ChainDef {
 }
 
 export const CHAINS: Record<ChainId, ChainDef> = {
-  crystal: {
-    id: 'crystal',
-    name: 'Crystal',
-    levels: ['Crystal Shard', 'Twin Shards', 'Crystal Cluster', 'Cut Gem', 'Mana Orb', 'Scrying Ball', 'Star Prism'],
-    color: '#5cc8f0',
+  earth: {
+    id: 'earth',
+    name: 'Earth',
+    levels: ['Pebble', 'Acorn', 'Rock Cairn', 'Clay Urn', 'Standing Stone', 'Mountain Peak', 'Floating Isle'],
+    color: '#c79056',
   },
-  herb: {
-    id: 'herb',
-    name: 'Herbal',
-    levels: ['Magic Seed', 'Sprout', 'Clover Sprig', 'Herb Bundle', 'Potted Mandrake', 'Moonbloom', 'Elder Bonsai'],
-    color: '#6cbf4a',
+  water: {
+    id: 'water',
+    name: 'Water',
+    levels: ['Bubbles', 'Seashell', 'Splash', 'Tide Orb', 'Fountain', 'Trident', 'Great Wave'],
+    color: '#4aa8f0',
   },
-  flame: {
-    id: 'flame',
-    name: 'Flame',
+  wind: {
+    id: 'wind',
+    name: 'Wind',
+    levels: ['Wisp', 'Dandelion', 'Pinwheel', 'Kite', 'Wind Chime', 'Tornado', 'Storm Cloud'],
+    color: '#6fdcb8',
+  },
+  fire: {
+    id: 'fire',
+    name: 'Fire',
     levels: ['Ember', 'Candle', 'Candelabra', 'Lantern', 'Brazier', 'Phoenix Feather', 'Dragon Egg'],
     color: '#ff8a3c',
-  },
-  arcane: {
-    id: 'arcane',
-    name: 'Arcane',
-    levels: ['Rune Pebble', 'Rune Tablet', 'Spell Scroll', 'Spellbook', 'Magic Wand', 'Wizard Hat', 'Grimoire'],
-    color: '#a970e8',
   },
   coin: {
     id: 'coin',
@@ -56,7 +58,8 @@ export const CHAINS: Record<ChainId, ChainDef> = {
   },
 };
 
-export const MAGIC_CHAINS: ChainId[] = ['crystal', 'herb', 'flame', 'arcane'];
+export const MAGIC_CHAINS: ElementId[] = ['earth', 'water', 'wind', 'fire'];
+export const isElement = (c: ChainId): c is ElementId => (MAGIC_CHAINS as ChainId[]).includes(c);
 
 export interface GenDef {
   id: GenId;
@@ -65,10 +68,10 @@ export interface GenDef {
 }
 
 export const GENERATORS: Record<GenId, GenDef> = {
-  geode: { id: 'geode', name: 'Glimmer Geode', chain: 'crystal' },
-  planter: { id: 'planter', name: 'Fairy Planter', chain: 'herb' },
-  forge: { id: 'forge', name: 'Ember Forge', chain: 'flame' },
-  lectern: { id: 'lectern', name: 'Rune Lectern', chain: 'arcane' },
+  geode: { id: 'geode', name: 'Earthen Geode', chain: 'earth' },
+  well: { id: 'well', name: 'Wishing Well', chain: 'water' },
+  windmill: { id: 'windmill', name: 'Windmill', chain: 'wind' },
+  forge: { id: 'forge', name: 'Ember Forge', chain: 'fire' },
 };
 
 export interface GenLevel {

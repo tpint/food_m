@@ -18,7 +18,9 @@ npm run build      # production build in dist/
 
 ## How to play
 
-- **Generators** (Geode, Planter, Forge, Lectern): tap one to conjure an item. Each tap costs 1 ⚡ mana.
+- **Elements**: Earth, Water, Wind and Fire. Each has a 7-level merge chain and its own generator
+  (Earthen Geode, Wishing Well, Windmill, Ember Forge).
+- **Generators**: tap one to conjure an item. Each tap costs 1 ⚡ mana.
   Mana refills over time (+1 every 20 s, up to 100).
 - **Upgrade generators**: select a generator and press **Upgrade** (costs coins, needs a minimum player level).
   Each level (up to 5) raises the odds of higher-level drops and adds a chance of a free conjure. Tuning lives in `GEN_LEVELS`.
@@ -55,10 +57,12 @@ Every push to `main` deploys to GitHub Pages: https://tpint.github.io/magic_m/
 ## Art direction
 
 Straight top-down grid with soft 2D art, following the four merge-art rules:
-1. **Silhouette progression**: e.g. shard → twin shards → cluster → gem → orb → scrying ball → star.
-2. **Strict colour coding**: Crystal = blue, Herbal = green/brown, Flame = orange/red, Arcane = purple, Gold = yellow, Mana = pink.
+1. **Silhouette progression**: e.g. bubbles → seashell → splash → tide orb → fountain → trident → great wave.
+2. **Strict colour coding**: Earth = brown, Water = blue, Wind = mint/white, Fire = orange/red, Gold = yellow, Mana = pink.
 3. **Low-contrast board**: cream tiles with very little contrast. The dark backdrop sits outside the board.
-4. **Juicy VFX**: merge flash + bounce, particle bursts, shockwave rings, items flying to monsters, coin showers and sounds.
+4. **Juicy VFX**: merge flash + bounce, particle bursts, shockwave rings, coin showers and sounds. Each element has its own
+   spell hit when cast at a monster (fire burst, water splash, wind vortex, earth rocks), and it grows with item level:
+   level 4+ adds a fire pillar / geyser / tornado / ground cracks and screen shake, level 5+ a coloured flash, level 7 a finale.
 
 The SVG art is a stand-in. Items are auto-framed to fill their tile and get a sticker outline and drop shadow, so the set stays consistent.
 To replace any item with painted art, drop a PNG into `public/art/` and list its key in `public/art/manifest.json`

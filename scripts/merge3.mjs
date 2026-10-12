@@ -15,8 +15,8 @@ const drag = async (a, z) => {
 // Four herbs in a row on the first open row, a fifth further down; then reload so they render.
 await p.evaluate(() => {
   const s = window.arcane.state;
-  for (const i of [22, 23, 24, 25, 49]) s.board[i] = { piece: { kind: 'item', chain: 'herb', level: 2 }, lock: 0 };
-  localStorage.setItem('arcane-merge-save-v1', JSON.stringify(s));
+  for (const i of [22, 23, 24, 25, 49]) s.board[i] = { piece: { kind: 'item', chain: 'earth', level: 2 }, lock: 0 };
+  localStorage.setItem('arcane-merge-save-v2', JSON.stringify(s));
 });
 await p.reload(); await p.waitForTimeout(500);
 await drag(49, 22);

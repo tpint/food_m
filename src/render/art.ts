@@ -147,136 +147,6 @@ function crystal(s: Svg, cx: number, by: number, w: number, h: number, rot = 0, 
   s.add('</g>');
 }
 
-function rockBase(s: Svg, cx: number, by: number, w: number) {
-  s.add(shape(`M${cx - w / 2} ${by}Q${cx - w / 2 - 2} ${by - 9} ${cx - w / 4} ${by - 11}Q${cx} ${by - 15} ${cx + w / 4} ${by - 11}Q${cx + w / 2 + 2} ${by - 9} ${cx + w / 2} ${by}Q${cx} ${by + 5} ${cx - w / 2} ${by}Z`, s.rad(P.stone), P.stone.ink));
-}
-
-const crystalArt: ((s: Svg) => void)[] = [
-  (s) => { s.shadow(12, 82); crystal(s, 50, 78, 18, 40, 12); s.sparkle(66, 40, 5); },
-  (s) => { s.shadow(18, 84); crystal(s, 40, 80, 18, 42, -14); crystal(s, 58, 82, 20, 52, 10); s.sparkle(28, 36, 5); },
-  (s) => {
-    s.shadow(30, 88); rockBase(s, 50, 88, 60);
-    crystal(s, 32, 80, 16, 34, -28); crystal(s, 68, 80, 16, 36, 26); crystal(s, 50, 78, 22, 60, 0); s.sparkle(76, 30, 6);
-  },
-  (s) => {
-    s.shadow(26, 88); const p = P.crystal;
-    s.add(shape('M22 40L36 22L64 22L78 40L50 84Z', s.rad(p), p.ink));
-    s.add(`<path d="M22 40L78 40M36 22L42 40L50 84L58 40L64 22M42 40L50 22L58 40" fill="none" stroke="${p.ink}" stroke-width="1.6" opacity=".55"/>`);
-    s.add('<path d="M36 22L42 40L22 40Z" fill="#fff" opacity=".55"/><path d="M42 40L50 84L22 40Z" fill="#fff" opacity=".25"/><path d="M58 40L78 40L50 84Z" fill="#1d5a8f" opacity=".2"/>');
-    s.sparkle(72, 22, 7); s.sparkle(26, 70, 4);
-  },
-  (s) => {
-    s.halo('#8fe3ff'); s.shadow(22, 88);
-    s.add(shape('M50 18A30 30 0 1 1 49.9 18Z', s.rad(P.crystal), P.crystal.ink));
-    s.add('<path d="M34 54Q44 38 62 44Q52 50 50 66Q40 66 34 54Z" fill="#fff" opacity=".35"/>');
-    s.add('<ellipse cx="39" cy="34" rx="9" ry="6" fill="#fff" opacity=".8" transform="rotate(-30 39 34)"/>');
-    s.sparkle(76, 24, 6); s.sparkle(22, 72, 4);
-  },
-  (s) => {
-    s.halo('#a6ecff'); s.shadow(28, 90);
-    s.add(shape('M28 88L34 72L66 72L72 88Z', s.rad(P.metal), P.metal.ink));
-    s.add(shape('M36 74Q50 64 64 74', 'none', P.metal.ink));
-    s.add(shape('M50 10A30 30 0 1 1 49.9 10Z', s.rad(P.crystal), P.crystal.ink));
-    s.add('<path d="M36 46Q42 30 58 32Q48 40 56 52Q42 58 36 46Z" fill="#fff" opacity=".4"/><path d="M50 26Q66 30 64 46" fill="none" stroke="#fff" stroke-width="2" opacity=".6"/>');
-    s.add('<ellipse cx="38" cy="25" rx="8" ry="5" fill="#fff" opacity=".85" transform="rotate(-30 38 25)"/>');
-    s.sparkle(80, 18, 6); s.sparkle(18, 54, 5);
-  },
-  (s) => {
-    s.halo('#bff3ff'); s.shadow(26, 92);
-    const pts: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 17 : 40;
-      pts.push(`${(50 + Math.cos(a) * r).toFixed(1)} ${(50 + Math.sin(a) * r).toFixed(1)}`);
-    }
-    s.add(shape(`M${pts.join('L')}Z`, s.rad(P.crystal), P.crystal.ink));
-    s.add(`<path d="M50 10L50 50L88 38M50 50L74 82M50 50L26 82M50 50L12 38" fill="none" stroke="${P.crystal.ink}" stroke-width="1.4" opacity=".4"/>`);
-    s.add('<path d="M50 10L50 50L12 38L33 44Z" fill="#fff" opacity=".5"/>');
-    s.sparkle(84, 14, 7); s.sparkle(16, 16, 5); s.sparkle(86, 70, 4);
-  },
-];
-
-// ------------------------------------------------------------------ herb
-
-function leaf(s: Svg, x: number, y: number, len: number, rot: number, p = P.herb) {
-  s.add(`<g transform="translate(${x} ${y}) rotate(${rot})">`);
-  s.add(shape(`M0 0Q${len * 0.45} ${-len * 0.38} ${len} 0Q${len * 0.45} ${len * 0.38} 0 0Z`, s.rad(p), p.ink));
-  s.add(`<path d="M2 0L${len * 0.8} 0" stroke="${p.ink}" stroke-width="1.4" opacity=".5"/>`);
-  s.add('</g>');
-}
-
-function pot(s: Svg, cx: number, top: number, w: number, h: number) {
-  const p = P.pot;
-  s.add(shape(`M${cx - w * 0.42} ${top + 6}L${cx - w * 0.32} ${top + h}L${cx + w * 0.32} ${top + h}L${cx + w * 0.42} ${top + 6}Z`, s.rad(p), p.ink));
-  s.add(shape(`M${cx - w / 2} ${top}L${cx + w / 2} ${top}L${cx + w / 2} ${top + 9}L${cx - w / 2} ${top + 9}Z`, s.lin(p.hi, p.mid), p.ink, 'rx="3"'));
-  s.add(hl(`M${cx - w * 0.3} ${top + 14}L${cx - w * 0.25} ${top + h - 5}`, 2.5, 0.5));
-}
-
-const herbArt: ((s: Svg) => void)[] = [
-  (s) => {
-    s.shadow(14, 76);
-    s.add(shape('M50 44Q64 48 63 62Q61 76 50 76Q39 76 37 62Q36 48 50 44Z', s.rad(P.wood), P.wood.ink));
-    s.add('<path d="M50 48Q58 56 52 72" fill="none" stroke="#553016" stroke-width="1.5" opacity=".4"/>');
-    leaf(s, 50, 46, 14, -70); s.add('<ellipse cx="44" cy="56" rx="3" ry="5" fill="#fff" opacity=".6"/>');
-  },
-  (s) => {
-    s.shadow(22, 84);
-    s.add(shape('M28 84Q30 70 50 68Q70 70 72 84Z', s.rad(P.wood), P.wood.ink));
-    s.add(shape('M50 70Q49 54 51 42', 'none', P.herb.ink));
-    leaf(s, 50, 50, 24, -150); leaf(s, 51, 44, 26, -30);
-  },
-  (s) => {
-    s.shadow(20, 88);
-    s.add(shape('M50 88Q46 66 52 38', 'none', P.herb.ink, 'stroke-width="4"'));
-    const heart = (x: number, y: number, r: number) => {
-      s.add(`<g transform="translate(${x} ${y}) rotate(${r})">`);
-      s.add(shape('M0 0C-14 -6 -16 -22 -6 -24C-2 -24 0 -20 0 -18C0 -20 2 -24 6 -24C16 -22 14 -6 0 0Z', s.rad(P.herb), P.herb.ink));
-      s.add('<path d="M0 -2L0 -16" stroke="#2c5a27" stroke-width="1.4" opacity=".5"/></g>');
-    };
-    heart(52, 40, 0); heart(50, 42, -100); heart(54, 42, 100);
-    leaf(s, 49, 70, 18, -160); s.sparkle(76, 20, 5);
-  },
-  (s) => {
-    s.shadow(26, 90);
-    for (const [r, l] of [[-120, 30], [-95, 36], [-75, 38], [-55, 32], [-105, 34]] as const) {
-      s.add(shape(`M50 82L${50 + Math.cos((r * Math.PI) / 180) * 30} ${82 + Math.sin((r * Math.PI) / 180) * 30}`, 'none', P.herb.ink));
-      leaf(s, 50 + Math.cos((r * Math.PI) / 180) * 26, 82 + Math.sin((r * Math.PI) / 180) * 26, l * 0.6, r - 10);
-    }
-    leaf(s, 50, 52, 26, -100); leaf(s, 48, 54, 22, -130); leaf(s, 52, 54, 22, -50);
-    s.add(shape('M38 70L62 70L60 78L40 78Z', s.lin('#f1d29a', '#c7964e'), '#7c4a24'));
-    s.add('<path d="M41 74L59 74" stroke="#7c4a24" stroke-width="1.5"/>');
-  },
-  (s) => {
-    s.shadow(26, 92); pot(s, 50, 58, 50, 32);
-    s.add(shape('M36 60Q34 46 50 44Q66 46 64 60Z', s.rad({ hi: '#f6e0b8', mid: '#dcb57c', lo: '#a87a42', ink: '#6b4423' }), '#6b4423'));
-    s.add('<circle cx="44" cy="53" r="2.2" fill="#3a2414"/><circle cx="56" cy="53" r="2.2" fill="#3a2414"/><path d="M46 58Q50 61 54 58" fill="none" stroke="#3a2414" stroke-width="1.6" stroke-linecap="round"/>');
-    leaf(s, 50, 46, 30, -125); leaf(s, 50, 46, 30, -55); leaf(s, 50, 46, 26, -90);
-  },
-  (s) => {
-    s.halo('#e8ffd0'); s.shadow(26, 92); pot(s, 50, 62, 46, 28);
-    s.add(shape('M50 64Q48 50 50 40', 'none', P.herb.ink, 'stroke-width="3.5"'));
-    leaf(s, 50, 60, 26, -160); leaf(s, 50, 58, 26, -20);
-    for (let i = 0; i < 6; i++) {
-      s.add(`<g transform="rotate(${i * 60} 50 32)">`);
-      s.add(shape('M50 32Q41 20 50 10Q59 20 50 32Z', s.rad({ hi: '#ffffff', mid: '#eaffd8', lo: '#a6d98a', ink: '#4a7d3a' }), '#4a7d3a'));
-      s.add('</g>');
-    }
-    s.add(`<circle cx="50" cy="32" r="6" fill="${s.rad(P.coin)}" stroke="${P.coin.ink}" stroke-width="2"/>`);
-    s.sparkle(80, 16, 5); s.sparkle(18, 30, 4);
-  },
-  (s) => {
-    s.halo('#d6ffb0'); s.shadow(30, 93);
-    s.add(shape('M24 82L76 82L70 93L30 93Z', s.rad(P.stone), P.stone.ink));
-    s.add(shape('M48 82Q44 70 50 60Q54 52 46 46M50 64Q60 60 64 52', 'none', P.wood.ink, 'stroke-width="6"'));
-    s.add(shape('M48 82Q44 70 50 60Q54 52 46 46M50 64Q60 60 64 52', 'none', P.wood.mid, 'stroke-width="3"'));
-    for (const [x, y, r] of [[30, 42, 16], [52, 30, 20], [72, 44, 15], [42, 50, 12], [62, 54, 12]] as const) {
-      s.add(shape(`M${x} ${y - r}A${r} ${r} 0 1 1 ${x - 0.1} ${y - r}Z`, s.rad(P.herb), P.herb.ink));
-    }
-    s.add('<ellipse cx="44" cy="20" rx="7" ry="4" fill="#fff" opacity=".6" transform="rotate(-20 44 20)"/>');
-    for (const [x, y] of [[36, 36], [60, 26], [70, 46], [48, 46]]) s.add(`<circle cx="${x}" cy="${y}" r="2.6" fill="#ffe6f4" stroke="#d63f98" stroke-width="1"/>`);
-    s.sparkle(86, 18, 6); s.sparkle(14, 22, 4);
-  },
-];
-
 // ------------------------------------------------------------------ flame
 
 function fire(s: Svg, cx: number, by: number, w: number, h: number) {
@@ -352,82 +222,233 @@ const flameArt: ((s: Svg) => void)[] = [
   },
 ];
 
-// ------------------------------------------------------------------ arcane
+// ------------------------------------------------------------------ earth
 
-function rune(s: Svg, x: number, y: number, k: number, color = '#fff') {
-  const d = [
-    `M${x} ${y - k}L${x} ${y + k}M${x} ${y - k * 0.3}L${x + k * 0.7} ${y - k}M${x} ${y + k * 0.1}L${x - k * 0.7} ${y - k * 0.5}`,
-    `M${x - k * 0.6} ${y + k}L${x} ${y - k}L${x + k * 0.6} ${y + k}M${x - k * 0.35} ${y + k * 0.2}L${x + k * 0.35} ${y + k * 0.2}`,
-  ][Math.round(x + y) % 2];
-  s.add(`<path d="${d}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`);
+const EARTH = { hi: '#f4dcb0', mid: '#c79056', lo: '#8a5a2c', ink: '#553218' };
+const ROCK = { hi: '#ece0d0', mid: '#b8a286', lo: '#7e6a52', ink: '#4e3e2c' };
+const MOSS = { hi: '#e0f5b0', mid: '#8cc65a', lo: '#4e8a34', ink: '#2e5a22' };
+const NUT = { hi: '#f8e2b8', mid: '#dcae6e', lo: '#9a6a34', ink: '#5a3a18' };
+
+function stone(s: Svg, cx: number, cy: number, rx: number, ry: number, p = ROCK) {
+  s.add(shape(`M${cx - rx} ${cy}Q${cx - rx} ${cy - ry} ${cx - rx * 0.2} ${cy - ry}Q${cx + rx} ${cy - ry * 1.05} ${cx + rx} ${cy - ry * 0.1}Q${cx + rx * 1.02} ${cy + ry} ${cx} ${cy + ry}Q${cx - rx} ${cy + ry} ${cx - rx} ${cy}Z`, s.rad(p), p.ink));
+  s.add(hl(`M${cx - rx * 0.65} ${cy - ry * 0.2}Q${cx - rx * 0.5} ${cy - ry * 0.7} ${cx - rx * 0.1} ${cy - ry * 0.72}`, 2.4, 0.6));
 }
 
-function book(s: Svg, cx: number, cy: number, w: number, h: number, p: Pal) {
-  s.add(shape(`M${cx - w / 2 + 4} ${cy - h / 2 + 6}L${cx + w / 2} ${cy - h / 2 + 6}L${cx + w / 2} ${cy + h / 2 + 4}L${cx - w / 2 + 4} ${cy + h / 2 + 4}Z`, s.lin(P.paper.hi, P.paper.lo), P.paper.ink));
-  s.add(shape(`M${cx - w / 2} ${cy - h / 2}L${cx + w / 2 - 4} ${cy - h / 2}L${cx + w / 2 - 4} ${cy + h / 2}L${cx - w / 2} ${cy + h / 2}Z`, s.rad(p), p.ink, 'rx="4"'));
-  s.add(`<path d="M${cx - w / 2 + 6} ${cy - h / 2}L${cx - w / 2 + 6} ${cy + h / 2}" stroke="${p.ink}" stroke-width="2" opacity=".6"/>`);
+function tuft(s: Svg, x: number, y: number, k = 1) {
+  s.add(shape(`M${x - 6 * k} ${y}Q${x - 5 * k} ${y - 9 * k} ${x - 2 * k} ${y - 12 * k}Q${x - 1 * k} ${y - 6 * k} ${x} ${y - 4 * k}Q${x + 2 * k} ${y - 13 * k} ${x + 5 * k} ${y - 10 * k}Q${x + 4 * k} ${y - 5 * k} ${x + 6 * k} ${y}Z`, s.rad(MOSS), MOSS.ink));
 }
 
-const arcaneArt: ((s: Svg) => void)[] = [
+const earthArt: ((s: Svg) => void)[] = [
+  (s) => { s.shadow(16); stone(s, 50, 66, 18, 12); s.add(`<circle cx="56" cy="70" r="1.6" fill="${ROCK.lo}"/><circle cx="46" cy="72" r="1.2" fill="${ROCK.lo}"/>`); },
   (s) => {
-    s.shadow(16, 80);
-    s.add(shape('M50 50Q68 50 68 64Q68 78 50 78Q32 78 32 64Q32 50 50 50Z', s.rad(P.arcane), P.arcane.ink));
-    rune(s, 51, 64, 7, '#f6eaff'); s.add('<ellipse cx="41" cy="57" rx="5" ry="3" fill="#fff" opacity=".6"/>');
+    s.shadow(14);
+    s.add(shape('M37 50Q36 82 50 88Q64 82 63 50Z', s.rad(NUT), NUT.ink));
+    s.add(hl('M42 56Q41 72 47 80', 2.6, 0.6));
+    s.add(shape('M30 52Q29 34 50 31Q71 34 70 52Q50 58 30 52Z', s.rad(EARTH), EARTH.ink));
+    s.add(`<path d="M36 44L44 50M44 38L54 50M54 36L63 48M40 50L48 40M50 50L60 38" stroke="${EARTH.ink}" stroke-width="1.4" opacity=".4"/>`);
+    s.add(shape('M50 32Q51 24 58 21', 'none', EARTH.ink, 'stroke-width="3.5"'));
   },
   (s) => {
-    s.shadow(20, 88);
-    s.add(shape('M34 86L32 34Q32 22 50 22Q68 22 68 34L66 86Z', s.rad(P.arcane), P.arcane.ink));
-    rune(s, 50, 44, 8, '#f6eaff'); rune(s, 50, 68, 7, '#f6eaff');
-    s.add(hl('M38 36L38 80', 2.4, 0.5)); s.sparkle(76, 26, 5, '#f6eaff');
+    s.shadow(28);
+    stone(s, 50, 80, 30, 11); stone(s, 48, 61, 22, 9); stone(s, 52, 45, 15, 8); stone(s, 50, 32, 9, 6);
+    tuft(s, 26, 88, 0.9); tuft(s, 76, 88, 0.8);
   },
   (s) => {
-    s.shadow(28, 86);
-    s.add(shape('M22 30L78 30L78 74L22 74Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink));
-    for (let i = 0; i < 4; i++) s.add(`<path d="M30 ${40 + i * 8}L${70 - (i % 2) * 10} ${40 + i * 8}" stroke="${P.arcane.mid}" stroke-width="2.4" stroke-linecap="round" opacity=".8"/>`);
-    for (const y of [30, 74]) {
-      s.add(shape(`M16 ${y}A6 7 0 1 1 16 ${y + 0.1}Z`, s.rad(P.arcane), P.arcane.ink, `transform="translate(0 ${-0.05})"`));
-      s.add(shape(`M18 ${y - 6}L82 ${y - 6}Q88 ${y} 82 ${y + 6}L18 ${y + 6}Q12 ${y} 18 ${y - 6}Z`, s.lin(P.paper.hi, P.paper.lo), P.paper.ink));
-      s.add(`<circle cx="15" cy="${y}" r="5" fill="${s.rad(P.arcane)}" stroke="${P.arcane.ink}" stroke-width="2"/><circle cx="85" cy="${y}" r="5" fill="${s.rad(P.arcane)}" stroke="${P.arcane.ink}" stroke-width="2"/>`);
+    s.shadow(24);
+    s.add(shape('M40 20L60 20L58 30Q80 36 80 60Q80 86 50 88Q20 86 20 60Q20 36 42 30Z', s.rad(EARTH), EARTH.ink));
+    s.add(shape('M37 16L63 16L63 23L37 23Z', s.lin(EARTH.hi, EARTH.mid), EARTH.ink));
+    s.add(shape('M24 44Q12 46 14 58Q16 66 24 64', 'none', EARTH.ink, 'stroke-width="4"'));
+    s.add(shape('M76 44Q88 46 86 58Q84 66 76 64', 'none', EARTH.ink, 'stroke-width="4"'));
+    s.add(`<path d="M24 50Q50 58 76 50M22 70Q50 78 78 70" fill="none" stroke="${EARTH.lo}" stroke-width="2.4" opacity=".7"/>`);
+    s.add(shape('M50 50L60 66L40 66Z', MOSS.mid, MOSS.ink, 'stroke-width="2.4"'));
+    s.add(`<path d="M44 60L56 60" stroke="${MOSS.ink}" stroke-width="2"/>`);
+    s.add(hl('M28 44Q24 60 30 76', 3, 0.5));
+  },
+  (s) => {
+    s.halo('#c6f08a'); s.shadow(26);
+    s.add(shape('M32 88L28 40Q28 14 50 10Q72 14 72 40L68 88Z', s.rad(ROCK), ROCK.ink));
+    s.add(`<path d="M50 28L50 62M40 36L50 46L60 36M42 56L58 56" fill="none" stroke="#b8f070" stroke-width="5" stroke-linecap="round" opacity=".55"/>`);
+    s.add(`<path d="M50 28L50 62M40 36L50 46L60 36M42 56L58 56" fill="none" stroke="#f0ffd0" stroke-width="2.4" stroke-linecap="round"/>`);
+    s.add(shape('M30 76Q40 70 46 78Q52 70 62 74Q70 76 70 88L30 88Z', s.rad(MOSS), MOSS.ink));
+    s.add(hl('M34 40Q33 26 42 18', 3, 0.5));
+    tuft(s, 22, 90); tuft(s, 78, 90);
+  },
+  (s) => {
+    s.shadow(36);
+    s.add(shape('M10 86L36 34L50 52L64 22L92 86Z', s.rad(ROCK), ROCK.ink));
+    s.add(shape('M36 34L28 50L34 48L38 54L44 46Z', '#fff', ROCK.ink, 'stroke-width="2"'));
+    s.add(shape('M64 22L54 42L60 40L64 47L70 40L74 44Z', '#fff', ROCK.ink, 'stroke-width="2"'));
+    s.add(`<path d="M64 22L70 52L66 86M36 34L42 60" fill="none" stroke="${ROCK.lo}" stroke-width="2" opacity=".55"/>`);
+    s.add(shape('M10 86Q30 72 50 80Q72 70 92 86Z', s.rad(MOSS), MOSS.ink));
+  },
+  (s) => {
+    s.halo('#ffe39a'); s.shadow(26, 96);
+    // roots
+    s.add(`<path d="M40 74Q38 86 32 92M56 76Q58 88 64 94M48 78L48 92" fill="none" stroke="${EARTH.ink}" stroke-width="2.6" stroke-linecap="round"/>`);
+    s.add(shape('M14 54Q50 46 86 54Q76 70 60 78Q50 86 40 78Q24 70 14 54Z', s.rad(EARTH), EARTH.ink));
+    s.add(shape('M14 54Q50 44 86 54Q50 62 14 54Z', s.rad(MOSS), MOSS.ink));
+    s.add(shape('M46 54Q44 40 50 32', 'none', '#7c4a24', 'stroke-width="6"'));
+    s.add(shape('M46 54Q44 40 50 32', 'none', '#b67a43', 'stroke-width="3"'));
+    for (const [x, y, r] of [[38, 28, 11], [52, 18, 13], [64, 30, 10], [50, 32, 9]] as const) {
+      s.add(shape(`M${x} ${y - r}A${r} ${r} 0 1 1 ${x - 0.1} ${y - r}Z`, s.rad(MOSS), MOSS.ink));
     }
-    s.add(`<circle cx="66" cy="62" r="6" fill="#d8404a" stroke="#8a1e28" stroke-width="2"/>`);
+    stone(s, 72, 52, 6, 4); stone(s, 26, 53, 5, 3);
+    s.sparkle(86, 20, 6); s.sparkle(14, 30, 4);
+  },
+];
+
+// ------------------------------------------------------------------ water
+
+const WATER = { hi: '#e6f8ff', mid: '#5ab8f5', lo: '#1f6fc9', ink: '#12448a' };
+const FOAM = { hi: '#ffffff', mid: '#eaf6ff', lo: '#b8dcf5', ink: '#3a6ea8' };
+const SHELL = { hi: '#ffffff', mid: '#cfeafc', lo: '#7fb8e6', ink: '#2e5e9a' };
+
+function bubble(s: Svg, x: number, y: number, r: number) {
+  s.add(shape(`M${x} ${y - r}A${r} ${r} 0 1 1 ${x - 0.1} ${y - r}Z`, s.rad(WATER), WATER.ink));
+  s.add(`<ellipse cx="${x - r * 0.35}" cy="${y - r * 0.4}" rx="${r * 0.32}" ry="${r * 0.22}" fill="#fff" opacity=".85" transform="rotate(-30 ${x - r * 0.35} ${y - r * 0.4})"/>`);
+}
+
+function drop(s: Svg, x: number, y: number, r: number) {
+  s.add(shape(`M${x} ${y - r * 1.8}Q${x + r} ${y - r * 0.4} ${x + r} ${y + r * 0.2}Q${x + r} ${y + r} ${x} ${y + r}Q${x - r} ${y + r} ${x - r} ${y + r * 0.2}Q${x - r} ${y - r * 0.4} ${x} ${y - r * 1.8}Z`, s.rad(WATER), WATER.ink));
+  s.add(`<ellipse cx="${x - r * 0.4}" cy="${y}" rx="${r * 0.22}" ry="${r * 0.4}" fill="#fff" opacity=".7"/>`);
+}
+
+const waterArt: ((s: Svg) => void)[] = [
+  (s) => { s.shadow(16); bubble(s, 44, 66, 12); bubble(s, 60, 58, 8); bubble(s, 58, 74, 5); },
+  (s) => {
+    s.shadow(24);
+    s.add(shape('M50 84L22 46Q24 26 50 22Q76 26 78 46Z', s.rad(SHELL), SHELL.ink));
+    s.add(`<path d="M50 84L30 30M50 84L40 24M50 84L50 22M50 84L60 24M50 84L70 30" stroke="${SHELL.ink}" stroke-width="1.8" opacity=".45"/>`);
+    s.add(shape('M40 84L60 84L56 92L44 92Z', s.rad(SHELL), SHELL.ink));
+    s.add(hl('M30 44Q34 32 44 28', 2.6, 0.8));
   },
   (s) => {
-    s.shadow(28, 90);
-    book(s, 50, 52, 54, 64, P.arcane);
-    s.add(shape('M44 36L50 26L56 36L66 40L58 48L60 58L50 52L40 58L42 48L34 40Z', s.rad(P.coin), P.coin.ink, 'transform="translate(2 8) scale(.94)"'));
-    s.add(hl('M30 28L30 80', 2.4, 0.5));
-    s.add(`<path d="M24 76L74 76" stroke="${P.metal.mid}" stroke-width="4"/>`);
+    s.shadow(28);
+    s.add(shape('M14 78Q14 66 50 66Q86 66 86 78Q86 88 50 88Q14 88 14 78Z', s.rad(WATER), WATER.ink));
+    s.add(shape('M24 74Q28 52 34 46Q38 60 42 70Q46 42 52 36Q56 58 58 70Q64 48 68 44Q72 60 76 74Q50 82 24 74Z', s.rad(FOAM), FOAM.ink));
+    drop(s, 34, 34, 4); drop(s, 54, 22, 5); drop(s, 70, 32, 3.5);
+    s.add(`<ellipse cx="50" cy="80" rx="22" ry="4" fill="none" stroke="#fff" stroke-width="2" opacity=".6"/>`);
   },
   (s) => {
-    s.halo('#e6ccff'); s.shadow(18, 90);
-    s.add(shape('M24 86L64 40', 'none', P.wood.ink, 'stroke-width="9"'));
-    s.add(shape('M24 86L64 40', 'none', s.lin(P.wood.hi, P.wood.lo), 'stroke-width="5"'));
-    s.add(shape('M28 82L36 73', 'none', P.metal.ink, 'stroke-width="9"'));
-    s.add(shape('M28 82L36 73', 'none', P.metal.mid, 'stroke-width="5"'));
-    s.add(shape('M70 12L75 26L90 28L78 37L82 52L70 43L58 52L62 37L50 28L65 26Z', s.rad(P.arcane), P.arcane.ink));
-    s.add('<ellipse cx="66" cy="28" rx="4" ry="3" fill="#fff" opacity=".7"/>');
-    s.sparkle(36, 26, 5, '#f3e6ff'); s.sparkle(88, 64, 4, '#f3e6ff');
+    s.halo('#9fdcff'); s.shadow(22);
+    s.add(shape('M50 18A30 30 0 1 1 49.9 18Z', s.rad(WATER), WATER.ink));
+    s.add('<path d="M22 54Q30 46 38 54T54 54T70 54T80 52L78 62Q64 78 50 78Q30 78 22 62Z" fill="#1f6fc9" opacity=".55"/>');
+    s.add('<path d="M22 54Q30 46 38 54T54 54T70 54T80 52" fill="none" stroke="#fff" stroke-width="2.6" opacity=".85"/>');
+    s.add('<ellipse cx="38" cy="32" rx="9" ry="6" fill="#fff" opacity=".8" transform="rotate(-30 38 32)"/>');
+    s.sparkle(80, 22, 6);
   },
   (s) => {
-    s.shadow(32, 90);
-    s.add(shape('M14 80Q50 64 86 80Q86 90 50 90Q14 90 14 80Z', s.rad(P.arcane), P.arcane.ink));
-    s.add(shape('M28 78Q36 50 48 30Q56 12 78 10Q62 22 64 40Q68 60 72 78Q50 84 28 78Z', s.rad(P.arcane), P.arcane.ink));
-    s.add(shape('M28 74Q50 80 72 74L73 80Q50 86 28 80Z', s.rad(P.coin), P.coin.ink));
-    for (const [x, y, r] of [[48, 54, 5], [58, 36, 4], [40, 66, 3]]) s.sparkle(x, y, r, '#ffe680');
-    s.add(hl('M36 66Q42 46 52 32', 2.6, 0.45));
+    s.shadow(32);
+    s.add(shape('M14 74L86 74L80 88L20 88Z', s.rad(FOAM), FOAM.ink));
+    s.add(shape('M14 70Q50 64 86 70L86 76Q50 82 14 76Z', s.rad(WATER), WATER.ink));
+    s.add(shape('M44 72L42 46L58 46L56 72Z', s.rad(FOAM), FOAM.ink));
+    s.add(shape('M28 48Q50 40 72 48Q70 56 50 56Q30 56 28 48Z', s.rad(FOAM), FOAM.ink));
+    s.add(shape('M50 46Q48 28 50 16Q52 28 50 46', 'none', WATER.ink, 'stroke-width="5"'));
+    s.add(`<path d="M50 20Q30 22 26 48M50 20Q70 22 74 48" fill="none" stroke="${WATER.ink}" stroke-width="6" stroke-linecap="round"/>`);
+    s.add(`<path d="M50 20Q30 22 26 48M50 20Q70 22 74 48M50 44L50 18" fill="none" stroke="${WATER.mid}" stroke-width="3" stroke-linecap="round"/>`);
+    drop(s, 26, 58, 3); drop(s, 74, 58, 3);
   },
   (s) => {
-    s.halo('#d9b8ff'); s.shadow(26, 94);
-    s.add(shape('M50 34Q34 24 12 30L14 72Q34 66 50 76Q66 66 86 72L88 30Q66 24 50 34Z', s.rad(P.arcane), P.arcane.ink));
-    s.add(shape('M50 30Q34 20 16 26L18 66Q34 62 50 70Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink));
-    s.add(shape('M50 30Q66 20 84 26L82 66Q66 62 50 70Z', s.lin(P.paper.mid, P.paper.hi, false), P.paper.ink));
-    for (let i = 0; i < 3; i++) {
-      s.add(`<path d="M24 ${36 + i * 8}Q34 ${33 + i * 8} 44 ${38 + i * 8}" fill="none" stroke="${P.arcane.mid}" stroke-width="2" opacity=".8"/>`);
+    s.halo('#9fdcff'); s.shadow(16);
+    s.add('<g transform="rotate(28 50 50)">');
+    s.add(shape('M48 30L52 30L52 96L48 96Z', s.lin('#cfe8ff', '#6a8ab8', false), '#2e4a7a'));
+    s.add(shape('M30 34L30 14L34 6L38 14L38 30Q50 36 62 30L62 14L66 6L70 14L70 34Q60 44 50 42Q40 44 30 34Z', s.rad({ hi: '#ffffff', mid: '#9fd4ff', lo: '#3a7ac8', ink: '#1e3e78' }), '#1e3e78'));
+    s.add(shape('M46 42L50 4L54 42Z', s.rad({ hi: '#ffffff', mid: '#9fd4ff', lo: '#3a7ac8', ink: '#1e3e78' }), '#1e3e78'));
+    s.add('</g>');
+    s.add(`<path d="M20 72Q34 58 50 70T80 64" fill="none" stroke="${WATER.mid}" stroke-width="5" stroke-linecap="round" opacity=".8"/>`);
+    drop(s, 78, 44, 4); s.sparkle(22, 24, 5);
+  },
+  (s) => {
+    s.halo('#7fd0ff'); s.shadow(36);
+    s.add(shape('M8 88Q12 50 42 26Q70 8 88 26Q70 22 60 34Q78 34 80 50Q70 42 58 46Q48 52 50 66Q52 80 70 88Z', s.rad(WATER), WATER.ink));
+    s.add(shape('M42 26Q70 8 88 26Q78 30 70 26Q76 34 66 34Q58 28 52 36Q50 28 42 26Z', s.rad(FOAM), FOAM.ink));
+    s.add('<path d="M18 80Q22 56 40 40M30 84Q32 66 46 54" fill="none" stroke="#fff" stroke-width="2.4" opacity=".55"/>');
+    s.add(shape('M60 88Q70 80 92 86L92 92L56 92Z', s.rad(FOAM), FOAM.ink));
+    drop(s, 90, 40, 3.5); drop(s, 80, 12, 3); s.sparkle(16, 20, 6); s.sparkle(92, 60, 4);
+  },
+];
+
+// ------------------------------------------------------------------ wind
+
+const WIND = { hi: '#f2fff9', mid: '#9ce8cc', lo: '#3cb894', ink: '#1e6e5a' };
+const CLOUD = { hi: '#ffffff', mid: '#eef4fa', lo: '#bccadc', ink: '#56688a' };
+
+function swirl(s: Svg, x: number, y: number, r: number, w = 3.4) {
+  const d = `M${x - r} ${y}Q${x - r} ${y - r} ${x} ${y - r}Q${x + r} ${y - r} ${x + r} ${y}Q${x + r} ${y + r * 0.6} ${x + r * 0.1} ${y + r * 0.6}Q${x - r * 0.5} ${y + r * 0.6} ${x - r * 0.4} ${y}Q${x - r * 0.3} ${y - r * 0.35} ${x + r * 0.1} ${y - r * 0.3}`;
+  s.add(`<path d="${d}" fill="none" stroke="${WIND.ink}" stroke-width="${w + 3}" stroke-linecap="round"/>`);
+  s.add(`<path d="${d}" fill="none" stroke="${WIND.mid}" stroke-width="${w}" stroke-linecap="round"/>`);
+}
+
+function gust(s: Svg, x: number, y: number, len: number) {
+  const d = `M${x} ${y}L${x + len} ${y}Q${x + len + 8} ${y} ${x + len + 8} ${y - 6}Q${x + len + 8} ${y - 11} ${x + len + 3} ${y - 11}`;
+  s.add(`<path d="${d}" fill="none" stroke="${WIND.ink}" stroke-width="6" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${WIND.hi}" stroke-width="3" stroke-linecap="round"/>`);
+}
+
+const windArt: ((s: Svg) => void)[] = [
+  (s) => { s.shadow(14); swirl(s, 50, 62, 12); gust(s, 30, 78, 16); },
+  (s) => {
+    s.shadow(16);
+    s.add(shape('M50 88Q48 70 50 52', 'none', WIND.ink, 'stroke-width="3.5"'));
+    s.add(`<path d="M50 72Q40 68 36 60" fill="none" stroke="${WIND.lo}" stroke-width="3" stroke-linecap="round"/>`);
+    s.add(`<circle cx="50" cy="38" r="20" fill="#fff" stroke="${CLOUD.ink}" stroke-width="2.4" opacity=".95"/>`);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2, x = 50 + Math.cos(a) * 18, y = 38 + Math.sin(a) * 18;
+      s.add(`<path d="M50 38L${x.toFixed(1)} ${y.toFixed(1)}" stroke="${WIND.lo}" stroke-width="1.2" opacity=".7"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2" fill="${WIND.mid}"/>`);
     }
-    s.add(`<circle cx="66" cy="44" r="9" fill="none" stroke="${P.arcane.mid}" stroke-width="2.4"/>`);
-    rune(s, 66, 44, 5, P.arcane.lo);
-    s.add(`<path d="M50 14L50 6M34 16L30 9M66 16L70 9" stroke="#f3e6ff" stroke-width="3" stroke-linecap="round"/>`);
-    s.sparkle(16, 14, 5, '#f3e6ff'); s.sparkle(86, 12, 6, '#f3e6ff'); s.sparkle(88, 86, 4, '#f3e6ff');
+    s.add(`<circle cx="50" cy="38" r="4" fill="${WIND.lo}"/>`);
+    s.add(`<path d="M74 22L80 18M78 30L86 28" stroke="${WIND.lo}" stroke-width="2" stroke-linecap="round"/><circle cx="82" cy="18" r="2" fill="${WIND.mid}"/>`);
+  },
+  (s) => {
+    s.shadow(16);
+    s.add(shape('M48 50L46 92L54 92L52 50Z', s.lin('#e7b77d', '#7c4a24', false), '#553016'));
+    for (let i = 0; i < 4; i++) {
+      s.add(`<g transform="rotate(${i * 90} 50 44)">`);
+      s.add(shape('M50 44L50 14Q70 18 68 36Z', s.rad(i % 2 ? WIND : CLOUD), WIND.ink));
+      s.add('</g>');
+    }
+    s.add(`<circle cx="50" cy="44" r="4.5" fill="#ffd147" stroke="${WIND.ink}" stroke-width="2"/>`);
+  },
+  (s) => {
+    s.shadow(20);
+    s.add(`<path d="M50 74Q44 82 52 88Q60 94 50 100" fill="none" stroke="${WIND.ink}" stroke-width="2.4"/>`);
+    for (const y of [82, 92]) s.add(shape(`M44 ${y}L50 ${y - 3}L56 ${y}L50 ${y + 3}Z`, s.rad(WIND), WIND.ink, 'stroke-width="2"'));
+    s.add(shape('M50 10L78 40L50 74L22 40Z', s.rad(WIND), WIND.ink));
+    s.add('<path d="M50 10L50 74L22 40Z" fill="#fff" opacity=".45"/>');
+    s.add(`<path d="M50 10L50 74M22 40L78 40" stroke="${WIND.ink}" stroke-width="2" opacity=".6"/>`);
+    swirl(s, 64, 52, 5, 2);
+  },
+  (s) => {
+    s.shadow(24);
+    s.add(shape('M20 22Q50 10 80 22L78 28Q50 18 22 28Z', s.rad(P.wood), P.wood.ink));
+    s.add(`<path d="M50 4L50 16" stroke="${P.wood.ink}" stroke-width="3"/>`);
+    for (const [x, len] of [[30, 44], [42, 56], [54, 50], [66, 38]] as const) {
+      s.add(`<path d="M${x} 24L${x} 30" stroke="${CLOUD.ink}" stroke-width="1.6"/>`);
+      s.add(shape(`M${x - 4} 30L${x + 4} 30L${x + 4} ${30 + len}L${x - 4} ${30 + len}Z`, s.lin(WIND.hi, WIND.lo, false), WIND.ink, 'stroke-width="2.4"'));
+    }
+    s.add(`<path d="M48 26L48 70" stroke="${CLOUD.ink}" stroke-width="1.4"/>`);
+    s.add(shape('M42 70L54 70L48 84Z', s.rad(WIND), WIND.ink, 'stroke-width="2.2"'));
+    gust(s, 10, 52, 8); gust(s, 74, 62, 10);
+  },
+  (s) => {
+    s.halo('#b8f5e0'); s.shadow(18);
+    const bands = [[50, 18, 34, 8], [52, 32, 28, 7], [50, 45, 22, 6], [48, 57, 16, 5], [50, 68, 11, 4], [50, 78, 7, 3]];
+    for (const [x, y, rx, ry] of bands) {
+      s.add(shape(`M${x - rx} ${y}Q${x - rx} ${y + ry * 1.5} ${x} ${y + ry * 1.5}Q${x + rx} ${y + ry * 1.5} ${x + rx} ${y}Q${x + rx} ${y - ry} ${x} ${y - ry}Q${x - rx} ${y - ry} ${x - rx} ${y}Z`, s.rad(WIND), WIND.ink, 'stroke-width="2.4"'));
+    }
+    s.add(`<path d="M50 86L50 90" stroke="${WIND.ink}" stroke-width="3" stroke-linecap="round"/>`);
+    stone(s, 20, 46, 4, 3); stone(s, 82, 34, 3.5, 2.5);
+    s.add(shape('M78 62L86 58L84 66Z', '#8cc65a', '#2e5a22', 'stroke-width="1.6"'));
+  },
+  (s) => {
+    s.halo('#b8f5e0'); s.shadow(34, 96);
+    s.add(shape('M46 58L36 76L46 76L40 94L60 70L50 70L58 58Z', s.rad({ hi: '#fffbd0', mid: '#ffe060', lo: '#e8a820', ink: '#8a5a10' }), '#8a5a10'));
+    for (const [x, y, r] of [[26, 46, 14], [44, 34, 18], [64, 36, 16], [78, 48, 12], [52, 50, 14], [34, 52, 11]] as const) {
+      s.add(shape(`M${x} ${y - r}A${r} ${r} 0 1 1 ${x - 0.1} ${y - r}Z`, s.rad(CLOUD), CLOUD.ink));
+    }
+    s.add(`<path d="M16 56Q50 64 88 56L86 60Q50 70 16 60Z" fill="${CLOUD.lo}" opacity=".6"/>`);
+    swirl(s, 46, 40, 7, 2.6); swirl(s, 68, 42, 5, 2.2);
+    gust(s, 4, 70, 12); gust(s, 70, 78, 12);
+    s.sparkle(86, 20, 5);
   },
 ];
 
@@ -500,24 +521,42 @@ const manaArt: ((s: Svg) => void)[] = [
 const genArt: Record<GenId, (s: Svg) => void> = {
   geode: (s) => {
     s.shadow(36, 92);
-    s.add(shape('M12 86Q8 50 30 32Q50 20 70 32Q92 50 88 86Z', s.rad(P.stone), P.stone.ink));
-    s.add(shape('M22 84Q22 56 36 44Q50 36 64 44Q78 56 78 84Z', '#5b4f78', P.stone.ink));
-    crystal(s, 36, 84, 14, 30, -24); crystal(s, 64, 84, 14, 32, 22); crystal(s, 50, 84, 18, 40, 0);
+    s.add(shape('M12 86Q8 50 30 32Q50 20 70 32Q92 50 88 86Z', s.rad(ROCK), ROCK.ink));
+    s.add(shape('M22 84Q22 56 36 44Q50 36 64 44Q78 56 78 84Z', '#4a3424', ROCK.ink));
+    const amber = { hi: '#fff0c8', mid: '#e6b066', lo: '#a8662c', ink: '#5a3214' };
+    crystal(s, 36, 84, 14, 30, -24, amber); crystal(s, 64, 84, 14, 32, 22, amber); crystal(s, 50, 84, 18, 40, 0, amber);
+    tuft(s, 16, 88); tuft(s, 84, 88, 0.8);
     s.add(hl('M18 70Q18 50 30 40', 3, 0.55)); s.sparkle(80, 22, 6);
   },
-  planter: (s) => {
-    s.shadow(36, 92);
-    leaf(s, 30, 52, 22, -120); leaf(s, 44, 50, 26, -80); leaf(s, 58, 52, 24, -100); leaf(s, 70, 52, 22, -50);
-    s.add(shape('M50 52Q48 30 52 22', 'none', P.herb.ink, 'stroke-width="3"'));
-    for (let i = 0; i < 5; i++) {
-      s.add(`<g transform="rotate(${i * 72} 52 20)">`);
-      s.add(shape('M52 20Q46 12 52 6Q58 12 52 20Z', s.rad({ hi: '#fff', mid: '#ffd6ec', lo: '#f28cc4', ink: '#a8487a' }), '#a8487a'));
+  well: (s) => {
+    s.shadow(36, 94);
+    s.add(shape('M22 30L22 64M78 30L78 64', 'none', P.wood.ink, 'stroke-width="7"'));
+    s.add(shape('M22 30L22 64M78 30L78 64', 'none', P.wood.mid, 'stroke-width="3.5"'));
+    s.add(shape('M10 32L50 10L90 32L84 36L50 18L16 36Z', s.rad({ hi: '#9fd4ff', mid: '#4a8ad8', lo: '#24508a', ink: '#163460' }), '#163460'));
+    s.add(`<path d="M50 28L50 48" stroke="#553016" stroke-width="1.6"/>`);
+    s.add(shape('M44 48L56 48L54 58L46 58Z', s.rad(P.wood), P.wood.ink, 'stroke-width="2.2"'));
+    s.add(shape('M16 62Q50 54 84 62L80 92L20 92Z', s.rad(ROCK), ROCK.ink));
+    for (const [x, y, w] of [[22, 70, 18], [44, 68, 18], [66, 70, 14], [28, 80, 20], [52, 80, 20]] as const) {
+      s.add(`<rect x="${x}" y="${y}" width="${w}" height="7" rx="2.5" fill="#fff" opacity=".2"/>`);
+    }
+    s.add(shape('M18 62Q50 54 82 62Q50 70 18 62Z', s.rad(WATER), WATER.ink, 'stroke-width="2.4"'));
+    s.add('<path d="M34 62Q50 58 66 62" stroke="#fff" stroke-width="2" opacity=".7" fill="none"/>');
+    s.sparkle(86, 50, 5);
+  },
+  windmill: (s) => {
+    s.shadow(30, 94);
+    s.add(shape('M36 92L40 40L60 40L64 92Z', s.rad({ hi: '#fffaf0', mid: '#f0e2c8', lo: '#c8b08a', ink: '#6a5236' }), '#6a5236'));
+    s.add(shape('M34 42L50 26L66 42Z', s.rad(P.wood), P.wood.ink));
+    s.add(shape('M45 92L45 78Q50 72 55 78L55 92Z', '#7c4a24', '#553016', 'stroke-width="2"'));
+    s.add(`<circle cx="50" cy="58" r="4" fill="#9fd4ff" stroke="#6a5236" stroke-width="2"/>`);
+    for (let i = 0; i < 4; i++) {
+      s.add(`<g transform="rotate(${20 + i * 90} 50 38)">`);
+      s.add(shape('M48 38L48 4L60 6L58 36Z', s.rad(i % 2 ? WIND : CLOUD), WIND.ink, 'stroke-width="2.4"'));
+      s.add(`<path d="M52 10L56 10M52 18L57 18M52 26L57 26" stroke="${WIND.ink}" stroke-width="1.2" opacity=".5"/>`);
       s.add('</g>');
     }
-    s.add('<circle cx="52" cy="20" r="3.5" fill="#ffe680" stroke="#9a6510" stroke-width="1.5"/>');
-    s.add(shape('M12 54L88 54L82 90L18 90Z', s.rad(P.wood), P.wood.ink));
-    s.add(`<path d="M15 66L85 66M17 78L83 78" stroke="${P.wood.ink}" stroke-width="2" opacity=".5"/>`);
-    s.add(shape('M10 50L90 50L90 58L10 58Z', s.lin(P.wood.hi, P.wood.mid), P.wood.ink));
+    s.add(`<circle cx="50" cy="38" r="4.5" fill="#ffd147" stroke="${WIND.ink}" stroke-width="2"/>`);
+    gust(s, 4, 70, 10);
   },
   forge: (s) => {
     s.halo('#ffb46a'); s.shadow(36, 93);
@@ -528,17 +567,6 @@ const genArt: Record<GenId, (s: Svg) => void> = {
     s.add(shape('M30 90L30 62Q30 46 50 46Q70 46 70 62L70 90Z', '#4a2a2a', P.stone.ink));
     fire(s, 50, 88, 34, 38); fire(s, 40, 88, 14, 18); fire(s, 60, 88, 14, 20);
     s.add(shape('M10 90L90 90L90 94L10 94Z', P.stone.lo, P.stone.ink));
-  },
-  lectern: (s) => {
-    s.halo('#d9b8ff'); s.shadow(30, 93);
-    s.add(shape('M44 50L40 86L60 86L56 50Z', s.rad(P.wood), P.wood.ink));
-    s.add(shape('M26 88L74 88L70 94L30 94Z', s.rad(P.wood), P.wood.ink));
-    s.add(shape('M14 54L50 44L86 54L82 60L50 52L18 60Z', s.rad(P.wood), P.wood.ink));
-    s.add(shape('M50 46Q34 38 18 42L20 52Q36 48 50 54Q64 48 80 52L82 42Q66 38 50 46Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink));
-    for (const [x, y, r] of [[50, 22, 7], [32, 28, 4], [68, 26, 5]]) {
-      s.add(shape(`M${x} ${y - r * 1.4}L${x + r} ${y}L${x} ${y + r * 1.4}L${x - r} ${y}Z`, s.rad(P.arcane), P.arcane.ink));
-    }
-    s.sparkle(84, 16, 5, '#f3e6ff');
   },
 };
 
@@ -633,7 +661,7 @@ const monsterArt: Record<MonsterKind, (s: Svg) => void> = {
 // ------------------------------------------------------------------ API
 
 const chainArt: Record<ChainId, ((s: Svg) => void)[]> = {
-  crystal: crystalArt, herb: herbArt, flame: flameArt, arcane: arcaneArt, coin: coinArt, mana: manaArt,
+  earth: earthArt, water: waterArt, wind: windArt, fire: flameArt, coin: coinArt, mana: manaArt,
 };
 
 const cache = new Map<string, string>();
@@ -675,6 +703,14 @@ export const monsterImg = (k: MonsterKind) => toUrl(`mon-${k}`, monsterArt[k], 0
 export const pieceArt = (p: Piece) => (p.kind === 'gen' ? generatorArt(p.gen) : itemArt(p.chain, p.level));
 
 export const iconArt = {
+  hat: () => toUrl('icon-hat', (s) => {
+    s.shadow(32, 90);
+    s.add(shape('M14 80Q50 64 86 80Q86 90 50 90Q14 90 14 80Z', s.rad(P.arcane), P.arcane.ink));
+    s.add(shape('M28 78Q36 50 48 30Q56 12 78 10Q62 22 64 40Q68 60 72 78Q50 84 28 78Z', s.rad(P.arcane), P.arcane.ink));
+    s.add(shape('M28 74Q50 80 72 74L73 80Q50 86 28 80Z', s.rad(P.coin), P.coin.ink));
+    for (const [x, y, r] of [[48, 54, 5], [58, 36, 4], [40, 66, 3]]) s.sparkle(x, y, r, '#ffe680');
+    s.add(hl('M36 66Q42 46 52 32', 2.6, 0.45));
+  }),
   coin: () => toUrl('icon-coin', (s) => coinShape(s, 50, 50, 38)),
   gem: () => toUrl('icon-gem', (s) => {
     const p = { hi: '#ffe0f4', mid: '#ff6fb8', lo: '#c0247a', ink: '#7a1450' };

@@ -1,11 +1,11 @@
 import './style.css';
-import { CHAINS, GEN_LEVELS, GENERATORS, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
+import { CHAINS, ElementId, GEN_LEVELS, GENERATORS, isElement, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
   GameState, MERGE_COUNT, Monster, Piece, canUpgrade, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
   newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen,
 } from './game/state';
 import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
-import { burst, puff, shower, trail } from './render/fx';
+import { burst, elementHit, elementTrail, puff, shower, trail } from './render/fx';
 import { sceneArt, webArt } from './render/scene';
 import { sfx } from './render/sfx';
 
@@ -49,6 +49,23 @@ function floater(text: string, x: number, y: number) {
   setTimeout(() => f.remove(), 1000);
 }
 
+/** Shake the whole game; `px` is the strongest offset. */
+function shake(px: number) {
+  const app = $('#app');
+  app.style.setProperty('--shake', `${px}px`);
+  restartAnim(app, 'shake');
+}
+
+/** Full-screen tinted flash for big spells. */
+function flash(color: string, level: number) {
+  const f = document.createElement('div');
+  f.className = 'flash';
+  f.style.setProperty('--flash', color);
+  f.style.setProperty('--flash-o', String(Math.min(0.6, 0.15 + (level - 5) * 0.15)));
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 600);
+}
+
 function restartAnim(el: Element, cls: string) {
   el.classList.remove(cls);
   void (el as HTMLElement).offsetWidth;
@@ -56,8 +73,8 @@ function restartAnim(el: Element, cls: string) {
 }
 
 /** Fly an image along an arc from one point to another with a sparkle trail. */
-function fly(src: string, from: { x: number; y: number }, to: { x: number; y: number }, opts: { ms?: number; color?: string; size?: number; delay?: number } = {}) {
-  const { ms = 550, color = '#fff', size, delay = 0 } = opts;
+function fly(src: string, from: { x: number; y: number }, to: { x: number; y: number }, opts: { ms?: number; color?: string; size?: number; delay?: number; trailFn?: (x: number, y: number) => void } = {}) {
+  const { ms = 550, color = '#fff', size, delay = 0, trailFn } = opts;
   return new Promise<void>((resolve) => {
     setTimeout(() => {
       const el = document.createElement('div');
@@ -75,7 +92,7 @@ function fly(src: string, from: { x: number; y: number }, to: { x: number; y: nu
         el.style.transform = `translate(${x}px, ${y}px) scale(${1 - t * 0.35}) rotate(${t * 20}deg)`;
         el.style.left = '0';
         el.style.top = '0';
-        trail(x, y, color);
+        if (trailFn) trailFn(x, y); else trail(x, y, color);
         if (t < 1) requestAnimationFrame(step);
         else { el.remove(); resolve(); }
       };
@@ -243,7 +260,10 @@ async function doCast(id: number) {
   if (!cellsUsed) return;
 
   // Capture art + positions before the state changes.
-  const flights = cellsUsed.map((i) => ({ src: pieceArt(state.board[i].piece!), from: center(cells[i]), color: pieceColor(state.board[i].piece!) }));
+  const flights = cellsUsed.map((i) => {
+    const p = state.board[i].piece as Extract<Piece, { kind: 'item' }>;
+    return { src: pieceArt(p), from: center(cells[i]), color: pieceColor(p), chain: p.chain, level: p.level };
+  });
   const res = cast(state, id);
   if (!res) return;
   dyingIds.add(id);
@@ -253,11 +273,26 @@ async function doCast(id: number) {
 
   const target = center(el.querySelector('.portrait')!);
   const segs = el.querySelectorAll('.hp .seg');
-  await Promise.all(flights.map((f, k) => fly(f.src, f.from, target, { ms: 520, color: f.color, delay: k * 90 }).then(() => {
-    burst(target.x, target.y, f.color, 0.7);
+  const cell = cells[0].offsetWidth;
+  await Promise.all(flights.map((f, k) => fly(f.src, f.from, target, {
+    ms: 520, color: f.color, delay: k * 260,
+    // Bigger spells fly bigger.
+    size: cell * (0.8 + f.level * 0.1),
+    trailFn: isElement(f.chain) ? (x, y) => elementTrail(f.chain as ElementId, x, y, f.level) : undefined,
+  }).then(() => {
+    if (isElement(f.chain)) {
+      const fx = elementHit(f.chain, target.x, target.y, f.level);
+      sfx.element(f.chain, f.level);
+      if (fx.shake) shake(fx.shake);
+      if (fx.flash) flash(fx.flash, f.level);
+    } else {
+      burst(target.x, target.y, f.color, 0.7);
+    }
     segs[k]?.classList.add('lost');
     restartAnim(el, 'hit');
   })));
+  // Let the biggest effect play out before the monster vanishes.
+  await new Promise((r) => setTimeout(r, 200 + Math.max(...flights.map((f) => f.level)) * 90));
 
   sfx.defeat();
   el.classList.add('dying');
@@ -308,7 +343,7 @@ function select(i: number) {
   if (selected >= 0) cells[selected]?.classList.remove('selected');
   selected = i;
   if (i < 0) {
-    setInfo(itemArt('arcane', 6), 'Defeat the monsters!', 'Merge items to brew the magic each monster is weak to.');
+    setInfo(iconArt.hat(), 'Defeat the monsters!', 'Merge items to brew the magic each monster is weak to.');
     return;
   }
   cells[i].classList.add('selected');

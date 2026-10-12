@@ -35,7 +35,7 @@ export interface Monster {
 }
 
 export interface GameState {
-  v: 1;
+  v: 2;
   cols: number;
   rows: number;
   board: Cell[];
@@ -78,7 +78,7 @@ export function samePiece(a: Piece | null, b: Piece | null): boolean {
 
 export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
   const s: GameState = {
-    v: 1,
+    v: 2,
     cols: BOARD_COLS,
     rows: BOARD_ROWS,
     board: Array.from({ length: BOARD_COLS * BOARD_ROWS }, () => ({ piece: null, lock: 0 as Lock })),
@@ -106,14 +106,14 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
   // Generators along the bottom, a few starter items in the middle.
   const place = (x: number, y: number, p: Piece) => (s.board[idx(s, x, y)] = { piece: p, lock: 0 });
   place(0, 8, gen('geode'));
-  place(2, 8, gen('planter'));
-  place(4, 8, gen('forge'));
-  place(6, 8, gen('lectern'));
-  place(1, 5, item('crystal', 1));
-  place(2, 5, item('crystal', 1));
-  place(5, 7, item('crystal', 1)); // drag this onto the pair to learn merge-3
-  place(4, 5, item('flame', 1));
-  place(5, 6, item('herb', 1));
+  place(2, 8, gen('well'));
+  place(4, 8, gen('windmill'));
+  place(6, 8, gen('forge'));
+  place(1, 5, item('water', 1));
+  place(2, 5, item('water', 1));
+  place(5, 7, item('water', 1)); // drag this onto the pair to learn merge-3
+  place(4, 5, item('fire', 1));
+  place(5, 6, item('earth', 1));
   place(3, 6, item('coin', 1));
   place(1, 7, item('mana', 1));
 
@@ -428,7 +428,8 @@ export function addXp(s: GameState, xp: number): boolean {
 
 // ---------------------------------------------------------------- save
 
-const SAVE_KEY = 'arcane-merge-save-v1';
+// v2: elements replaced the old crystal/herb/flame/arcane chains.
+const SAVE_KEY = 'arcane-merge-save-v2';
 
 export function save(s: GameState, storage: Pick<Storage, 'setItem'> = localStorage) {
   try { storage.setItem(SAVE_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
@@ -439,7 +440,7 @@ export function load(storage: Pick<Storage, 'getItem'> = localStorage): GameStat
     const raw = storage.getItem(SAVE_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as GameState;
-    if (s.v !== 1 || s.board?.length !== s.cols * s.rows) return null;
+    if (s.v !== 2 || s.board?.length !== s.cols * s.rows) return null;
     return s;
   } catch {
     return null;

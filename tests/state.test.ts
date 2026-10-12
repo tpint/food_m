@@ -18,22 +18,22 @@ function empty(): GameState {
 describe('board moves', () => {
   it('needs three matching items to merge', () => {
     const s = empty();
-    s.board[0].piece = item('crystal', 1);
-    s.board[1].piece = item('crystal', 1);
+    s.board[0].piece = item('water', 1);
+    s.board[1].piece = item('water', 1);
     expect(movePiece(s, 0, 1).type).toBe('need3');
-    expect(s.board[0].piece).toEqual(item('crystal', 1));
-    expect(s.board[1].piece).toEqual(item('crystal', 1));
+    expect(s.board[0].piece).toEqual(item('water', 1));
+    expect(s.board[1].piece).toEqual(item('water', 1));
   });
 
   it('merges three touching items into one of the next level on the drop cell', () => {
     const s = empty();
-    s.board[0].piece = item('crystal', 1);
-    s.board[1].piece = item('crystal', 1);
-    s.board[2].piece = item('crystal', 1);
-    s.board[20].piece = item('crystal', 1);
+    s.board[0].piece = item('water', 1);
+    s.board[1].piece = item('water', 1);
+    s.board[2].piece = item('water', 1);
+    s.board[20].piece = item('water', 1);
     const r = movePiece(s, 20, 1);
     expect(r.type).toBe('merge');
-    expect(s.board[1].piece).toEqual(item('crystal', 2));
+    expect(s.board[1].piece).toEqual(item('water', 2));
     // Four crystals were involved: three are used, one is left over.
     expect(s.board[20].piece).toBeNull();
     expect([0, 2].filter((i) => s.board[i].piece).length).toBe(1);
@@ -42,34 +42,34 @@ describe('board moves', () => {
 
   it('turns five touching items into two', () => {
     const s = empty();
-    for (const i of [0, 1, 2, 3]) s.board[i].piece = item('herb', 2);
-    s.board[30].piece = item('herb', 2);
+    for (const i of [0, 1, 2, 3]) s.board[i].piece = item('earth', 2);
+    s.board[30].piece = item('earth', 2);
     const r = movePiece(s, 30, 0);
     expect(r.type === 'merge' && r.results.length).toBe(2);
     expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.level === 3)).toHaveLength(2);
     expect(s.board.filter((c) => c.piece?.kind === 'item' && c.piece.level === 2)).toHaveLength(0);
-    expect(s.board[0].piece).toEqual(item('herb', 3));
+    expect(s.board[0].piece).toEqual(item('earth', 3));
   });
 
   it('merges when an item is moved next to two matches', () => {
     const s = empty();
-    s.board[0].piece = item('flame', 1);
-    s.board[1].piece = item('flame', 1);
-    s.board[30].piece = item('flame', 1);
+    s.board[0].piece = item('fire', 1);
+    s.board[1].piece = item('fire', 1);
+    s.board[30].piece = item('fire', 1);
     const r = movePiece(s, 30, 2);
     expect(r.type).toBe('merge');
-    expect(s.board[2].piece).toEqual(item('flame', 2));
+    expect(s.board[2].piece).toEqual(item('fire', 2));
     expect(s.board[0].piece).toBeNull();
   });
 
   it('swaps different items and moves into empty cells', () => {
     const s = empty();
-    s.board[0].piece = item('crystal', 1);
-    s.board[1].piece = item('herb', 1);
+    s.board[0].piece = item('water', 1);
+    s.board[1].piece = item('earth', 1);
     expect(movePiece(s, 0, 1).type).toBe('swap');
-    expect(s.board[0].piece).toEqual(item('herb', 1));
+    expect(s.board[0].piece).toEqual(item('earth', 1));
     expect(movePiece(s, 0, 5).type).toBe('move');
-    expect(s.board[5].piece).toEqual(item('herb', 1));
+    expect(s.board[5].piece).toEqual(item('earth', 1));
   });
 
   it('does not merge max level items', () => {
@@ -83,21 +83,21 @@ describe('board moves', () => {
   it('uses veiled matches, frees the cell and reveals sealed neighbours', () => {
     const s = empty();
     const above = 1, target = 1 + s.cols, side = 2 + s.cols, src = 1 + 3 * s.cols;
-    s.board[above] = { piece: item('herb', 3), lock: 2 };
-    s.board[target] = { piece: item('flame', 2), lock: 1 };
-    s.board[side] = { piece: item('flame', 2), lock: 1 };
-    s.board[src].piece = item('flame', 2);
+    s.board[above] = { piece: item('earth', 3), lock: 2 };
+    s.board[target] = { piece: item('fire', 2), lock: 1 };
+    s.board[side] = { piece: item('fire', 2), lock: 1 };
+    s.board[src].piece = item('fire', 2);
     const r = movePiece(s, src, target);
     expect(r.type).toBe('merge');
-    expect(s.board[target]).toEqual({ piece: item('flame', 3), lock: 0 });
+    expect(s.board[target]).toEqual({ piece: item('fire', 3), lock: 0 });
     expect(s.board[side]).toEqual({ piece: null, lock: 0 });
     expect(s.board[above].lock).toBe(1);
   });
 
   it('cannot move onto a veiled cell without a match', () => {
     const s = empty();
-    s.board[1] = { piece: item('flame', 2), lock: 1 };
-    s.board[0].piece = item('herb', 2);
+    s.board[1] = { piece: item('fire', 2), lock: 1 };
+    s.board[0].piece = item('earth', 2);
     expect(movePiece(s, 0, 1).type).toBe('none');
   });
 });
@@ -119,7 +119,7 @@ describe('generators and energy', () => {
     const r = spawnFrom(s, g, () => 0);
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.piece).toEqual(item('flame', 1));
+      expect(r.piece).toEqual(item('fire', 1));
       expect(nearestEmpty(s, g)).not.toBe(r.at);
     }
     expect(s.energy).toBe(MAX_ENERGY - 1);
@@ -170,8 +170,8 @@ describe('monsters', () => {
   it('ignores locked items when looking for a spell', () => {
     const s = empty();
     const m = s.monsters[0];
-    m.needs = [{ chain: 'crystal', level: 2 }];
-    s.board[0] = { piece: item('crystal', 2), lock: 1 };
+    m.needs = [{ chain: 'water', level: 2 }];
+    s.board[0] = { piece: item('water', 2), lock: 1 };
     expect(findSpell(s, m)).toBeNull();
   });
 });
@@ -202,9 +202,9 @@ describe('generator upgrades', () => {
 
   it('higher levels can drop higher level items and conjure for free', () => {
     const s = empty();
-    s.board[0].piece = gen('lectern', 5);
+    s.board[0].piece = gen('windmill', 5);
     const r = spawnFrom(s, 0, () => 0.999);
-    expect(r.ok && r.piece).toEqual(item('arcane', 4));
+    expect(r.ok && r.piece).toEqual(item('wind', 4));
     const r2 = spawnFrom(s, 0, () => 0.01);
     expect(r2.ok && r2.free).toBe(true);
     expect(s.energy).toBe(MAX_ENERGY - 1);
