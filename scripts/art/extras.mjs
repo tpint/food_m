@@ -228,6 +228,32 @@ const icons = {
     s.add(B(s, 'M66 80L62 93L68 89L70 95L73 82Z', RUBY, 1.4, 'rib'));
     return { shadow: 0 };
   },
+  bag(s) {
+    const L = { hi: '#f6cc94', mid: '#b8743c', lo: '#7a4420', ink: '#3e1e0a' };
+    const L2 = { hi: '#ffd8a4', mid: '#c8844a', lo: '#86502a', ink: '#3e1e0a' };
+    // strap handle
+    s.add(path('M30 31Q30 9 50 9Q70 9 70 31', 'none', L.ink, 10) + path('M30 31Q30 9 50 9Q70 9 70 31', 'none', L.mid, 5.4));
+    s.add(`<path d="M30 31Q30 9 50 9Q70 9 70 31" fill="none" stroke="${L.hi}" stroke-width=".8" stroke-dasharray="1.6 1.4" opacity=".8"/>`);
+    for (const x of [30, 70]) s.add(B(s, `M${x - 4} 26L${x + 4} 26L${x + 4} 34L${x - 4} 34Z`, METAL, 1.4, 'loop'));
+    // body
+    s.add(G(SB(s, 'M18 36Q16 30 24 28L76 28Q84 30 82 36L86 82Q86 92 76 92L24 92Q14 92 14 82Z', L, 2.6, 'bagb', '35%', '25%'), 'leather'));
+    s.add(`<path d="M18 84Q50 90 82 84" fill="none" stroke="${L.hi}" stroke-width=".9" stroke-dasharray="2 1.6" opacity=".7"/>`);
+    s.add(`<path d="M22 66Q22 78 26 86M78 66Q78 78 74 86" fill="none" stroke="${L.lo}" stroke-width="1.4" opacity=".7"/>`);
+    // flap
+    s.add(G(SB(s, 'M15 34Q50 25 85 34L83 56Q50 67 17 56Z', L2, 2.4, 'flap', '35%', '20%'), 'leather'));
+    s.add(`<path d="M19 37Q50 29 81 37L79.5 53Q50 63 20.5 53Z" fill="none" stroke="${L2.hi}" stroke-width=".9" stroke-dasharray="2 1.6" opacity=".85"/>`);
+    // stitched star emblem on the flap
+    const k = 5.4, pts = [];
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? k * 0.45 : k; pts.push(`${f1(30 + Math.cos(a) * rr)} ${f1(44 + Math.sin(a) * rr)}`); }
+    s.add(`<path d="M${pts.join('L')}Z" fill="${GOLD.mid}" stroke="${GOLD.ink}" stroke-width="1" stroke-linejoin="round"/>`);
+    // buckle and strap
+    s.add(`<path d="M50 58L50 74" stroke="${L.ink}" stroke-width="9"/><path d="M50 58L50 74" stroke="${L.lo}" stroke-width="6.4"/>`);
+    s.add(B(s, 'M41.5 49.5L58.5 49.5L58.5 66.5L41.5 66.5Z', METAL, 2.2, 'buck'));
+    s.add(`<rect x="46" y="54" width="8" height="8" rx="1.2" fill="${L.lo}" stroke="${METAL.ink}" stroke-width="1"/><path d="M50 54L50 62" stroke="${METAL.ink}" stroke-width="1.6"/>`);
+    s.add(hl('M24 40Q40 33 56 33', 2.6, 0.55)); s.add(hl('M21 64Q20 76 23 84', 2, 0.4));
+    sparkle(s, 82, 18, 4.4, '#fff6c4'); sparkle(s, 14, 22, 2.8, '#fff6c4');
+    return { shadow: 1 };
+  },
   star(s) {
     const p = { hi: '#d4f0ff', mid: '#5aaaf0', lo: '#2a6ac8', ink: '#123a7a' };
     s.add(SB(s, 'M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', p, 2.6, 'bs', '40%', '30%'));

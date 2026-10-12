@@ -26,7 +26,7 @@ These are painted PNGs (384 px) made by the scripts in `scripts/art/`:
 - every monster (`mon-*`, the boss dragon included),
 - the gold and mana chains (`coin-1` … `coin-4`, `mana-1` … `mana-3`) and the UI icons (`icon-*`).
 
-Only the bag icon (`icon-bag`) is still code-drawn.
+Every drawn asset now has a painted PNG; the code-drawn SVGs remain as the fallback.
 
 `paint-generators.mjs`, `items.mjs`, `monsters.mjs` and `extras.mjs` build a detailed SVG for each image.
 The render scripts draw it at 3× and downsample to 384 px.

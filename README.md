@@ -136,7 +136,7 @@ Straight top-down grid with soft 2D art, following the four merge-art rules:
 The SVG art is a stand-in. Items are auto-framed to fill their tile and get a sticker outline and drop shadow, so the set stays consistent.
 To replace any item with painted art, drop a PNG into `public/art/` and list its key in `public/art/manifest.json`
 (see `public/art/README.md` for the key names). Anything not listed keeps its SVG. Every item, generator, monster and icon now
-uses a painted PNG made by the scripts in `scripts/art/`, except the bag icon, which is still SVG.
+uses a painted PNG made by the scripts in `scripts/art/`.
 
 ## iOS / Android (next step)
 
