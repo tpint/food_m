@@ -234,6 +234,26 @@ export const ELEMENT_COLORS: Record<ElementId, string[]> = {
   earth: ['#f4dcb0', '#c79056', '#8a5a2c', '#553218'],
 };
 
+/**
+ * Element energy spiralling inward to (x, y) over `ms`, as the item dissolves
+ * into magic. More, wider and longer streams at higher levels.
+ */
+export function elementCharge(el: ElementId, x: number, y: number, level: number, ms: number) {
+  const c = ELEMENT_COLORS[el];
+  const frames = Math.max(12, Math.round((ms / 1000) * 60 * 0.75));
+  const n = 14 + level * 6;
+  for (let i = 0; i < n; i++) {
+    const r0 = R(28, 44) + level * 5;
+    const life = Math.round(R(0.55, 0.85) * frames);
+    const base = { x, y, max: life, delay: Math.floor(R(0, frames - life)), color: c[Math.floor(R(0, 3))],
+      orbit: { cx: x, cy: y, ang: R(0, 6.28), angV: R(0.12, 0.22) * (i % 2 ? 1 : -1), r: r0, rV: -r0 / life, rise: 0 } };
+    if (el === 'fire') add({ ...base, kind: 'flame', size: R(5, 9), colors: c });
+    else if (el === 'water') add({ ...base, kind: 'drop', size: R(1.6, 3) });
+    else if (el === 'wind') add({ ...base, kind: 'streak', size: R(2, 4), color: c[Math.floor(R(0, 2))] });
+    else add({ ...base, kind: i % 3 ? 'dot' : 'rock', normal: i % 3 === 0, size: R(2, 4), color: c[Math.floor(R(1, 4))] });
+  }
+}
+
 /** A few particles per frame behind an item flying toward a monster. */
 export function elementTrail(el: ElementId, x: number, y: number, level: number) {
   const c = ELEMENT_COLORS[el];

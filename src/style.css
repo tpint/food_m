@@ -506,6 +506,49 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   animation: mc-pillar var(--charge) ease-in forwards;
 }
 .piece.charging { z-index: 3; }
+.piece.dissolving { z-index: 3; }
+.piece.dissolving img { animation: dissolve var(--charge) ease-in forwards; }
+
+/* An orb of element magic: forms over the casting circle, then flies. */
+.spell-orb {
+  position: fixed; left: 0; top: 0; z-index: 46; pointer-events: none;
+  width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+}
+.spell-orb::before, .spell-orb::after { content: ''; position: absolute; border-radius: 50%; }
+.spell-orb::before { inset: 0; animation: orb-form var(--form) ease-out var(--form-delay) both, orb-pulse .35s ease-in-out infinite alternate; }
+.spell-orb::after { inset: -22%; animation: orb-form var(--form) ease-out var(--form-delay) both, orb-spin .5s linear infinite; }
+.spell-orb.el-fire::before {
+  background: radial-gradient(circle at 42% 40%, #fffbe0 0 14%, #ffd36a 30%, #ff7a2a 54%, rgba(232, 70, 30, 0) 72%);
+  box-shadow: 0 0 calc(var(--s) * .35) #ff6a2a, 0 0 calc(var(--s) * .8) rgba(255, 120, 40, .55);
+}
+.spell-orb.el-fire::after {
+  background: conic-gradient(from 0deg, transparent, rgba(255, 210, 90, .85) 12%, transparent 25%, rgba(255, 110, 40, .75) 45%, transparent 58%, rgba(255, 180, 60, .8) 75%, transparent 88%);
+  -webkit-mask: radial-gradient(circle, transparent 38%, #000 42%, #000 58%, transparent 64%); mask: radial-gradient(circle, transparent 38%, #000 42%, #000 58%, transparent 64%);
+}
+.spell-orb.el-water::before {
+  background: radial-gradient(circle at 38% 36%, #ffffff 0 12%, #bfeaff 28%, #3a98e8 56%, rgba(31, 111, 201, 0) 72%);
+  box-shadow: 0 0 calc(var(--s) * .35) #3a98e8, 0 0 calc(var(--s) * .8) rgba(80, 170, 255, .5);
+}
+.spell-orb.el-water::after { inset: -10%; border: 3px solid rgba(220, 245, 255, .85); border-radius: 46% 54% 52% 48% / 55% 45% 55% 45%; }
+.spell-orb.el-wind::before {
+  background: radial-gradient(circle at 45% 45%, #ffffff 0 12%, #e6fff4 28%, #5fd0aa 54%, rgba(47, 160, 128, 0) 72%);
+  box-shadow: 0 0 calc(var(--s) * .3) #5fd0aa, 0 0 calc(var(--s) * .7) rgba(120, 230, 190, .5);
+}
+.spell-orb.el-wind::after {
+  background: conic-gradient(from 0deg, transparent, rgba(255, 255, 255, .9) 8%, transparent 20%, rgba(200, 255, 240, .8) 33%, transparent 45%, rgba(255, 255, 255, .9) 58%, transparent 70%, rgba(200, 255, 240, .8) 83%, transparent 95%);
+  -webkit-mask: radial-gradient(circle, transparent 30%, #000 36%, #000 60%, transparent 68%); mask: radial-gradient(circle, transparent 30%, #000 36%, #000 60%, transparent 68%);
+  animation-duration: var(--form), .28s;
+}
+.spell-orb.el-earth::before {
+  background: radial-gradient(circle at 40% 38%, #fff6d0 0 12%, #f2c46a 30%, #b0702e 56%, rgba(110, 66, 30, 0) 72%);
+  box-shadow: 0 0 calc(var(--s) * .3) #d8962e, 0 0 calc(var(--s) * .7) rgba(220, 160, 70, .5);
+}
+.spell-orb.el-earth::after {
+  background:
+    radial-gradient(circle at 12% 50%, #8a6a4a 0 7%, transparent 8%), radial-gradient(circle at 88% 42%, #a8885a 0 8%, transparent 9%),
+    radial-gradient(circle at 50% 8%, #7e6a52 0 6%, transparent 7%), radial-gradient(circle at 46% 92%, #b8a286 0 7%, transparent 8%);
+  animation-duration: var(--form), .7s;
+}
 .piece.charging img { animation: levitate .5s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px #fff) brightness(1.15); }
 .flash {
   position: fixed; inset: 0; z-index: 39; pointer-events: none;
@@ -529,6 +572,14 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 @keyframes mc-fade { to { opacity: 1; } }
 @keyframes mc-spin { to { transform: rotate(360deg); } }
 @keyframes mc-pillar { 0% { transform: translateX(-50%) scaleY(0); } 100% { transform: translateX(-50%) scaleY(1); } }
+@keyframes dissolve {
+  0% { transform: none; filter: none; opacity: 1; }
+  35% { transform: scale(1.12); filter: brightness(1.8) drop-shadow(0 0 8px #fff); opacity: 1; }
+  100% { transform: scale(.2); filter: brightness(3) blur(4px); opacity: 0; }
+}
+@keyframes orb-form { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes orb-pulse { from { filter: brightness(1); } to { filter: brightness(1.25); } }
+@keyframes orb-spin { to { rotate: 360deg; } }
 @keyframes levitate { from { transform: translateY(0) scale(1); } to { transform: translateY(-14%) scale(1.12); } }
 @keyframes tower-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 @keyframes story-in { from { opacity: 0; transform: translateY(30px) scale(.95); } to { opacity: 1; transform: none; } }

@@ -37,8 +37,9 @@ for (const el of ['fire', 'water', 'wind', 'earth']) {
   recording = true;
   await p.waitForTimeout(400);
   await p.locator('.monster.ready .cast').first().click();
-  await p.waitForTimeout(charge * 0.8); await p.screenshot({ path: `${dir}/k-${el}-1.png` });
-  await p.waitForTimeout(charge * 0.2 + 260); await p.screenshot({ path: `${dir}/k-${el}-2.png` });
+  await p.waitForTimeout(charge * 0.45); await p.screenshot({ path: `${dir}/k-${el}-0.png` });
+  await p.waitForTimeout(charge * 0.4); await p.screenshot({ path: `${dir}/k-${el}-1.png` });
+  await p.waitForTimeout(charge * 0.15 + 230); await p.screenshot({ path: `${dir}/k-${el}-2.png` });
   await p.waitForTimeout(330); await p.screenshot({ path: `${dir}/k-${el}-3.png` });
   await p.waitForTimeout(350); await p.screenshot({ path: `${dir}/k-${el}-4.png` });
   await p.waitForTimeout(1500);

@@ -5,7 +5,7 @@ import {
   newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
 } from './game/state';
 import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
-import { burst, elementHit, elementTrail, puff, shower, trail } from './render/fx';
+import { burst, elementCharge, elementHit, elementTrail, puff, shower, trail } from './render/fx';
 import { sceneArt, webArt } from './render/scene';
 import { magicCircle } from './render/circle';
 import { roomAnchor, roomSvg, updateRoom } from './render/room';
@@ -61,6 +61,21 @@ function floater(text: string, x: number, y: number) {
   setTimeout(() => f.remove(), 1000);
 }
 
+/**
+ * An orb of pure element magic. It forms during the charge and is what flies
+ * at the monster; bigger at higher levels.
+ */
+function spellOrb(el: ElementId, level: number, cell: number, charge: number): HTMLElement {
+  const orb = document.createElement('div');
+  orb.className = `spell-orb el-${el}`;
+  const size = cell * (0.55 + level * 0.09);
+  orb.style.setProperty('--s', `${size}px`);
+  orb.style.setProperty('--form', `${charge * 0.65}ms`);
+  orb.style.setProperty('--form-delay', `${charge * 0.3}ms`);
+  document.body.appendChild(orb);
+  return orb;
+}
+
 /** Shake the whole game; `px` is the strongest offset. */
 function shake(px: number) {
   const app = $('#app');
@@ -85,15 +100,18 @@ function restartAnim(el: Element, cls: string) {
 }
 
 /** Fly an image along an arc from one point to another with a sparkle trail. */
-function fly(src: string, from: { x: number; y: number }, to: { x: number; y: number }, opts: { ms?: number; color?: string; size?: number; delay?: number; trailFn?: (x: number, y: number) => void } = {}) {
-  const { ms = 550, color = '#fff', size, delay = 0, trailFn } = opts;
+function fly(src: string, from: { x: number; y: number }, to: { x: number; y: number }, opts: { ms?: number; color?: string; size?: number; delay?: number; trailFn?: (x: number, y: number) => void; orb?: HTMLElement } = {}) {
+  const { ms = 550, color = '#fff', size, delay = 0, trailFn, orb } = opts;
   return new Promise<void>((resolve) => {
     setTimeout(() => {
-      const el = document.createElement('div');
-      el.className = 'flyer';
-      if (size) Object.assign(el.style, { width: `${size}px`, height: `${size}px`, margin: `${-size / 2}px 0 0 ${-size / 2}px` });
-      el.innerHTML = `<img src="${src}" alt="">`;
-      document.body.appendChild(el);
+      // Either an image (coins, items) or a ready-made magic orb.
+      const el = orb ?? document.createElement('div');
+      if (!orb) {
+        el.className = 'flyer';
+        if (size) Object.assign(el.style, { width: `${size}px`, height: `${size}px`, margin: `${-size / 2}px 0 0 ${-size / 2}px` });
+        el.innerHTML = `<img src="${src}" alt="">`;
+        document.body.appendChild(el);
+      }
       const start = performance.now();
       const lift = Math.min(120, Math.abs(to.y - from.y) * 0.35 + 40);
       const step = (now: number) => {
@@ -101,7 +119,9 @@ function fly(src: string, from: { x: number; y: number }, to: { x: number; y: nu
         const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
         const x = from.x + (to.x - from.x) * e;
         const y = from.y + (to.y - from.y) * e - Math.sin(Math.PI * t) * lift;
-        el.style.transform = `translate(${x}px, ${y}px) scale(${1 - t * 0.35}) rotate(${t * 20}deg)`;
+        el.style.transform = orb
+          ? `translate(${x}px, ${y}px) scale(${1 + Math.sin(Math.PI * t) * 0.25})`
+          : `translate(${x}px, ${y}px) scale(${1 - t * 0.35}) rotate(${t * 20}deg)`;
         el.style.left = '0';
         el.style.top = '0';
         if (trailFn) trailFn(x, y); else trail(x, y, color);
@@ -292,13 +312,23 @@ async function doCast(id: number) {
   const frame = boardEl.clientLeft;
   await Promise.all(flights.map((f, k) => new Promise<void>((done) => {
     setTimeout(() => {
-      // Charge: an arcane circle draws itself under the item while it levitates.
+      // Charge: an arcane circle draws itself under the item, which dissolves
+      // into element energy that gathers into an orb of magic.
       const charge = 380 + f.level * 90;
-      const piece = cells[f.cell].firstElementChild;
-      piece?.classList.add('charging');
+      const piece = cells[f.cell].firstElementChild as HTMLElement | null;
       const circle = isElement(f.chain)
         ? magicCircle(boardEl, f.chain, f.from.x - boardBox.left - frame, f.from.y - boardBox.top - frame, f.level, cell, charge)
         : null;
+      let orb: HTMLElement | undefined;
+      if (isElement(f.chain)) {
+        piece?.style.setProperty('--charge', `${charge}ms`);
+        piece?.classList.add('dissolving');
+        elementCharge(f.chain, f.from.x, f.from.y, f.level, charge);
+        orb = spellOrb(f.chain, f.level, cell, charge);
+        orb.style.transform = `translate(${f.from.x}px, ${f.from.y}px)`;
+      } else {
+        piece?.classList.add('charging');
+      }
       sfx.charge(f.level, charge);
       setTimeout(() => {
         circle?.release();
@@ -307,10 +337,9 @@ async function doCast(id: number) {
         if (isElement(f.chain)) sfx.spellFly(f.chain, f.level, 0.52);
         else sfx.cast();
         fly(f.src, f.from, target, {
-          ms: 520, color: f.color,
-          // Bigger spells fly bigger.
+          ms: 520, color: f.color, orb,
           size: cell * (0.8 + f.level * 0.1),
-          trailFn: isElement(f.chain) ? (x, y) => elementTrail(f.chain as ElementId, x, y, f.level) : undefined,
+          trailFn: isElement(f.chain) ? (x, y) => { elementTrail(f.chain as ElementId, x, y, f.level); elementTrail(f.chain as ElementId, x, y, f.level); } : undefined,
         }).then(() => {
           if (isElement(f.chain)) {
             const fx = elementHit(f.chain, target.x, target.y, f.level);
