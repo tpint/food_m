@@ -108,7 +108,8 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .pill.bump { animation: bump .35s ease; }
 @media (max-width: 400px) {
   #hud { gap: 4px; }
-  #hud .tower-btn { width: 32px; height: 32px; border-radius: 10px; }
+  #hud #btn-menu { width: 40px; height: 40px; }
+  #btn-menu .mi { width: 20px; height: 20px; }
   .pill { padding-right: 6px; font-size: 14px; }
   .pill img { width: 30px; height: 30px; margin-left: -8px; }
 }
@@ -355,6 +356,38 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   background: var(--danger); border: 2px solid #fff; animation: bump 1s ease-in-out infinite;
 }
 .tower-btn.bump { animation: bump .35s ease; }
+
+/* One menu button gathers daily quests, the leaderboard and the tower to save HUD space.
+   Its face shows all three icons; the "!" appears when any of them has something ready. */
+.hud-menu { position: relative; flex: none; }
+#btn-menu { display: block; width: 44px; height: 44px; padding: 0; }
+#btn-menu .mi { position: absolute; width: 22px; height: 22px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+#btn-menu .mi-1 { left: 3px; top: 3px; }
+#btn-menu .mi-2 { right: 3px; top: 3px; }
+#btn-menu .mi-3 { left: 50%; bottom: 2px; transform: translateX(-50%); }
+#btn-menu[aria-expanded='true'] { box-shadow: 0 0 0 3px var(--gold), 0 2px 0 rgba(0,0,0,.35); }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 25; min-width: 210px; padding: 6px;
+  display: flex; flex-direction: column; gap: 4px; border-radius: 16px;
+  background: linear-gradient(#ffffff, #eef4ff); border: 3px solid var(--chip-edge);
+  box-shadow: 0 4px 0 var(--frame), 0 10px 22px rgba(30, 60, 140, .35);
+  animation: menu-in .18s ease-out; transform-origin: top right;
+}
+.menu::before { content: ''; position: absolute; right: 14px; top: -9px; border: 7px solid transparent; border-bottom-color: var(--chip-edge); border-top: 0; }
+@keyframes menu-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+.menu-item {
+  position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; border: 0; border-radius: 12px; cursor: pointer;
+  background: transparent; font: 700 15px var(--font); color: var(--ink); text-align: left;
+}
+.menu-item:hover, .menu-item:focus-visible { background: #e3ecfd; outline: none; }
+.menu-item img { width: 36px; height: 36px; flex: none; }
+.menu-item span:not(.star-badge) { flex: 1; white-space: nowrap; }
+.menu-item .star-badge { position: static; }
+.menu-item.ready::after {
+  content: '!'; width: 18px; height: 18px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font: 700 12px var(--font); color: #fff;
+  background: var(--danger); border: 2px solid #fff; animation: bump 1s ease-in-out infinite;
+}
 
 #tower {
   position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;

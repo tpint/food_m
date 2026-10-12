@@ -424,8 +424,8 @@ async function doCast(id: number) {
   online.submit(state.defeated, state.level);
 
   // A star flies to the Tower button.
-  fly(iconArt.gstar(), target, center($('#btn-tower img')), { ms: 700, delay: 250, color: '#ffd23c', size: 30 })
-    .then(() => { restartAnim($('#btn-tower'), 'bump'); updateTowerBadge(); });
+  fly(iconArt.gstar(), target, center($('#btn-menu')), { ms: 700, delay: 250, color: '#ffd23c', size: 30 })
+    .then(() => { restartAnim($('#btn-menu'), 'bump'); updateTowerBadge(); });
 
   // Coins fly to the HUD.
   const hudCoin = center($('#hud-coins img'));
@@ -762,6 +762,32 @@ Object.assign(window, {
   },
 });
 
+// ------------------------------------------------------------------ HUD menu
+
+const menuEl = $('#menu');
+const menuBtn = $('#btn-menu');
+
+function setMenu(open: boolean) {
+  menuEl.classList.toggle('hidden', !open);
+  menuBtn.setAttribute('aria-expanded', String(open));
+}
+
+/** The menu button wears a "!" when quests or the tower have something ready. */
+function updateMenuBadge() {
+  menuBtn.classList.toggle('ready', $('#btn-quests').classList.contains('ready') || $('#btn-tower').classList.contains('ready'));
+}
+
+menuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  sfx.pick();
+  setMenu(menuEl.classList.contains('hidden'));
+});
+// Picking an entry or tapping anywhere else closes the menu.
+menuEl.addEventListener('click', () => setMenu(false));
+document.addEventListener('pointerdown', (e) => {
+  if (!menuEl.classList.contains('hidden') && !(e.target as Element).closest('.hud-menu')) setMenu(false);
+});
+
 // ------------------------------------------------------------------ tower
 
 const towerEl = $('#tower');
@@ -771,6 +797,7 @@ function updateTowerBadge() {
   $('#star-badge').textContent = String(state.stars);
   const t = currentTask(state);
   $('#btn-tower').classList.toggle('ready', !!t && state.stars >= t.cost);
+  updateMenuBadge();
 }
 
 /** The chapter whose room is shown: the current one, or the last one once all are done. */
@@ -1082,8 +1109,9 @@ function untilNewQuests() {
 function updateQuestBadge() {
   const n = claimableQuests(state);
   $('#btn-quests').classList.toggle('ready', n > 0);
+  updateMenuBadge();
   if (questsReady >= 0 && n > questsReady && questsEl.classList.contains('hidden')) {
-    restartAnim($('#btn-quests'), 'bump');
+    restartAnim($('#btn-menu'), 'bump');
     toast('📜 Quest complete! Claim your reward.');
   }
   questsReady = n;

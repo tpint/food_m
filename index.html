@@ -19,9 +19,16 @@
       <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val stroked">100</span><small class="timer"></small></div>
       <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
       <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
-      <button class="tower-btn" id="btn-quests" aria-label="Open daily quests"><img data-icon="scroll" alt="" /></button>
-      <button class="tower-btn" id="btn-leaders" aria-label="Open the leaderboard"><img data-icon="trophy" alt="" /></button>
-      <button class="tower-btn" id="btn-tower" aria-label="Open the tower"><img data-icon="tower" alt="" /><span class="star-badge stroked" id="star-badge">0</span></button>
+      <div class="hud-menu">
+        <button class="tower-btn" id="btn-menu" aria-label="Menu: daily quests, leaderboard and tower" aria-expanded="false" aria-controls="menu">
+          <img class="mi mi-1" data-icon="scroll" alt="" /><img class="mi mi-2" data-icon="trophy" alt="" /><img class="mi mi-3" data-icon="tower" alt="" />
+        </button>
+        <div id="menu" class="menu hidden" role="menu">
+          <button class="menu-item" id="btn-quests" role="menuitem"><img data-icon="scroll" alt="" /><span>Daily quests</span></button>
+          <button class="menu-item" id="btn-leaders" role="menuitem"><img data-icon="trophy" alt="" /><span>Leaderboard</span></button>
+          <button class="menu-item" id="btn-tower" role="menuitem"><img data-icon="tower" alt="" /><span>Tower</span><span class="star-badge stroked" id="star-badge">0</span></button>
+        </div>
+      </div>
     </header>
 
     <div id="xpbar"><div id="xpfill"></div><span id="xptext" class="stroked"></span></div>
