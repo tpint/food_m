@@ -46,6 +46,7 @@ Every push to `main` deploys to GitHub Pages: https://tpint.github.io/magic_m/
 | `src/game/config.ts` | Data: merge chains, generators, monsters, tuning numbers |
 | `src/game/state.ts` | Pure game logic (merge, spawn, energy, monsters, save). No DOM. |
 | `src/render/art.ts` | Procedural SVG art. Each chain keeps one colour palette, and the silhouette changes at every level |
+| `src/render/scene.ts` | Blurred wizard's-study backdrop and the cobweb on sealed tiles |
 | `src/render/fx.ts` | Canvas particles (merge bursts, rings, sparkle trails) |
 | `src/render/sfx.ts` | Sound effects synthesised with WebAudio (no audio files) |
 | `src/main.ts` | UI: board, drag and drop, HUD, monster cards, info bar |
@@ -58,7 +59,9 @@ Straight top-down grid with soft 2D art, following the four merge-art rules:
 3. **Low-contrast board**: cream tiles with very little contrast. The dark backdrop sits outside the board.
 4. **Juicy VFX**: merge flash + bounce, particle bursts, shockwave rings, items flying to monsters, coin showers and sounds.
 
-The SVG art is a stand-in and can be swapped for illustrated PNGs. `pieceArt()` is the only place art gets looked up.
+The SVG art is a stand-in. Items are auto-framed to fill their tile and get a sticker outline and drop shadow, so the set stays consistent.
+To replace any item with painted art, drop a PNG into `public/art/` and list its key in `public/art/manifest.json`
+(see `public/art/README.md` for the key names). Anything not listed keeps its SVG.
 
 ## iOS / Android (next step)
 

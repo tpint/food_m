@@ -27,18 +27,25 @@ const P: Record<string, Pal> = {
 
 let uid = 0;
 
-/** Builds an SVG document; `defs` are gradient ids local to this image. */
+/**
+ * Builds an SVG document in three layers: `back` (halo + ground shadow),
+ * `body` (the object, drawn with a chunky sticker outline) and `fx`
+ * (sparkles on top). Gradient ids are local to this image.
+ */
 class Svg {
   defs: string[] = [];
   body: string[] = [];
+  fx: string[] = [];
+  haloColor = '';
+  shadowRx = 0;
   private g = new Map<string, string>();
 
-  /** Radial gradient lit from the top-left. */
+  /** Radial gradient lit from the top-left, darkening toward the edge. */
   rad(p: Pal, key = 'r'): string {
     const k = `${key}${p.mid}`;
     if (!this.g.has(k)) {
       const id = `g${uid++}`;
-      this.defs.push(`<radialGradient id="${id}" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="${p.hi}"/><stop offset=".55" stop-color="${p.mid}"/><stop offset="1" stop-color="${p.lo}"/></radialGradient>`);
+      this.defs.push(`<radialGradient id="${id}" cx="35%" cy="28%" r="80%"><stop offset="0" stop-color="${p.hi}"/><stop offset=".45" stop-color="${p.mid}"/><stop offset=".85" stop-color="${p.lo}"/><stop offset="1" stop-color="${p.ink}"/></radialGradient>`);
       this.g.set(k, id);
     }
     return `url(#${this.g.get(k)})`;
@@ -55,35 +62,76 @@ class Svg {
     return `url(#${this.g.get(k)})`;
   }
 
-  glow(color: string): string {
-    const k = `glow${color}`;
-    if (!this.g.has(k)) {
-      const id = `g${uid++}`;
-      this.defs.push(`<radialGradient id="${id}"><stop offset="0" stop-color="${color}" stop-opacity=".75"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient>`);
-      this.g.set(k, id);
-    }
-    return `url(#${this.g.get(k)})`;
-  }
-
   add(s: string) { this.body.push(s); return this; }
 
-  shadow(rx = 26, cy = 90) {
-    return this.add(`<ellipse cx="50" cy="${cy}" rx="${rx}" ry="${rx * 0.2}" fill="#4a3358" opacity=".18"/>`);
-  }
+  /** Soft colored glow behind the object; placed when the image is framed. */
+  halo(color: string) { this.haloColor = color; return this; }
+
+  /** Ground shadow under the object; placed when the image is framed. */
+  shadow(rx = 26, _cy?: number) { this.shadowRx = rx; return this; }
 
   sparkle(x: number, y: number, r: number, color = '#fff') {
     const q = r * 0.28;
-    return this.add(`<path d="M${x} ${y - r}Q${x + q} ${y - q} ${x + r} ${y}Q${x + q} ${y + q} ${x} ${y + r}Q${x - q} ${y + q} ${x - r} ${y}Q${x - q} ${y - q} ${x} ${y - r}Z" fill="${color}"/>`);
+    this.fx.push(`<path d="M${x} ${y - r}Q${x + q} ${y - q} ${x + r} ${y}Q${x + q} ${y + q} ${x} ${y + r}Q${x - q} ${y + q} ${x - r} ${y}Q${x - q} ${y - q} ${x} ${y - r}Z" fill="${color}" stroke="rgba(90,60,120,.35)" stroke-width=".8"/>`);
+    return this;
   }
 
-  toString() {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs>${this.defs.join('')}</defs>${this.body.join('')}</svg>`;
+  inner() {
+    const outline = `<filter id="o${uid}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+<feMorphology in="SourceAlpha" operator="dilate" radius="1.7" result="d"/>
+<feFlood flood-color="#3a2350" flood-opacity=".9"/><feComposite in2="d" operator="in" result="ol"/>
+<feGaussianBlur in="d" stdDeviation="1.6"/><feOffset dy="2.4" result="b"/>
+<feFlood flood-color="#2a1640" flood-opacity=".28"/><feComposite in2="b" operator="in" result="sh"/>
+<feMerge><feMergeNode in="sh"/><feMergeNode in="ol"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+    return { defs: this.defs.join('') + outline, filter: `o${uid++}` };
+  }
+
+  /** Frame the body tightly: `fill` is the share of the square the object occupies. */
+  toString(fill = 0.86) {
+    const { defs, filter } = this.inner();
+    const body = `<g id="c" filter="url(#${filter})">${this.body.join('')}</g>`;
+    let box = { x: 0, y: 0, width: 100, height: 100 };
+    const m = measure(`<defs>${defs}</defs>${body}`);
+    if (m && m.width > 0) box = { x: m.x - 3, y: m.y - 3, width: m.width + 6, height: m.height + 6 };
+    const size = Math.max(box.width, box.height) / fill;
+    const cx = box.x + box.width / 2;
+    const bottom = box.y + box.height;
+    // Sit the object slightly low so the ground shadow has room.
+    const vy = Math.min(box.y + box.height / 2 - size / 2, bottom - size * 0.93);
+    const vx = cx - size / 2;
+    const back: string[] = [];
+    if (this.haloColor) {
+      const hid = `h${uid++}`;
+      back.push(`<radialGradient id="${hid}"><stop offset="0" stop-color="${this.haloColor}" stop-opacity=".8"/><stop offset=".6" stop-color="${this.haloColor}" stop-opacity=".35"/><stop offset="1" stop-color="${this.haloColor}" stop-opacity="0"/></radialGradient>`);
+      back.push(`<circle cx="${cx}" cy="${vy + size / 2}" r="${size / 2}" fill="url(#${hid})"/>`);
+    }
+    if (this.shadowRx) {
+      const rx = Math.min(box.width * 0.42, size * 0.42);
+      back.push(`<ellipse cx="${cx}" cy="${bottom - 3}" rx="${rx}" ry="${rx * 0.2}" fill="#3a2350" opacity=".22"/>`);
+    }
+    const f = (n: number) => n.toFixed(2);
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(vx)} ${f(vy)} ${f(size)} ${f(size)}"><defs>${defs}</defs>${back.join('')}${body}${this.fx.join('')}</svg>`;
   }
 }
 
-const sw = 'stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"';
+let measurer: SVGSVGElement | null = null;
+
+/** Bounding box of the body group, measured in a hidden SVG (browser only). */
+function measure(inner: string): DOMRect | null {
+  if (typeof document === 'undefined') return null;
+  if (!measurer) {
+    measurer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    measurer.setAttribute('style', 'position:absolute;left:-9999px;top:0;width:100px;height:100px;visibility:hidden');
+    document.body.appendChild(measurer);
+  }
+  measurer.innerHTML = inner;
+  const g = measurer.querySelector('#c') as SVGGElement | null;
+  return g ? g.getBBox() : null;
+}
+
+const sw = 'stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
 const shape = (d: string, fill: string, ink: string, extra = '') =>
-  `<path d="${d}" fill="${fill}" stroke="${ink}" ${extra.includes('stroke-width') ? sw.replace('stroke-width="2.6" ', '') : sw} ${extra}/>`;
+  `<path d="${d}" fill="${fill}" stroke="${ink}" ${extra.includes('stroke-width') ? sw.replace('stroke-width="3" ', '') : sw} ${extra}/>`;
 const hl = (d: string, w = 3, op = 0.75) => `<path d="${d}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
 
 // ------------------------------------------------------------------ crystal
@@ -118,14 +166,14 @@ const crystalArt: ((s: Svg) => void)[] = [
     s.sparkle(72, 22, 7); s.sparkle(26, 70, 4);
   },
   (s) => {
-    s.add(`<circle cx="50" cy="50" r="42" fill="${s.glow('#8fe3ff')}"/>`); s.shadow(22, 88);
+    s.halo('#8fe3ff'); s.shadow(22, 88);
     s.add(shape('M50 18A30 30 0 1 1 49.9 18Z', s.rad(P.crystal), P.crystal.ink));
     s.add('<path d="M34 54Q44 38 62 44Q52 50 50 66Q40 66 34 54Z" fill="#fff" opacity=".35"/>');
     s.add('<ellipse cx="39" cy="34" rx="9" ry="6" fill="#fff" opacity=".8" transform="rotate(-30 39 34)"/>');
     s.sparkle(76, 24, 6); s.sparkle(22, 72, 4);
   },
   (s) => {
-    s.add(`<circle cx="50" cy="42" r="40" fill="${s.glow('#a6ecff')}"/>`); s.shadow(28, 90);
+    s.halo('#a6ecff'); s.shadow(28, 90);
     s.add(shape('M28 88L34 72L66 72L72 88Z', s.rad(P.metal), P.metal.ink));
     s.add(shape('M36 74Q50 64 64 74', 'none', P.metal.ink));
     s.add(shape('M50 10A30 30 0 1 1 49.9 10Z', s.rad(P.crystal), P.crystal.ink));
@@ -134,7 +182,7 @@ const crystalArt: ((s: Svg) => void)[] = [
     s.sparkle(80, 18, 6); s.sparkle(18, 54, 5);
   },
   (s) => {
-    s.add(`<circle cx="50" cy="48" r="46" fill="${s.glow('#bff3ff')}"/>`); s.shadow(26, 92);
+    s.halo('#bff3ff'); s.shadow(26, 92);
     const pts: string[] = [];
     for (let i = 0; i < 10; i++) {
       const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 17 : 40;
@@ -204,7 +252,7 @@ const herbArt: ((s: Svg) => void)[] = [
     leaf(s, 50, 46, 30, -125); leaf(s, 50, 46, 30, -55); leaf(s, 50, 46, 26, -90);
   },
   (s) => {
-    s.add(`<circle cx="50" cy="34" r="34" fill="${s.glow('#e8ffd0')}"/>`); s.shadow(26, 92); pot(s, 50, 62, 46, 28);
+    s.halo('#e8ffd0'); s.shadow(26, 92); pot(s, 50, 62, 46, 28);
     s.add(shape('M50 64Q48 50 50 40', 'none', P.herb.ink, 'stroke-width="3.5"'));
     leaf(s, 50, 60, 26, -160); leaf(s, 50, 58, 26, -20);
     for (let i = 0; i < 6; i++) {
@@ -216,7 +264,7 @@ const herbArt: ((s: Svg) => void)[] = [
     s.sparkle(80, 16, 5); s.sparkle(18, 30, 4);
   },
   (s) => {
-    s.add(`<circle cx="50" cy="40" r="44" fill="${s.glow('#d6ffb0')}"/>`); s.shadow(30, 93);
+    s.halo('#d6ffb0'); s.shadow(30, 93);
     s.add(shape('M24 82L76 82L70 93L30 93Z', s.rad(P.stone), P.stone.ink));
     s.add(shape('M48 82Q44 70 50 60Q54 52 46 46M50 64Q60 60 64 52', 'none', P.wood.ink, 'stroke-width="6"'));
     s.add(shape('M48 82Q44 70 50 60Q54 52 46 46M50 64Q60 60 64 52', 'none', P.wood.mid, 'stroke-width="3"'));
@@ -245,7 +293,7 @@ function candle(s: Svg, cx: number, by: number, w: number, h: number) {
 }
 
 const flameArt: ((s: Svg) => void)[] = [
-  (s) => { s.add(`<circle cx="50" cy="56" r="26" fill="${s.glow('#ffd27a')}"/>`); s.shadow(12, 80); fire(s, 50, 78, 30, 44); s.sparkle(70, 34, 4, '#fff6c4'); },
+  (s) => { s.halo('#ffd27a'); s.shadow(12, 80); fire(s, 50, 78, 30, 44); s.sparkle(70, 34, 4, '#fff6c4'); },
   (s) => {
     s.shadow(18, 88);
     s.add(shape('M30 86Q30 80 50 80Q70 80 70 86Q70 90 50 90Q30 90 30 86Z', s.rad(P.metal), P.metal.ink));
@@ -260,7 +308,7 @@ const flameArt: ((s: Svg) => void)[] = [
     candle(s, 26, 66, 12, 24); candle(s, 74, 66, 12, 24); candle(s, 50, 74, 14, 38);
   },
   (s) => {
-    s.add(`<circle cx="50" cy="56" r="30" fill="${s.glow('#ffd27a')}"/>`); s.shadow(22, 92);
+    s.halo('#ffd27a'); s.shadow(22, 92);
     s.add(shape('M44 18Q50 8 56 18', 'none', P.metal.ink, 'stroke-width="3"'));
     s.add(shape('M34 26L66 26L60 18L40 18Z', s.rad({ ...P.flame, hi: '#ff9a6a', mid: '#d84a2a', lo: '#9c3020' }), P.flame.ink));
     s.add(shape('M32 28L68 28L64 82L36 82Z', 'rgba(255,240,200,.55)', P.flame.ink));
@@ -270,7 +318,7 @@ const flameArt: ((s: Svg) => void)[] = [
     s.add(hl('M35 34L37 76', 2.4, 0.7));
   },
   (s) => {
-    s.add(`<circle cx="50" cy="40" r="40" fill="${s.glow('#ffc46a')}"/>`); s.shadow(26, 93);
+    s.halo('#ffc46a'); s.shadow(26, 93);
     s.add(shape('M34 70L28 92M66 70L72 92M50 72L50 92', 'none', P.stone.ink, 'stroke-width="5"'));
     fire(s, 50, 58, 50, 56); fire(s, 36, 58, 22, 30); fire(s, 64, 58, 22, 32);
     s.add(shape('M18 54Q50 50 82 54Q78 76 50 76Q22 76 18 54Z', s.rad(P.stone), P.stone.ink));
@@ -279,7 +327,7 @@ const flameArt: ((s: Svg) => void)[] = [
     s.sparkle(80, 22, 4, '#fff6c4'); s.sparkle(22, 26, 3, '#fff6c4');
   },
   (s) => {
-    s.add(`<circle cx="50" cy="48" r="44" fill="${s.glow('#ffb46a')}"/>`); s.shadow(18, 92);
+    s.halo('#ffb46a'); s.shadow(18, 92);
     s.add('<g transform="rotate(28 50 50)">');
     s.add(shape('M50 8Q74 30 66 62Q60 80 50 86Q40 80 34 62Q26 30 50 8Z', s.rad({ hi: '#fff3b0', mid: '#ff9a3c', lo: '#d8402a', ink: P.flame.ink }), P.flame.ink));
     s.add('<path d="M50 14Q62 34 58 60Q54 74 50 80Q46 74 42 60Q38 34 50 14Z" fill="#ffd56a" opacity=".8"/>');
@@ -289,7 +337,7 @@ const flameArt: ((s: Svg) => void)[] = [
     fire(s, 30, 30, 14, 20); s.sparkle(76, 20, 5, '#fff6c4'); s.sparkle(20, 66, 4, '#fff6c4');
   },
   (s) => {
-    s.add(`<circle cx="50" cy="50" r="46" fill="${s.glow('#ff9a5a')}"/>`); s.shadow(26, 93);
+    s.halo('#ff9a5a'); s.shadow(26, 93);
     fire(s, 24, 86, 22, 36); fire(s, 76, 86, 22, 38);
     s.add(shape('M50 10Q76 12 78 54Q78 88 50 88Q22 88 22 54Q24 12 50 10Z', s.rad({ hi: '#ffd08a', mid: '#f0603a', lo: '#a82a20', ink: '#7a1e18' }), '#7a1e18'));
     for (let row = 0; row < 4; row++) {
@@ -351,7 +399,7 @@ const arcaneArt: ((s: Svg) => void)[] = [
     s.add(`<path d="M24 76L74 76" stroke="${P.metal.mid}" stroke-width="4"/>`);
   },
   (s) => {
-    s.add(`<circle cx="70" cy="30" r="26" fill="${s.glow('#e6ccff')}"/>`); s.shadow(18, 90);
+    s.halo('#e6ccff'); s.shadow(18, 90);
     s.add(shape('M24 86L64 40', 'none', P.wood.ink, 'stroke-width="9"'));
     s.add(shape('M24 86L64 40', 'none', s.lin(P.wood.hi, P.wood.lo), 'stroke-width="5"'));
     s.add(shape('M28 82L36 73', 'none', P.metal.ink, 'stroke-width="9"'));
@@ -369,7 +417,7 @@ const arcaneArt: ((s: Svg) => void)[] = [
     s.add(hl('M36 66Q42 46 52 32', 2.6, 0.45));
   },
   (s) => {
-    s.add(`<circle cx="50" cy="44" r="46" fill="${s.glow('#d9b8ff')}"/>`); s.shadow(26, 94);
+    s.halo('#d9b8ff'); s.shadow(26, 94);
     s.add(shape('M50 34Q34 24 12 30L14 72Q34 66 50 76Q66 66 86 72L88 30Q66 24 50 34Z', s.rad(P.arcane), P.arcane.ink));
     s.add(shape('M50 30Q34 20 16 26L18 66Q34 62 50 70Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink));
     s.add(shape('M50 30Q66 20 84 26L82 66Q66 62 50 70Z', s.lin(P.paper.mid, P.paper.hi, false), P.paper.ink));
@@ -413,7 +461,7 @@ const coinArt: ((s: Svg) => void)[] = [
     coinShape(s, 50, 64, 12); s.add(hl('M28 56Q28 72 38 80', 2.6, 0.5));
   },
   (s) => {
-    s.add(`<circle cx="50" cy="44" r="40" fill="${s.glow('#ffe58a')}"/>`); s.shadow(32, 92);
+    s.halo('#ffe58a'); s.shadow(32, 92);
     s.add(shape('M18 50L82 50L80 88L20 88Z', s.rad(P.wood), P.wood.ink));
     for (let i = 0; i < 3; i++) coinShape(s, 34 + i * 16, 44 - (i % 2) * 6, 10);
     s.add(shape('M16 50Q16 24 50 22Q84 24 84 50Z', s.rad(P.wood), P.wood.ink, 'transform="rotate(-8 16 50) translate(0 -6)"'));
@@ -437,7 +485,7 @@ const manaArt: ((s: Svg) => void)[] = [
     s.add(hl('M38 52Q34 64 38 74', 2.6, 0.8)); s.sparkle(70, 28, 5);
   },
   (s) => {
-    s.add(`<circle cx="50" cy="58" r="40" fill="${s.glow('#ffb0dc')}"/>`); s.shadow(26, 92);
+    s.halo('#ffb0dc'); s.shadow(26, 92);
     s.add(shape('M42 14L58 14L58 34Q82 42 82 64Q82 90 50 90Q18 90 18 64Q18 42 42 34Z', 'rgba(255,255,255,.7)', P.mana.ink));
     s.add(`<path d="M20 60Q50 50 80 60Q82 88 50 88Q18 88 20 60Z" fill="${s.rad(P.mana)}"/>`);
     s.add('<circle cx="40" cy="70" r="3" fill="#fff" opacity=".7"/><circle cx="58" cy="76" r="2" fill="#fff" opacity=".7"/>');
@@ -472,7 +520,7 @@ const genArt: Record<GenId, (s: Svg) => void> = {
     s.add(shape('M10 50L90 50L90 58L10 58Z', s.lin(P.wood.hi, P.wood.mid), P.wood.ink));
   },
   forge: (s) => {
-    s.add(`<circle cx="50" cy="56" r="36" fill="${s.glow('#ffb46a')}"/>`); s.shadow(36, 93);
+    s.halo('#ffb46a'); s.shadow(36, 93);
     s.add(shape('M14 90L14 40Q14 16 50 14Q86 16 86 40L86 90Z', s.rad(P.stone), P.stone.ink));
     for (const [x, y, w] of [[18, 36, 18], [40, 26, 20], [64, 36, 18], [18, 60, 12], [72, 60, 12]] as const) {
       s.add(`<rect x="${x}" y="${y}" width="${w}" height="10" rx="3" fill="#fff" opacity=".18"/>`);
@@ -482,7 +530,7 @@ const genArt: Record<GenId, (s: Svg) => void> = {
     s.add(shape('M10 90L90 90L90 94L10 94Z', P.stone.lo, P.stone.ink));
   },
   lectern: (s) => {
-    s.add(`<circle cx="50" cy="30" r="30" fill="${s.glow('#d9b8ff')}"/>`); s.shadow(30, 93);
+    s.halo('#d9b8ff'); s.shadow(30, 93);
     s.add(shape('M44 50L40 86L60 86L56 50Z', s.rad(P.wood), P.wood.ink));
     s.add(shape('M26 88L74 88L70 94L30 94Z', s.rad(P.wood), P.wood.ink));
     s.add(shape('M14 54L50 44L86 54L82 60L50 52L18 60Z', s.rad(P.wood), P.wood.ink));
@@ -528,7 +576,7 @@ const monsterArt: Record<MonsterKind, (s: Svg) => void> = {
   },
   ghost: (s) => {
     const p = { hi: '#ffffff', mid: '#eee8ff', lo: '#b6a8e6', ink: '#6a5aa8' };
-    s.add(`<circle cx="50" cy="50" r="44" fill="${s.glow('#e8deff')}"/>`); s.shadow(22, 94);
+    s.halo('#e8deff'); s.shadow(22, 94);
     s.add(shape('M22 84L22 46Q22 14 50 14Q78 14 78 46L78 84L70 76L62 86L54 76L46 86L38 76L30 86Z', s.rad(p), p.ink));
     s.add(shape('M22 50Q10 52 8 42', 'none', p.ink) + shape('M78 50Q90 52 92 42', 'none', p.ink));
     eyes(s, 44, 11, 5); cheeks(s, 54, 19);
@@ -569,7 +617,7 @@ const monsterArt: Record<MonsterKind, (s: Svg) => void> = {
   },
   dragon: (s) => {
     const p = { hi: '#ffd08a', mid: '#f07a3a', lo: '#b8402a', ink: '#6a1e14' };
-    s.add(`<circle cx="50" cy="50" r="48" fill="${s.glow('#ffb46a')}"/>`); s.shadow(36, 94);
+    s.halo('#ffb46a'); s.shadow(36, 94);
     s.add(shape('M30 50Q8 26 2 40Q12 46 6 58Q18 54 20 66Z', s.rad({ ...p, mid: '#e8603a' }), p.ink));
     s.add(shape('M70 50Q92 26 98 40Q88 46 94 58Q82 54 80 66Z', s.rad({ ...p, mid: '#e8603a' }), p.ink));
     s.add(shape('M34 26Q30 10 22 6Q38 10 42 22Z', s.rad(P.wax), P.wax.ink) + shape('M66 26Q70 10 78 6Q62 10 58 22Z', s.rad(P.wax), P.wax.ink));
@@ -590,20 +638,40 @@ const chainArt: Record<ChainId, ((s: Svg) => void)[]> = {
 
 const cache = new Map<string, string>();
 
-function toUrl(key: string, draw: (s: Svg) => void): string {
+/**
+ * Painted art overrides. Any key listed in public/art/manifest.json is served
+ * from public/art/<key>.png instead of the code-drawn SVG, so real art can be
+ * swapped in one item at a time. Keys: `crystal-1`, `gen-geode`, `mon-slime`,
+ * `icon-coin`, ... (see artKeys()).
+ */
+const overrides = new Set<string>();
+
+export async function loadArtOverrides(): Promise<void> {
+  try {
+    const res = await fetch('art/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const keys = (await res.json()) as unknown;
+    if (Array.isArray(keys)) keys.forEach((k) => typeof k === 'string' && overrides.add(k));
+  } catch { /* no overrides (e.g. single-file build) */ }
+}
+
+function toUrl(key: string, draw: (s: Svg) => void, fill = 0.86): string {
+  if (overrides.has(key)) return `art/${key}.png`;
   let url = cache.get(key);
   if (!url) {
     const s = new Svg();
     draw(s);
-    url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s.toString())}`;
+    url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s.toString(fill))}`;
     cache.set(key, url);
   }
   return url;
 }
 
-export const itemArt = (chain: ChainId, level: number) => toUrl(`${chain}${level}`, chainArt[chain][level - 1]);
-export const generatorArt = (g: GenId) => toUrl(`gen-${g}`, genArt[g]);
-export const monsterImg = (k: MonsterKind) => toUrl(`mon-${k}`, monsterArt[k]);
+// Higher levels fill a little more of the tile, so size grows with the chain too.
+export const itemArt = (chain: ChainId, level: number) =>
+  toUrl(`${chain}-${level}`, chainArt[chain][level - 1], Math.min(0.95, 0.68 + level * 0.04));
+export const generatorArt = (g: GenId) => toUrl(`gen-${g}`, genArt[g], 0.9);
+export const monsterImg = (k: MonsterKind) => toUrl(`mon-${k}`, monsterArt[k], 0.94);
 export const pieceArt = (p: Piece) => (p.kind === 'gen' ? generatorArt(p.gen) : itemArt(p.chain, p.level));
 
 export const iconArt = {
@@ -620,6 +688,16 @@ export const iconArt = {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#c9ecff', mid: '#5aaaf0', lo: '#2a6ac8', ink: '#163e80' }), '#163e80'));
   }),
 };
+
+/** Every override key, i.e. the PNG file names the game will look for. */
+export function artKeys(): string[] {
+  const out: string[] = [];
+  for (const c of Object.keys(chainArt) as ChainId[]) chainArt[c].forEach((_, i) => out.push(`${c}-${i + 1}`));
+  for (const g of Object.keys(genArt) as GenId[]) out.push(`gen-${g}`);
+  for (const m of Object.keys(monsterArt) as MonsterKind[]) out.push(`mon-${m}`);
+  out.push(...Object.keys(iconArt).map((k) => `icon-${k}`));
+  return out;
+}
 
 /** Every art key, for preloading and the art gallery test page. */
 export function allArt(): string[] {

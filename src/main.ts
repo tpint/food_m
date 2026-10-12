@@ -4,8 +4,9 @@ import {
   GameState, Monster, Piece, canUpgrade, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
   newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen,
 } from './game/state';
-import { iconArt, itemArt, monsterImg, pieceArt } from './render/art';
+import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
 import { burst, puff, shower, trail } from './render/fx';
+import { sceneArt, webArt } from './render/scene';
 import { sfx } from './render/sfx';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -40,7 +41,7 @@ function toast(msg: string, big = false, ms = 1400) {
 
 function floater(text: string, x: number, y: number) {
   const f = document.createElement('div');
-  f.className = 'floater';
+  f.className = 'floater stroked';
   f.textContent = text;
   f.style.left = `${x}px`;
   f.style.top = `${y}px`;
@@ -92,19 +93,26 @@ const cellKeys: string[] = [];
 function layout() {
   const app = $('#app');
   const wrap = $('#board-wrap');
-  const gap = 3, pad = 16;
+  document.documentElement.style.setProperty('--mon-extra', '0px');
+  const gap = 2, pad = 30; // grid gap; board padding + frame on both sides
   const availW = app.clientWidth - 20 - pad;
   // Height left for the board once everything else is laid out.
   const others = [...app.children].filter((c) => c !== wrap).reduce((h, c) => h + (c as HTMLElement).offsetHeight, 0);
   const availH = app.clientHeight - others - 8 * (app.children.length) - pad - 20;
   const size = Math.floor(Math.min((availW - gap * (state.cols - 1)) / state.cols, (availH - gap * (state.rows - 1)) / state.rows, 72));
-  document.documentElement.style.setProperty('--cell', `${Math.max(34, size)}px`);
+  document.documentElement.style.setProperty('--cell', `${Math.max(30, size)}px`);
   // Monster cards scale with --cell, so settle once more.
   requestAnimationFrame(() => {
     const others2 = [...app.children].filter((c) => c !== wrap).reduce((h, c) => h + (c as HTMLElement).offsetHeight, 0);
     const h2 = app.clientHeight - others2 - 8 * app.children.length - pad - 20;
     const s2 = Math.floor(Math.min((availW - gap * (state.cols - 1)) / state.cols, (h2 - gap * (state.rows - 1)) / state.rows, 72));
-    document.documentElement.style.setProperty('--cell', `${Math.max(34, s2)}px`);
+    document.documentElement.style.setProperty('--cell', `${Math.max(30, s2)}px`);
+    // Give leftover height to the monster portraits instead of a dead gap.
+    requestAnimationFrame(() => {
+      const spare = wrap.clientHeight - boardEl.offsetHeight - 12;
+      const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mon-extra')) || 0;
+      document.documentElement.style.setProperty('--mon-extra', `${Math.max(0, Math.min(70, cur + spare))}px`);
+    });
   });
 }
 
@@ -132,8 +140,8 @@ function renderCell(i: number, anim?: 'pop' | 'merge' | 'squish') {
   if (key !== cellKeys[i]) {
     cellKeys[i] = key;
     el.innerHTML = !p ? '' : p.kind === 'gen'
-      ? `<div class="piece gen lv${genLevel(p)}"><img src="${pieceArt(p)}" alt=""><span class="gen-lv">${genLevel(p)}</span></div>`
-      : `<div class="piece"><img src="${pieceArt(p)}" alt=""></div>`;
+      ? `<div class="piece gen lv${genLevel(p)}"><img src="${pieceArt(p)}" alt=""><span class="gen-lv stroked">${genLevel(p)}</span></div>`
+      : `<div class="piece"><img src="${pieceArt(p)}" alt=""><span class="check"></span></div>`;
   }
   const pe = el.firstElementChild;
   if (pe) {
@@ -176,10 +184,6 @@ function updateTimer() {
   else t.textContent = `+1 in ${Math.ceil(ms / 1000)}s`;
 }
 
-document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
-  img.src = iconArt[img.dataset.icon as keyof typeof iconArt]();
-});
-
 // ------------------------------------------------------------------ monsters
 
 const monsterEls = new Map<number, HTMLElement>();
@@ -190,11 +194,12 @@ function monsterCard(m: Monster): HTMLElement {
   el.className = `monster enter${m.boss ? ' boss' : ''}`;
   el.dataset.id = String(m.id);
   el.innerHTML = `
-    <button class="cast">Cast!</button>
     <div class="portrait"><img src="${monsterImg(m.kind)}" alt=""></div>
-    <div class="name">${m.boss ? '👑 ' : ''}${m.name}</div>
-    <div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""></div>`).join('')}</div>
-    <div class="reward"><img src="${iconArt.coin()}" alt="">${m.coins}${m.gems ? ` <img src="${iconArt.gem()}" alt="">${m.gems}` : ''} · ${m.xp}xp</div>`;
+    <div class="name">${m.name}</div>
+    <div class="hp">${m.needs.map(() => '<span class="seg"></span>').join('')}</div>
+    <div class="needs">${m.needs.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div>
+    <div class="reward"><img src="${iconArt.coin()}" alt="">${m.coins}${m.gems ? ` <img src="${iconArt.gem()}" alt="">${m.gems}` : ''} <span class="xp">+${m.xp} XP</span></div>
+    <button class="cast stroked">Cast!</button>`;
   el.querySelector('.cast')!.addEventListener('click', (e) => { e.stopPropagation(); doCast(m.id); });
   el.querySelector('.portrait')!.addEventListener('click', () => showMonsterInfo(m));
   setTimeout(() => el.classList.remove('enter'), 600);
@@ -247,8 +252,10 @@ async function doCast(id: number) {
   sfx.cast();
 
   const target = center(el.querySelector('.portrait')!);
+  const segs = el.querySelectorAll('.hp .seg');
   await Promise.all(flights.map((f, k) => fly(f.src, f.from, target, { ms: 520, color: f.color, delay: k * 90 }).then(() => {
     burst(target.x, target.y, f.color, 0.7);
+    segs[k]?.classList.add('lost');
     restartAnim(el, 'hit');
   })));
 
@@ -301,7 +308,7 @@ function select(i: number) {
   if (selected >= 0) cells[selected]?.classList.remove('selected');
   selected = i;
   if (i < 0) {
-    setInfo(null, 'Defeat the monsters!', 'Merge items to brew the magic each monster is weak to.');
+    setInfo(itemArt('arcane', 6), 'Defeat the monsters!', 'Merge items to brew the magic each monster is weak to.');
     return;
   }
   cells[i].classList.add('selected');
@@ -549,16 +556,27 @@ Object.assign(window, {
 
 // ------------------------------------------------------------------ boot
 
-buildBoard();
-renderBoard();
-renderHud();
-renderMonsters();
-select(-1);
-layout();
-addEventListener('resize', layout);
-document.fonts?.ready.then(layout);
+async function boot() {
+  await loadArtOverrides();
+  document.documentElement.style.setProperty('--scene', sceneArt());
+  document.documentElement.style.setProperty('--web', webArt());
+  document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
+    img.src = iconArt[img.dataset.icon as keyof typeof iconArt]();
+  });
 
-setInterval(() => {
-  if (tickEnergy(state)) { renderHud(); persist(); } else updateTimer();
-}, 1000);
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(state); });
+  buildBoard();
+  renderBoard();
+  renderHud();
+  renderMonsters();
+  select(-1);
+  layout();
+  addEventListener('resize', layout);
+  document.fonts?.ready.then(layout);
+
+  setInterval(() => {
+    if (tickEnergy(state)) { renderHud(); persist(); } else updateTimer();
+  }, 1000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(state); });
+}
+
+boot();

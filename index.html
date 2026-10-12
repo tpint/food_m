@@ -12,16 +12,17 @@
   <title>Arcane Merge</title>
 </head>
 <body>
+  <div id="scene"></div>
   <div id="app">
     <header id="hud">
-      <div class="badge level" id="hud-level"><img data-icon="star" alt="" /><span>1</span></div>
-      <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val">100</span><small class="timer"></small></div>
-      <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val">0</span></div>
-      <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val">0</span></div>
+      <div class="badge level" id="hud-level"><img data-icon="star" alt="" /><span class="stroked">1</span></div>
+      <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val stroked">100</span><small class="timer"></small></div>
+      <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
+      <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
       <button class="round" id="btn-sound" aria-label="Toggle sound">🔊</button>
     </header>
 
-    <div id="xpbar"><div id="xpfill"></div><span id="xptext"></span></div>
+    <div id="xpbar"><div id="xpfill"></div><span id="xptext" class="stroked"></span></div>
 
     <section id="monsters" aria-label="Monsters"></section>
 
@@ -30,17 +31,17 @@
     </main>
 
     <footer id="info">
-      <img id="info-img" alt="" />
+      <div id="info-frame"><img id="info-img" alt="" /></div>
       <div id="info-text">
         <b id="info-title">Welcome, apprentice!</b>
         <span id="info-desc">Tap a generator to conjure items. Merge two of a kind!</span>
       </div>
-      <button id="info-action" class="btn hidden"></button>
+      <button id="info-action" class="btn stroked hidden"></button>
     </footer>
   </div>
 
   <canvas id="fx"></canvas>
-  <div id="toast"></div>
+  <div id="toast" class="stroked"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
