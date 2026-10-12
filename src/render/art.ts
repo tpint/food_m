@@ -881,6 +881,13 @@ export const iconArt = {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#fff8c8', mid: '#ffd23c', lo: '#e8961c', ink: '#8a5a10' }), '#8a5a10'));
     s.add('<path d="M38 34L50 10L46 40Z" fill="#fff" opacity=".5"/>');
   }),
+  scroll: () => toUrl('icon-scroll', (s) => {
+    s.add(shape('M24 18L76 18L76 82L24 82Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink));
+    for (const y of [32, 42, 52, 62]) s.add(`<path d="M32 ${y}L${y === 62 ? 54 : 68} ${y}" stroke="${P.paper.lo}" stroke-width="3" stroke-linecap="round"/>`);
+    for (const y of [16, 84]) s.add(shape(`M18 ${y - 7}L82 ${y - 7}Q88 ${y} 82 ${y + 7}L18 ${y + 7}Q12 ${y} 18 ${y - 7}Z`, s.rad(P.wood), P.wood.ink));
+    s.add(shape('M66 66Q76 60 80 70Q84 80 72 82Q62 82 64 72Z', s.rad({ hi: '#ff9a9a', mid: '#d8302a', lo: '#8a1410', ink: '#5a0a08' }), '#5a0a08', 'stroke-width="2"'));
+    s.add(shape('M66 80L62 92L68 88L70 94L73 82Z', '#d8302a', '#5a0a08', 'stroke-width="1.6"'));
+  }),
   star: () => toUrl('icon-star', (s) => {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#c9ecff', mid: '#5aaaf0', lo: '#2a6ac8', ink: '#163e80' }), '#163e80'));
   }),

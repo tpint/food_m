@@ -3,8 +3,9 @@ import { CHAINS, ElementId, GEN_LEVELS, GENERATORS, isElement, MAX_ENERGY, SPAWN
 import {
   GameState, MERGE_COUNT, Monster, Piece, canUpgrade, currentTask, restore, cast, collect, findSpell, genLevel, isWanted, load, movePiece, msToNextEnergy,
   newGame, refreshCost, refreshMonsters, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
+  DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
 } from './game/state';
-import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
+import { generatorArt, iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
 import { burst, elementCharge, elementHit, puff, shower, trail } from './render/fx';
 import { sceneArt, webArt } from './render/scene';
 import { magicCircle } from './render/circle';
@@ -35,6 +36,7 @@ let saveTimer = 0;
  */
 function persist(changed = true) {
   if (changed) state.savedAt = Date.now();
+  updateQuestBadge();
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
     save(state);
@@ -938,6 +940,101 @@ $('#rename-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ------------------------------------------------------------------ daily quests
+
+const questsEl = $('#quests');
+/** Claimable count last shown, so a newly finished quest can be announced once. */
+let questsReady = -1;
+
+function questText(q: Quest): string {
+  switch (q.kind) {
+    case 'defeat': return `Defeat ${q.target} monsters`;
+    case 'merge': return `Merge ${q.target} times`;
+    case 'conjure': return `Conjure ${q.target} items`;
+    case 'mergeHigh': return `Merge any item up to level ${q.level}`;
+    case 'coins': return `Collect ${q.target} coins from gold items`;
+  }
+}
+
+function questIcon(q: Quest): string {
+  switch (q.kind) {
+    case 'defeat': return monsterImg('bat');
+    case 'merge': return itemArt('water', 3);
+    case 'conjure': return generatorArt('forge', 1);
+    case 'mergeHigh': return itemArt('earth', q.level ?? 4);
+    case 'coins': return itemArt('coin', 3);
+  }
+}
+
+function untilNewQuests() {
+  const m = Math.ceil(msToNextDay() / 60000);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+}
+
+function updateQuestBadge() {
+  const n = claimableQuests(state);
+  $('#btn-quests').classList.toggle('ready', n > 0);
+  if (questsReady >= 0 && n > questsReady && questsEl.classList.contains('hidden')) {
+    restartAnim($('#btn-quests'), 'bump');
+    toast('📜 Quest complete! Claim your reward.');
+  }
+  questsReady = n;
+}
+
+const reward = (coins: number, gems: number, energy = 0) =>
+  `<span class="quest-reward">${coins ? `<img src="${iconArt.coin()}" alt="coins">${coins} ` : ''}`
+  + `${gems ? `<img src="${iconArt.gem()}" alt="gems">${gems} ` : ''}${energy ? `<img src="${iconArt.energy()}" alt="mana">${energy}` : ''}</span>`;
+
+function renderQuests() {
+  const d = state.daily;
+  if (!d) return;
+  $('#quests-sub').textContent = `New quests in ${untilNewQuests()}`;
+  $('#quest-list').innerHTML = d.quests.map((q, i) => {
+    const done = questDone(q);
+    const side = q.claimed ? '<span class="quest-check" aria-label="Claimed">✓</span>'
+      : done ? `<button class="btn stroked" data-claim="${i}">Claim</button>` : '';
+    return `<li class="task${q.claimed ? ' done' : done ? ' ready' : ''}"><img class="quest-ico" src="${questIcon(q)}" alt="">`
+      + `<span class="quest-main"><b>${questText(q)}</b><span class="quest-bar"><i style="width:${(q.progress / q.target) * 100}%"></i><span class="stroked">${q.progress} / ${q.target}</span></span></span>`
+      + `<span class="quest-side">${reward(q.coins, q.gems)}${side}</span></li>`;
+  }).join('');
+  const all = d.quests.every((q) => q.claimed);
+  const bonus = $('#quest-bonus');
+  bonus.className = `task quest-bonus${d.bonusClaimed ? ' done' : all ? ' ready' : ' locked'}`;
+  bonus.innerHTML = `<img class="quest-ico" src="${iconArt.gem()}" alt="">`
+    + `<span class="quest-main"><b>Finish every quest</b>${reward(0, DAILY_BONUS.gems, DAILY_BONUS.energy)}</span>`
+    + `<span class="quest-side">${d.bonusClaimed ? '<span class="quest-check" aria-label="Claimed">✓</span>' : all ? '<button class="btn stroked" data-bonus>Open</button>' : ''}</span>`;
+}
+
+function openQuests() {
+  sfx.pick();
+  if (ensureDaily(state)) persist();
+  questsEl.classList.remove('hidden');
+  renderQuests();
+}
+
+questsEl.addEventListener('click', (e) => {
+  const btn = (e.target as Element).closest<HTMLButtonElement>('button[data-claim], button[data-bonus]');
+  if (!btn) return;
+  const at = center(btn);
+  if (btn.dataset.claim !== undefined) {
+    const q = claimQuest(state, Number(btn.dataset.claim));
+    if (!q) return;
+    shower(at.x, at.y, ['#ffd147', '#7ee08e', '#fff']);
+    floater(`+${q.coins}`, at.x, at.y - 20);
+  } else {
+    const b = claimDailyBonus(state);
+    if (!b) return;
+    shower(at.x, at.y, ['#ff6fb8', '#ffd147', '#fff']);
+    toast(`Daily chest! +${b.gems} gems, +${b.energy} mana`, true, 2000);
+  }
+  sfx.levelUp();
+  renderQuests();
+  renderHud();
+  persist();
+});
+$('#btn-quests').addEventListener('click', openQuests);
+$('#btn-quests-back').addEventListener('click', () => questsEl.classList.add('hidden'));
+
 // ------------------------------------------------------------------ profile & cloud save
 
 const profileEl = $('#profile');
@@ -956,6 +1053,9 @@ function replaceState(next: GameState) {
   select(-1);
   layout();
   roomFor = '';
+  ensureDaily(state);
+  questsReady = claimableQuests(state);
+  updateQuestBadge();
 }
 
 function ago(ms: number) {
@@ -1186,9 +1286,16 @@ async function boot() {
   addEventListener('resize', layout);
   document.fonts?.ready.then(layout);
 
+  ensureDaily(state);
+  questsReady = claimableQuests(state);
+  updateQuestBadge();
+
   setInterval(() => {
     // Energy refilling on its own is not a player change.
     if (tickEnergy(state)) { renderHud(); persist(false); } else updateTimer();
+    // New quests at midnight.
+    if (ensureDaily(state)) { questsReady = 0; persist(); }
+    if (!questsEl.classList.contains('hidden')) $('#quests-sub').textContent = `New quests in ${untilNewQuests()}`;
   }, 1000);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;

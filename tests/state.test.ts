@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canUpgrade, cast, collect, mergeYield, findSpell, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save, refreshCost, refreshMonsters,
+  ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
 } from '../src/game/state';
 import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
@@ -388,5 +389,83 @@ describe('leaderboard reset countdown', () => {
     expect(untilReset(new Date('2026-10-11T22:30:00Z'))).toBe('1h 30m'); // Sunday night
     expect(untilReset(new Date('2026-10-12T00:00:00Z'))).toBe('7d 0h'); // just reset
     expect(untilReset(new Date('2026-10-14T12:00:00Z'))).toBe('4d 12h'); // Wednesday noon
+  });
+});
+
+describe('daily quests', () => {
+  const noon = new Date(2026, 9, 12, 12).getTime();
+
+  it('gives three different quests a day and new ones the next day', () => {
+    const s = empty();
+    expect(ensureDaily(s, noon, seeded(3))).toBe(true);
+    expect(s.daily!.day).toBe('2026-10-12');
+    expect(s.daily!.quests).toHaveLength(3);
+    expect(new Set(s.daily!.quests.map((q) => q.kind)).size).toBe(3);
+    expect(ensureDaily(s, noon + 3600_000)).toBe(false);
+    expect(ensureDaily(s, noon + 86400_000)).toBe(true);
+    expect(s.daily!.day).toBe('2026-10-13');
+    expect(dayKey(new Date(2026, 0, 5, 23, 59).getTime())).toBe('2026-01-05');
+    expect(msToNextDay(noon)).toBe(12 * 3600_000);
+  });
+
+  it('counts merges, conjures, coins and defeats', () => {
+    const s = empty();
+    s.daily = { day: dayKey(noon), bonusClaimed: false, quests: [makeQuest(s, 'merge'), makeQuest(s, 'conjure'), makeQuest(s, 'coins')] };
+    s.board[0].piece = item('water', 1);
+    s.board[1].piece = item('water', 1);
+    s.board[20].piece = item('water', 1);
+    movePiece(s, 20, 2);
+    s.board[30].piece = gen('well');
+    spawnFrom(s, 30, seeded());
+    s.board[40].piece = item('coin', 2);
+    collect(s, 40);
+    expect(s.daily.quests.map((q) => q.progress)).toEqual([1, 1, 6]);
+
+    s.daily.quests = [makeQuest(s, 'defeat')];
+    const m = s.monsters[0];
+    m.needs.forEach((n, k) => { s.board[k].piece = item(n.chain, n.level); });
+    cast(s, m.id, seeded());
+    expect(s.daily.quests[0].progress).toBe(1);
+  });
+
+  it('only counts merges that reach the level a mergeHigh quest asks for', () => {
+    const s = empty();
+    const q = makeQuest(s, 'mergeHigh');
+    s.daily = { day: dayKey(noon), bonusClaimed: false, quests: [q] };
+    const merge3 = (level: number) => {
+      s.board[0].piece = item('fire', level);
+      s.board[1].piece = item('fire', level);
+      s.board[20].piece = item('fire', level);
+      movePiece(s, 20, 2);
+      s.board[2].piece = null;
+    };
+    merge3(q.level! - 2);
+    expect(q.progress).toBe(0);
+    merge3(q.level! - 1);
+    expect(q.progress).toBe(1);
+  });
+
+  it('pays out each finished quest once, then the bonus chest when all are claimed', () => {
+    const s = empty();
+    ensureDaily(s, noon, seeded());
+    const [a, b, c] = s.daily!.quests;
+    expect(claimQuest(s, 0)).toBeNull();
+    a.progress = a.target;
+    expect(claimableQuests(s)).toBe(1);
+    const coins = s.coins, gems = s.gems;
+    expect(claimQuest(s, 0)).toBe(a);
+    expect(s.coins).toBe(coins + a.coins);
+    expect(s.gems).toBe(gems + a.gems);
+    expect(claimQuest(s, 0)).toBeNull();
+    expect(claimDailyBonus(s)).toBeNull();
+    b.progress = b.target; c.progress = c.target;
+    claimQuest(s, 1); claimQuest(s, 2);
+    expect(claimableQuests(s)).toBe(1);
+    const g = s.gems, e = s.energy;
+    expect(claimDailyBonus(s)).toEqual(DAILY_BONUS);
+    expect(s.gems).toBe(g + DAILY_BONUS.gems);
+    expect(s.energy).toBe(e + DAILY_BONUS.energy);
+    expect(claimDailyBonus(s)).toBeNull();
+    expect(claimableQuests(s)).toBe(0);
   });
 });

@@ -44,6 +44,10 @@ npm run build      # production build in dist/
 - **New monsters**: don't like the current lineup? The ⟳ button above the monster cards swaps all three for new ones.
   It costs 10 coins, and the price doubles with every refresh until you defeat a monster, which resets it to 10.
   A boss stays a boss when you refresh. Tuning lives in `REFRESH_BASE_COST` / `REFRESH_COST_GROWTH`.
+- **Daily quests**: tap the scroll button (top right) for three quests a day, picked from: defeat monsters, merge,
+  conjure, merge an item up to a given level, and collect coins from gold items. Targets and rewards scale with your level.
+  Claim each for coins and gems; claiming all three opens a chest (+10 gems, +50 mana). New quests arrive at local midnight.
+  Tuning lives in `makeQuest` / `DAILY_BONUS` in `src/game/state.ts`.
 - **Tower restoration**: monsters also drop **Stars** (bosses drop 3). Tap the tower button (top right) to open the
   Tower screen and spend Stars on restoration tasks, in order. Each task visibly repairs the room and Professor Hoot,
   the Archmage's owl, tells a bit more of the story. Five chapters, one room each:

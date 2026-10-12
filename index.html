@@ -19,6 +19,7 @@
       <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val stroked">100</span><small class="timer"></small></div>
       <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
       <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
+      <button class="tower-btn" id="btn-quests" aria-label="Open daily quests"><img data-icon="scroll" alt="" /></button>
       <button class="tower-btn" id="btn-leaders" aria-label="Open the leaderboard"><img data-icon="trophy" alt="" /></button>
       <button class="tower-btn" id="btn-tower" aria-label="Open the tower"><img data-icon="tower" alt="" /><span class="star-badge stroked" id="star-badge">0</span></button>
     </header>
@@ -93,6 +94,20 @@
       <button class="link-btn" id="btn-profile-from-board">Keep your progress safe: profile &amp; recovery code →</button>
       <p class="board-msg hidden" id="board-msg"></p>
       <ol id="board-list"></ol>
+    </div>
+  </section>
+
+  <section id="quests" class="hidden" aria-label="Daily quests">
+    <div class="tower-inner">
+      <header class="tower-head">
+        <button class="round" id="btn-quests-back" aria-label="Back to the board">←</button>
+        <div class="tower-title">
+          <small id="quests-sub">New quests in 12h</small>
+          <b class="stroked">Daily quests</b>
+        </div>
+      </header>
+      <ol id="quest-list"></ol>
+      <div class="task quest-bonus" id="quest-bonus"></div>
     </div>
   </section>
 

@@ -60,8 +60,31 @@ export interface GameState {
   starBonus?: number;
   /** Monster rerolls since the last defeat; each one makes the next cost more. */
   refreshes?: number;
+  /** Today's quests (filled in by ensureDaily). */
+  daily?: Daily;
   /** When the player last changed something (ms); the newest of local and cloud wins. */
   savedAt?: number;
+}
+
+export type QuestKind = 'defeat' | 'merge' | 'conjure' | 'mergeHigh' | 'coins';
+
+export interface Quest {
+  kind: QuestKind;
+  target: number;
+  /** For 'mergeHigh': the item level to make. */
+  level?: number;
+  progress: number;
+  claimed: boolean;
+  coins: number;
+  gems: number;
+}
+
+export interface Daily {
+  /** Local date the quests are for, e.g. "2026-10-12". */
+  day: string;
+  quests: Quest[];
+  /** The chest for finishing every quest has been opened. */
+  bonusClaimed: boolean;
 }
 
 export type Rng = () => number;
@@ -214,6 +237,8 @@ function mergeAt(s: GameState, from: number, to: number, consumed: number[], mad
   for (const i of results) s.board[i].piece = { ...result };
   const unveiled: number[] = [];
   for (const i of results) unveiled.push(...revealAround(s, i));
+  questProgress(s, 'merge');
+  questProgress(s, 'mergeHigh', made, result.level);
   return { type: 'merge', from, to, result, results, consumed, unveiled };
 }
 
@@ -306,6 +331,7 @@ export function spawnFrom(s: GameState, genIdx: number, rng: Rng = Math.random):
   }
   const piece = item(def.chain, level);
   s.board[at].piece = piece;
+  questProgress(s, 'conjure');
   return { ok: true, at, piece, free };
 }
 
@@ -339,7 +365,7 @@ export function collect(s: GameState, i: number): { resource: 'coins' | 'energy'
   const def = CHAINS[c.piece.chain].collect;
   if (!def) return null;
   const amount = def.amounts[c.piece.level - 1];
-  if (def.resource === 'coins') s.coins += amount;
+  if (def.resource === 'coins') { s.coins += amount; questProgress(s, 'coins', amount); }
   else s.energy += amount; // may exceed the cap, like bonus energy in most merge games
   c.piece = null;
   return { resource: def.resource, amount };
@@ -430,6 +456,7 @@ export function cast(s: GameState, monsterId: number, rng: Rng = Math.random): C
   s.stars += (m.stars ?? 1) + (s.starBonus ?? 0);
   s.defeated++;
   s.refreshes = 0;
+  questProgress(s, 'defeat');
   const levelUp = addXp(s, m.xp);
   s.monsters.splice(mi, 1, makeMonster(s, rng));
   return { cells, monster: m, levelUp };
@@ -469,6 +496,84 @@ export function addXp(s: GameState, xp: number): boolean {
     up = true;
   }
   return up;
+}
+
+// ---------------------------------------------------------------- daily quests
+
+export const QUESTS_PER_DAY = 3;
+/** Opening the chest for finishing every quest of the day. */
+export const DAILY_BONUS = { gems: 10, energy: 50 };
+
+/** Local calendar day, e.g. "2026-10-12". */
+export function dayKey(now = Date.now()): string {
+  const d = new Date(now);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Milliseconds until local midnight, when new quests arrive. */
+export function msToNextDay(now = Date.now()): number {
+  const d = new Date(now);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() - now;
+}
+
+/** A quest of `kind`, scaled to the player's level. */
+export function makeQuest(s: GameState, kind: QuestKind): Quest {
+  const L = s.level;
+  const q = { kind, progress: 0, claimed: false, coins: 20 + L * 5, gems: 2 };
+  switch (kind) {
+    case 'defeat': return { ...q, target: 3 + Math.floor(L / 5), coins: q.coins + 10 };
+    case 'merge': return { ...q, target: 12 + L };
+    case 'conjure': return { ...q, target: 25 + L * 2 };
+    case 'mergeHigh': return { ...q, target: 1, level: Math.min(6, 3 + Math.floor(L / 4)), gems: 3 };
+    case 'coins': return { ...q, target: 20 + L * 5 };
+  }
+}
+
+/** Give the player today's quests if they don't have them yet. Returns true when new ones were made. */
+export function ensureDaily(s: GameState, now = Date.now(), rng: Rng = Math.random): boolean {
+  const day = dayKey(now);
+  if (s.daily?.day === day) return false;
+  const kinds = shuffle(rng, ['defeat', 'merge', 'conjure', 'mergeHigh', 'coins'] as QuestKind[]).slice(0, QUESTS_PER_DAY);
+  s.daily = { day, quests: kinds.map((k) => makeQuest(s, k)), bonusClaimed: false };
+  return true;
+}
+
+/** Count something the player did towards today's quests. */
+export function questProgress(s: GameState, kind: QuestKind, amount = 1, level = 0) {
+  for (const q of s.daily?.quests ?? []) {
+    if (q.kind !== kind || q.progress >= q.target) continue;
+    if (kind === 'mergeHigh' && level < (q.level ?? 0)) continue;
+    q.progress = Math.min(q.target, q.progress + amount);
+  }
+}
+
+export const questDone = (q: Quest) => q.progress >= q.target;
+
+/** Quests finished but not claimed, plus the bonus chest if it is ready. */
+export function claimableQuests(s: GameState): number {
+  const qs = s.daily?.quests ?? [];
+  const ready = qs.filter((q) => questDone(q) && !q.claimed).length;
+  const bonus = qs.length > 0 && qs.every((q) => q.claimed) && !s.daily!.bonusClaimed ? 1 : 0;
+  return ready + bonus;
+}
+
+export function claimQuest(s: GameState, i: number): Quest | null {
+  const q = s.daily?.quests[i];
+  if (!q || q.claimed || !questDone(q)) return null;
+  q.claimed = true;
+  s.coins += q.coins;
+  s.gems += q.gems;
+  return q;
+}
+
+/** Open the chest for finishing all of today's quests. */
+export function claimDailyBonus(s: GameState): typeof DAILY_BONUS | null {
+  const d = s.daily;
+  if (!d || d.bonusClaimed || !d.quests.every((q) => q.claimed)) return null;
+  d.bonusClaimed = true;
+  s.gems += DAILY_BONUS.gems;
+  s.energy += DAILY_BONUS.energy;
+  return DAILY_BONUS;
 }
 
 // ---------------------------------------------------------------- tower
