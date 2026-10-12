@@ -1383,6 +1383,15 @@ $('#story-next').addEventListener('click', nextStory);
 
 // ------------------------------------------------------------------ boot
 
+// Tapping empty space on a full-screen panel (the dimmed backdrop, the gaps between
+// cards, the header) works like its back button. Taps on cards and controls don't.
+for (const [panel, back] of [['#tower', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#bag', '#btn-bag-back']]) {
+  $(panel).addEventListener('click', (e) => {
+    const t = e.target as Element;
+    if (t === e.currentTarget || t.matches('.tower-inner, .tower-head, .tower-title, .tower-title > *, .bag-hint')) $(back).click();
+  });
+}
+
 async function boot() {
   await loadArtOverrides();
   document.documentElement.style.setProperty('--scene', sceneArt());
