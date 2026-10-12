@@ -1,12 +1,15 @@
 // Records casting high-level spells (charge circle, flight, impact) to a
 // WebM video by capturing the browser's live frames (CDP screencast) and
 // encoding them with ffmpeg; also grabs key frames for a still overview.
-// Usage: node scripts/spellvideo.mjs <url> <dir> [level] [ffmpeg]
+// Usage: node scripts/spellvideo.mjs <url> <dir> [level|1-7] [ffmpeg] [elements]
+//   e.g. node scripts/spellvideo.mjs URL DIR 1-7 '' wind   (every wind level)
 import { chromium } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, rmSync } from 'node:fs';
-const [url, dir, lv = '7', ffmpeg = '/opt/pw-browsers/ffmpeg-1011/ffmpeg-linux'] = process.argv.slice(2);
-const level = Number(lv);
+const [url, dir, lv = '7', ff = '', els = 'fire,water,wind,earth'] = process.argv.slice(2);
+const ffmpeg = ff || '/opt/pw-browsers/ffmpeg-1011/ffmpeg-linux';
+const levels = lv.includes('-') ? Array.from({ length: Number(lv.split('-')[1]) - Number(lv.split('-')[0]) + 1 }, (_, i) => Number(lv.split('-')[0]) + i) : [Number(lv)];
+const runs = els.split(',').flatMap((el) => levels.map((level) => ({ el, level })));
 const FPS = 30;
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
@@ -22,9 +25,10 @@ cdp.on('Page.screencastFrame', async ({ data, metadata, sessionId }) => {
 });
 
 await p.goto(url); await p.waitForTimeout(1000); await skip();
-const charge = 380 + level * 90;
 await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 85, maxWidth: 390, maxHeight: 844, everyNthFrame: 1 });
-for (const el of ['fire', 'water', 'wind', 'earth']) {
+for (const { el, level } of runs) {
+  const charge = 380 + level * 90;
+  const tag = levels.length > 1 ? `${el}${level}` : el;
   recording = false;
   await p.evaluate(({ el, level }) => {
     const s = window.arcane.state;
@@ -37,11 +41,11 @@ for (const el of ['fire', 'water', 'wind', 'earth']) {
   recording = true;
   await p.waitForTimeout(400);
   await p.locator('.monster.ready .cast').first().click();
-  await p.waitForTimeout(charge * 0.45); await p.screenshot({ path: `${dir}/k-${el}-0.png` });
-  await p.waitForTimeout(charge * 0.4); await p.screenshot({ path: `${dir}/k-${el}-1.png` });
-  await p.waitForTimeout(charge * 0.15 + 230); await p.screenshot({ path: `${dir}/k-${el}-2.png` });
-  await p.waitForTimeout(330); await p.screenshot({ path: `${dir}/k-${el}-3.png` });
-  await p.waitForTimeout(350); await p.screenshot({ path: `${dir}/k-${el}-4.png` });
+  await p.waitForTimeout(charge * 0.45); await p.screenshot({ path: `${dir}/k-${tag}-0.png` });
+  await p.waitForTimeout(charge * 0.4); await p.screenshot({ path: `${dir}/k-${tag}-1.png` });
+  await p.waitForTimeout(charge * 0.15 + 230); await p.screenshot({ path: `${dir}/k-${tag}-2.png` });
+  await p.waitForTimeout(330); await p.screenshot({ path: `${dir}/k-${tag}-3.png` });
+  await p.waitForTimeout(350); await p.screenshot({ path: `${dir}/k-${tag}-4.png` });
   await p.waitForTimeout(1500);
 }
 recording = false;
@@ -55,7 +59,7 @@ for (let i = 0; i < frames.length; i++) {
   const reps = Math.max(1, Math.min(10, Math.round(gap * FPS)));
   for (let k = 0; k < reps; k++) out.push(frames[i].data);
 }
-const file = `${dir}/spells-level${level}.webm`;
+const file = `${dir}/spells-${els.replace(/,/g, '-')}-level${lv}.webm`;
 // This ffmpeg build has no pipe input, so the frames go through a file.
 const tmp = `${dir}/frames.mjpeg`;
 writeFileSync(tmp, Buffer.concat(out));

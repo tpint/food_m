@@ -8,6 +8,7 @@ import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './rend
 import { burst, elementCharge, elementHit, elementTrail, puff, shower, trail } from './render/fx';
 import { sceneArt, webArt } from './render/scene';
 import { magicCircle } from './render/circle';
+import { windAttack } from './render/wind';
 import { roomAnchor, roomSvg, updateRoom } from './render/room';
 import { CHAPTERS, COMING_SOON, MENTOR } from './game/story';
 import { Board, Period, online, untilReset } from './online';
@@ -333,14 +334,21 @@ async function doCast(id: number) {
       setTimeout(() => {
         circle?.release();
         renderCell(f.cell);
-        // Each element swoops through the air in its own way.
-        if (isElement(f.chain)) sfx.spellFly(f.chain, f.level, 0.52);
-        else sfx.cast();
-        fly(f.src, f.from, target, {
-          ms: 520, color: f.color, orb,
-          size: cell * (0.8 + f.level * 0.1),
-          trailFn: isElement(f.chain) ? (x, y) => { elementTrail(f.chain as ElementId, x, y, f.level); elementTrail(f.chain as ElementId, x, y, f.level); } : undefined,
-        }).then(() => {
+        // Wind takes a different form at every level; other elements fly as an orb.
+        let attack: Promise<void>;
+        if (f.chain === 'wind') {
+          sfx.windAttack(f.level);
+          attack = windAttack(f.level, f.from, target, cell, orb);
+        } else {
+          if (isElement(f.chain)) sfx.spellFly(f.chain, f.level, 0.52);
+          else sfx.cast();
+          attack = fly(f.src, f.from, target, {
+            ms: 520, color: f.color, orb,
+            size: cell * (0.8 + f.level * 0.1),
+            trailFn: isElement(f.chain) ? (x, y) => { elementTrail(f.chain as ElementId, x, y, f.level); elementTrail(f.chain as ElementId, x, y, f.level); } : undefined,
+          });
+        }
+        attack.then(() => {
           if (isElement(f.chain)) {
             const fx = elementHit(f.chain, target.x, target.y, f.level);
             sfx.element(f.chain, f.level);

@@ -80,6 +80,7 @@ Bump `version` in `package.json` for each release.
 | `build-info.ts` | Version/commit/date baked into each build, and the `version.json` it publishes |
 | `src/online.ts` | Online features: leaderboard, cloud save and recovery codes (Supabase database functions `arcane_*`) |
 | `src/render/circle.ts` | Arcane casting circle shown while a spell charges |
+| `src/render/wind.ts` | Wind attacks, a different form at each level (experimental) |
 | `src/render/fx.ts` | Canvas particles (merge bursts, rings, sparkle trails) |
 | `src/render/sfx.ts` | Sound effects synthesised with WebAudio (no audio files) |
 | `src/main.ts` | UI: board, drag and drop, HUD, monster cards, info bar |
@@ -92,13 +93,16 @@ Straight top-down grid with soft 2D art, following the four merge-art rules:
 3. **Low-contrast board**: cream tiles with very little contrast. The dark backdrop sits outside the board.
 4. **Sound**: all sounds are synthesised live with WebAudio (`src/render/sfx.ts`): each element has its own swoop while a
    spell flies (roaring fire, rushing water with bubbles, whistling wind, rumbling earth) and every monster has its own
-   parting cry, with echo, distortion and bass for the tougher ones. `node scripts/spellvideo.mjs <url> <dir> [level]` records a video of each element's spell at a level, and
+   parting cry, with echo, distortion and bass for the tougher ones. `node scripts/spellvideo.mjs <url> <dir> [level|1-7] [ffmpeg] [elements]` records a video of each element's spell at a level, and
    `node scripts/soundfiles.mjs <url> <dir>` renders the sounds
    to WAV files for listening. In the console, `arcane.sfx.monsterCry('dragon')` plays one.
 5. **Juicy VFX**: casting draws an arcane circle under each item while it charges (more rings, runes,
    polygrams and satellite circles at higher levels; a pillar of light at level 7), then merge flash + bounce, particle bursts, shockwave rings, coin showers and sounds. Each element has its own
    spell hit when cast at a monster (fire burst, water splash, wind vortex, earth rocks), and it grows with item level:
    level 4+ adds a fire pillar / geyser / tornado / ground cracks and screen shake, level 5+ a coloured flash, level 7 a finale.
+   *Experimental:* wind spells change form by level: 1 wind sphere, 2 twin wisps, 3 spinning wind blade, 4 volley of
+   three wind arrows, 5 tornado, 6 wind laser, 7 storm lance (a thick beam wrapped in spiralling blades).
+   `node scripts/spellvideo.mjs <url> <dir> 1-7 '' wind` records all of them.
 
 The SVG art is a stand-in. Items are auto-framed to fill their tile and get a sticker outline and drop shadow, so the set stays consistent.
 To replace any item with painted art, drop a PNG into `public/art/` and list its key in `public/art/manifest.json`

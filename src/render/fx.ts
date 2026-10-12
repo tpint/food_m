@@ -254,6 +254,23 @@ export function elementCharge(el: ElementId, x: number, y: number, level: number
   }
 }
 
+/** Streaks racing along a wind beam, spiralling around it at higher levels. */
+export function windBeam(x1: number, y1: number, x2: number, y2: number, level: number) {
+  const c = ELEMENT_COLORS.wind;
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+  const n = 30 + level * 10;
+  for (let i = 0; i < n; i++) {
+    const t = R(0, 0.9), side = R(-1, 1) * (8 + level * 3);
+    const sp = R(9, 15);
+    add({ x: x1 + dx * t + nx * side, y: y1 + dy * t + ny * side, vx: ux * sp, vy: uy * sp, kind: 'streak', size: R(3, 6), color: c[Math.floor(R(0, 3))], max: R(10, 18), drag: 1, delay: Math.floor(R(0, 14)) });
+  }
+  for (let i = 0; i < 8 + level * 2; i++) {
+    const t = R(0, 1);
+    add({ x: x1 + dx * t, y: y1 + dy * t, kind: 'ring', size: R(10, 18) + level * 2, color: '#e6fff4', max: 18, delay: Math.floor(R(0, 12)) });
+  }
+}
+
 /** A few particles per frame behind an item flying toward a monster. */
 export function elementTrail(el: ElementId, x: number, y: number, level: number) {
   const c = ELEMENT_COLORS[el];

@@ -268,6 +268,37 @@ export const sfx = {
     }
   },
 
+  /** Each wind level attacks differently, so each gets its own sound. */
+  windAttack(level: number) {
+    const k = 0.6 + level * 0.08;
+    if (level <= 2) { sfx.spellFly('wind', level, 0.54); if (level === 2) sfx.spellFly('wind', 1, 0.5); return; }
+    if (level === 3) { // whoosh with a metallic "shing" as the blade spins
+      sfx.spellFly('wind', level, 0.48);
+      osc('triangle', 0, [[0, 3200], [0.35, 1500]], [[0, 0], [0.01, 0.06 * k], [0.4, 0]], { vibrato: { rate: 28, depth: 120 } });
+      osc('sine', 0.02, [[0, 4800], [0.3, 2600]], [[0, 0], [0.01, 0.04], [0.32, 0]]);
+      return;
+    }
+    if (level === 4) { // three bow-twang thwips
+      for (let i = 0; i < 3; i++) {
+        const t = i * 0.11;
+        osc('triangle', t, [[0, 220], [0.08, 140]], [[0, 0], [0.005, 0.12], [0.12, 0]]);
+        hiss(t, [[0, 0], [0.01, 0.12 * k], [0.3, 0]], { type: 'bandpass', freq: [[0, 1800], [0.3, 4000]], q: 4 });
+      }
+      return;
+    }
+    if (level === 5) { // a roaring, swirling funnel
+      hiss(0, [[0, 0], [0.2, 0.3 * k], [0.6, 0.25 * k], [0.75, 0]], { type: 'bandpass', freq: [[0, 300], [0.4, 900], [0.75, 500]], q: 2 }, { tremolo: { rate: 9, depth: 0.1 } });
+      osc('sine', 0, [[0, 90], [0.7, 130]], [[0, 0], [0.2, 0.12], [0.75, 0]], { vibrato: { rate: 9, depth: 10 } });
+      return;
+    }
+    // 6-7: rising whine, then a bright humming beam
+    const len = level === 6 ? 0.55 : 0.8;
+    osc('sine', 0, [[0, 700], [0.12, 2600]], [[0, 0], [0.02, 0.08], [0.14, 0.04], [0.16, 0]]);
+    osc('sawtooth', 0.12, [[0, 330], [len, level === 7 ? 220 : 290]], [[0, 0], [0.03, 0.06 * k], [len - 0.1, 0.05 * k], [len, 0]], { filter: { type: 'bandpass', freq: [[0, 1600], [len, 900]], q: 3 }, echo: level === 7 ? 0.5 : 0.2 });
+    hiss(0.12, [[0, 0], [0.03, 0.2 * k], [len, 0]], { type: 'highpass', freq: [[0, 2500], [len, 1500]] });
+    if (level === 7) osc('sine', 0.12, [[0, 55], [len, 45]], [[0, 0], [0.05, 0.25], [len, 0]]);
+  },
+
   /** A monster's parting cry. Tougher monsters get echo, distortion and bass. */
   monsterCry(kind: 'slime' | 'bat' | 'ghost' | 'mushroom' | 'imp' | 'golem' | 'dragon') {
     switch (kind) {
