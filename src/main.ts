@@ -7,6 +7,7 @@ import {
 import { iconArt, itemArt, loadArtOverrides, monsterImg, pieceArt } from './render/art';
 import { burst, elementHit, elementTrail, puff, shower, trail } from './render/fx';
 import { sceneArt, webArt } from './render/scene';
+import { magicCircle } from './render/circle';
 import { sfx } from './render/sfx';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -262,34 +263,52 @@ async function doCast(id: number) {
   // Capture art + positions before the state changes.
   const flights = cellsUsed.map((i) => {
     const p = state.board[i].piece as Extract<Piece, { kind: 'item' }>;
-    return { src: pieceArt(p), from: center(cells[i]), color: pieceColor(p), chain: p.chain, level: p.level };
+    return { src: pieceArt(p), from: center(cells[i]), color: pieceColor(p), chain: p.chain, level: p.level, cell: i };
   });
   const res = cast(state, id);
   if (!res) return;
   dyingIds.add(id);
   select(-1);
-  cellsUsed.forEach((i) => renderCell(i));
-  sfx.cast();
 
   const target = center(el.querySelector('.portrait')!);
   const segs = el.querySelectorAll('.hp .seg');
   const cell = cells[0].offsetWidth;
-  await Promise.all(flights.map((f, k) => fly(f.src, f.from, target, {
-    ms: 520, color: f.color, delay: k * 260,
-    // Bigger spells fly bigger.
-    size: cell * (0.8 + f.level * 0.1),
-    trailFn: isElement(f.chain) ? (x, y) => elementTrail(f.chain as ElementId, x, y, f.level) : undefined,
-  }).then(() => {
-    if (isElement(f.chain)) {
-      const fx = elementHit(f.chain, target.x, target.y, f.level);
-      sfx.element(f.chain, f.level);
-      if (fx.shake) shake(fx.shake);
-      if (fx.flash) flash(fx.flash, f.level);
-    } else {
-      burst(target.x, target.y, f.color, 0.7);
-    }
-    segs[k]?.classList.add('lost');
-    restartAnim(el, 'hit');
+  const boardBox = boardEl.getBoundingClientRect();
+  const frame = boardEl.clientLeft;
+  await Promise.all(flights.map((f, k) => new Promise<void>((done) => {
+    setTimeout(() => {
+      // Charge: an arcane circle draws itself under the item while it levitates.
+      const charge = 380 + f.level * 90;
+      const piece = cells[f.cell].firstElementChild;
+      piece?.classList.add('charging');
+      const circle = isElement(f.chain)
+        ? magicCircle(boardEl, f.chain, f.from.x - boardBox.left - frame, f.from.y - boardBox.top - frame, f.level, cell, charge)
+        : null;
+      sfx.charge(f.level, charge);
+      setTimeout(() => {
+        circle?.release();
+        renderCell(f.cell);
+        sfx.cast();
+        fly(f.src, f.from, target, {
+          ms: 520, color: f.color,
+          // Bigger spells fly bigger.
+          size: cell * (0.8 + f.level * 0.1),
+          trailFn: isElement(f.chain) ? (x, y) => elementTrail(f.chain as ElementId, x, y, f.level) : undefined,
+        }).then(() => {
+          if (isElement(f.chain)) {
+            const fx = elementHit(f.chain, target.x, target.y, f.level);
+            sfx.element(f.chain, f.level);
+            if (fx.shake) shake(fx.shake);
+            if (fx.flash) flash(fx.flash, f.level);
+          } else {
+            burst(target.x, target.y, f.color, 0.7);
+          }
+          segs[k]?.classList.add('lost');
+          restartAnim(el, 'hit');
+          done();
+        });
+      }, charge);
+    }, k * 240);
   })));
   // Let the biggest effect play out before the monster vanishes.
   await new Promise((r) => setTimeout(r, 200 + Math.max(...flights.map((f) => f.level)) * 90));
@@ -335,7 +354,8 @@ function setInfo(img: string | null, title: string, desc: string, action?: { lab
   const btn = $<HTMLButtonElement>('#info-action');
   btn.classList.toggle('hidden', !action);
   btn.onclick = action ? (e) => { e.stopPropagation(); action.fn(); } : null;
-  if (action) btn.textContent = action.label;
+  // Labels are built in code (never from user input) and may include an icon.
+  if (action) btn.innerHTML = action.label;
   btn.classList.toggle('off', !!action?.off);
 }
 
@@ -366,7 +386,7 @@ function select(i: number) {
     if (!up.ok && up.reason === 'max') return setInfo(pieceArt(p), `${def.name} · Lv ${gl} (max)`, desc);
     const cost = up.ok ? up.cost : up.cost!;
     return setInfo(pieceArt(p), `${def.name} · Lv ${gl}`, desc,
-      { label: `Upgrade 🪙${cost}`, fn: () => doUpgrade(i), off: !up.ok });
+      { label: `Upgrade <img class="btn-ico" src="${iconArt.coin()}" alt="coins">${cost}`, fn: () => doUpgrade(i), off: !up.ok });
   }
 
   const def = CHAINS[p.chain];

@@ -68,10 +68,10 @@ export interface GenDef {
 }
 
 export const GENERATORS: Record<GenId, GenDef> = {
-  geode: { id: 'geode', name: 'Earthen Geode', chain: 'earth' },
-  well: { id: 'well', name: 'Wishing Well', chain: 'water' },
-  windmill: { id: 'windmill', name: 'Windmill', chain: 'wind' },
-  forge: { id: 'forge', name: 'Ember Forge', chain: 'fire' },
+  geode: { id: 'geode', name: 'Grimoire of Earth', chain: 'earth' },
+  well: { id: 'well', name: 'Grimoire of Water', chain: 'water' },
+  windmill: { id: 'windmill', name: 'Grimoire of Wind', chain: 'wind' },
+  forge: { id: 'forge', name: 'Grimoire of Fire', chain: 'fire' },
 };
 
 export interface GenLevel {

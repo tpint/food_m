@@ -19,7 +19,7 @@ npm run build      # production build in dist/
 ## How to play
 
 - **Elements**: Earth, Water, Wind and Fire. Each has a 7-level merge chain and its own generator
-  (Earthen Geode, Wishing Well, Windmill, Ember Forge).
+  (a grimoire for each element).
 - **Generators**: tap one to conjure an item. Each tap costs 1 ⚡ mana.
   Mana refills over time (+1 every 20 s, up to 100).
 - **Upgrade generators**: select a generator and press **Upgrade** (costs coins, needs a minimum player level).
@@ -50,6 +50,7 @@ Every push to `main` deploys to GitHub Pages: https://tpint.github.io/magic_m/
 | `src/game/state.ts` | Pure game logic (merge, spawn, energy, monsters, save). No DOM. |
 | `src/render/art.ts` | Procedural SVG art. Each chain keeps one colour palette, and the silhouette changes at every level |
 | `src/render/scene.ts` | Blurred wizard's-study backdrop and the cobweb on sealed tiles |
+| `src/render/circle.ts` | Arcane casting circle shown while a spell charges |
 | `src/render/fx.ts` | Canvas particles (merge bursts, rings, sparkle trails) |
 | `src/render/sfx.ts` | Sound effects synthesised with WebAudio (no audio files) |
 | `src/main.ts` | UI: board, drag and drop, HUD, monster cards, info bar |
@@ -60,7 +61,8 @@ Straight top-down grid with soft 2D art, following the four merge-art rules:
 1. **Silhouette progression**: e.g. bubbles → seashell → splash → tide orb → fountain → trident → great wave.
 2. **Strict colour coding**: Earth = brown, Water = blue, Wind = mint/white, Fire = orange/red, Gold = yellow, Mana = pink.
 3. **Low-contrast board**: cream tiles with very little contrast. The dark backdrop sits outside the board.
-4. **Juicy VFX**: merge flash + bounce, particle bursts, shockwave rings, coin showers and sounds. Each element has its own
+4. **Juicy VFX**: casting draws an arcane circle under each item while it charges (more rings, runes,
+   polygrams and satellite circles at higher levels; a pillar of light at level 7), then merge flash + bounce, particle bursts, shockwave rings, coin showers and sounds. Each element has its own
    spell hit when cast at a monster (fire burst, water splash, wind vortex, earth rocks), and it grows with item level:
    level 4+ adds a fire pillar / geyser / tornado / ground cracks and screen shake, level 5+ a coloured flash, level 7 a finale.
 

@@ -76,6 +76,13 @@ export const sfx = {
   error: () => tone(160, 0, 0.18, 'sawtooth', 0.06, 0.7),
   cast: () => { tone(300, 0, 0.5, 'sawtooth', 0.05, 4); tone(600, 0.1, 0.4, 'triangle', 0.08, 2.5); },
   defeat: () => [0, 2, 4, 7].forEach((s, i) => tone(scale[s % 8] * (s >= 7 ? 2 : 1), i * 0.08, 0.35, 'triangle', 0.1)),
+  /** Rising hum while a spell charges; longer and richer for higher levels. */
+  charge(level: number, ms: number) {
+    const d = ms / 1000;
+    tone(160 + level * 20, 0, d, 'triangle', 0.05, 2.5);
+    if (level >= 4) tone(240 + level * 30, 0.05, d, 'sine', 0.04, 2);
+    if (level >= 6) noise(0, d, 'bandpass', 400, 3000, 0.04);
+  },
   /** Element hit sounds; higher levels are louder and longer. */
   element(el: 'earth' | 'water' | 'wind' | 'fire', level: number) {
     const k = 0.6 + level * 0.12, d = 0.25 + level * 0.07;

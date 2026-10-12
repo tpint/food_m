@@ -518,55 +518,73 @@ const manaArt: ((s: Svg) => void)[] = [
 
 // ------------------------------------------------------------------ generators
 
+/** Alchemical element symbol centred at (cx, cy); fire/air point up, water/earth down. */
+function alchemy(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cx: number, cy: number, k: number, color: string) {
+  const up = el === 'fire' || el === 'wind', dir = up ? -1 : 1;
+  let d = `M${cx} ${cy + dir * k}L${cx + k * 0.9} ${cy - dir * k * 0.55}L${cx - k * 0.9} ${cy - dir * k * 0.55}Z`;
+  if (el === 'wind' || el === 'earth') d += `M${cx - k * 0.6} ${cy + dir * 0.05 * k}L${cx + k * 0.6} ${cy + dir * 0.05 * k}`;
+  s.add(`<path d="${d}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`);
+}
+
+/**
+ * An open grimoire in the element's cover colour, with its alchemical
+ * symbol on the left page; `emerge` draws the element rising from the pages.
+ */
+function grimoire(s: Svg, el: 'earth' | 'water' | 'wind' | 'fire', cover: Pal, emerge: () => void) {
+  // Ribbon bookmark hanging from the spine.
+  s.add(shape('M48 88L48 100L51 97L54 100L54 88Z', cover.mid, cover.ink, 'stroke-width="2"'));
+  s.add(shape('M50 52Q32 42 8 48L10 90Q32 84 50 94Q68 84 90 90L92 48Q68 42 50 52Z', s.rad(cover), cover.ink));
+  // Page block edges.
+  s.add(`<path d="M13 86Q33 81 50 89Q67 81 87 86M12 83Q33 78 50 86Q67 78 88 83" fill="none" stroke="${P.paper.lo}" stroke-width="2"/>`);
+  s.add(shape('M50 48Q33 38 13 44L15 82Q33 78 50 86Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink, 'stroke-width="2.4"'));
+  s.add(shape('M50 48Q67 38 87 44L85 82Q67 78 50 86Z', s.lin(P.paper.mid, P.paper.hi, false), P.paper.ink, 'stroke-width="2.4"'));
+  alchemy(s, el, 32, 63, 9, cover.mid);
+  for (let i = 0; i < 4; i++) {
+    s.add(`<path d="M57 ${52 + i * 7}Q66 ${49 + i * 7} 79 ${53 + i * 7 - (i % 2) * 2}" fill="none" stroke="${cover.lo}" stroke-width="1.8" stroke-linecap="round" opacity=".6"/>`);
+  }
+  // Gold corner guards.
+  for (const [x, f] of [[10, 1], [90, -1]] as const) {
+    s.add(shape(`M${x} 90L${x} 80L${x + f * 10} 88Z`, s.rad(P.metal), P.metal.ink, 'stroke-width="2"'));
+  }
+  s.add(`<circle cx="50" cy="91" r="3.5" fill="${s.rad(P.metal)}" stroke="${P.metal.ink}" stroke-width="1.6"/>`);
+  emerge();
+}
+
 const genArt: Record<GenId, (s: Svg) => void> = {
   geode: (s) => {
-    s.shadow(36, 92);
-    s.add(shape('M12 86Q8 50 30 32Q50 20 70 32Q92 50 88 86Z', s.rad(ROCK), ROCK.ink));
-    s.add(shape('M22 84Q22 56 36 44Q50 36 64 44Q78 56 78 84Z', '#4a3424', ROCK.ink));
-    const amber = { hi: '#fff0c8', mid: '#e6b066', lo: '#a8662c', ink: '#5a3214' };
-    crystal(s, 36, 84, 14, 30, -24, amber); crystal(s, 64, 84, 14, 32, 22, amber); crystal(s, 50, 84, 18, 40, 0, amber);
-    tuft(s, 16, 88); tuft(s, 84, 88, 0.8);
-    s.add(hl('M18 70Q18 50 30 40', 3, 0.55)); s.sparkle(80, 22, 6);
+    s.halo('#f2d08a'); s.shadow(38, 96);
+    grimoire(s, 'earth', { hi: '#e8c08a', mid: '#9a6438', lo: '#5e3a20', ink: '#3a2210' }, () => {
+      const amber = { hi: '#fff0c8', mid: '#e6b066', lo: '#a8662c', ink: '#5a3214' };
+      crystal(s, 40, 52, 11, 22, -22, amber); crystal(s, 60, 52, 11, 24, 20, amber); crystal(s, 50, 50, 14, 34, 0, amber);
+      stone(s, 22, 30, 5, 3.5); stone(s, 80, 24, 6, 4); stone(s, 70, 40, 3.5, 2.5);
+      tuft(s, 14, 50, 0.7); tuft(s, 86, 50, 0.7);
+    });
   },
   well: (s) => {
-    s.shadow(36, 94);
-    s.add(shape('M22 30L22 64M78 30L78 64', 'none', P.wood.ink, 'stroke-width="7"'));
-    s.add(shape('M22 30L22 64M78 30L78 64', 'none', P.wood.mid, 'stroke-width="3.5"'));
-    s.add(shape('M10 32L50 10L90 32L84 36L50 18L16 36Z', s.rad({ hi: '#9fd4ff', mid: '#4a8ad8', lo: '#24508a', ink: '#163460' }), '#163460'));
-    s.add(`<path d="M50 28L50 48" stroke="#553016" stroke-width="1.6"/>`);
-    s.add(shape('M44 48L56 48L54 58L46 58Z', s.rad(P.wood), P.wood.ink, 'stroke-width="2.2"'));
-    s.add(shape('M16 62Q50 54 84 62L80 92L20 92Z', s.rad(ROCK), ROCK.ink));
-    for (const [x, y, w] of [[22, 70, 18], [44, 68, 18], [66, 70, 14], [28, 80, 20], [52, 80, 20]] as const) {
-      s.add(`<rect x="${x}" y="${y}" width="${w}" height="7" rx="2.5" fill="#fff" opacity=".2"/>`);
-    }
-    s.add(shape('M18 62Q50 54 82 62Q50 70 18 62Z', s.rad(WATER), WATER.ink, 'stroke-width="2.4"'));
-    s.add('<path d="M34 62Q50 58 66 62" stroke="#fff" stroke-width="2" opacity=".7" fill="none"/>');
-    s.sparkle(86, 50, 5);
+    s.halo('#9fdcff'); s.shadow(38, 96);
+    grimoire(s, 'water', { hi: '#9fd4ff', mid: '#2f7fd8', lo: '#164a8a', ink: '#0e2e5a' }, () => {
+      s.add(shape('M40 48Q34 34 44 24Q52 16 62 20Q54 22 52 30Q60 30 62 38Q54 34 50 40Q48 44 56 48Z', s.rad(WATER), WATER.ink));
+      s.add(shape('M44 24Q52 16 62 20Q56 22 54 26Q50 22 44 24Z', s.rad(FOAM), FOAM.ink, 'stroke-width="2"'));
+      drop(s, 30, 34, 3.5); drop(s, 72, 30, 3); bubble(s, 68, 44, 3.5); bubble(s, 26, 46, 2.5);
+    });
   },
   windmill: (s) => {
-    s.shadow(30, 94);
-    s.add(shape('M36 92L40 40L60 40L64 92Z', s.rad({ hi: '#fffaf0', mid: '#f0e2c8', lo: '#c8b08a', ink: '#6a5236' }), '#6a5236'));
-    s.add(shape('M34 42L50 26L66 42Z', s.rad(P.wood), P.wood.ink));
-    s.add(shape('M45 92L45 78Q50 72 55 78L55 92Z', '#7c4a24', '#553016', 'stroke-width="2"'));
-    s.add(`<circle cx="50" cy="58" r="4" fill="#9fd4ff" stroke="#6a5236" stroke-width="2"/>`);
-    for (let i = 0; i < 4; i++) {
-      s.add(`<g transform="rotate(${20 + i * 90} 50 38)">`);
-      s.add(shape('M48 38L48 4L60 6L58 36Z', s.rad(i % 2 ? WIND : CLOUD), WIND.ink, 'stroke-width="2.4"'));
-      s.add(`<path d="M52 10L56 10M52 18L57 18M52 26L57 26" stroke="${WIND.ink}" stroke-width="1.2" opacity=".5"/>`);
-      s.add('</g>');
-    }
-    s.add(`<circle cx="50" cy="38" r="4.5" fill="#ffd147" stroke="${WIND.ink}" stroke-width="2"/>`);
-    gust(s, 4, 70, 10);
+    s.halo('#b8f5e0'); s.shadow(38, 96);
+    grimoire(s, 'wind', { hi: '#d8fff0', mid: '#3cb894', lo: '#1e6e5a', ink: '#0e4438' }, () => {
+      const bands = [[50, 20, 18, 4], [51, 29, 14, 3.5], [50, 37, 10, 3], [49, 44, 6, 2.5]];
+      for (const [x, y, rx, ry] of bands) {
+        s.add(shape(`M${x - rx} ${y}Q${x - rx} ${y + ry * 1.5} ${x} ${y + ry * 1.5}Q${x + rx} ${y + ry * 1.5} ${x + rx} ${y}Q${x + rx} ${y - ry} ${x} ${y - ry}Q${x - rx} ${y - ry} ${x - rx} ${y}Z`, s.rad(WIND), WIND.ink, 'stroke-width="2.2"'));
+      }
+      gust(s, 12, 30, 8); gust(s, 70, 40, 8);
+      s.add(shape('M78 18L84 14L83 21Z', '#8cc65a', '#2e5a22', 'stroke-width="1.4"'));
+    });
   },
   forge: (s) => {
-    s.halo('#ffb46a'); s.shadow(36, 93);
-    s.add(shape('M14 90L14 40Q14 16 50 14Q86 16 86 40L86 90Z', s.rad(P.stone), P.stone.ink));
-    for (const [x, y, w] of [[18, 36, 18], [40, 26, 20], [64, 36, 18], [18, 60, 12], [72, 60, 12]] as const) {
-      s.add(`<rect x="${x}" y="${y}" width="${w}" height="10" rx="3" fill="#fff" opacity=".18"/>`);
-    }
-    s.add(shape('M30 90L30 62Q30 46 50 46Q70 46 70 62L70 90Z', '#4a2a2a', P.stone.ink));
-    fire(s, 50, 88, 34, 38); fire(s, 40, 88, 14, 18); fire(s, 60, 88, 14, 20);
-    s.add(shape('M10 90L90 90L90 94L10 94Z', P.stone.lo, P.stone.ink));
+    s.halo('#ffb46a'); s.shadow(38, 96);
+    grimoire(s, 'fire', { hi: '#ff9a7a', mid: '#d8402a', lo: '#8a1e14', ink: '#5a1008' }, () => {
+      fire(s, 50, 52, 30, 40); fire(s, 34, 52, 12, 16); fire(s, 66, 52, 12, 18);
+      s.add('<circle cx="30" cy="26" r="2" fill="#ffd27a"/><circle cx="72" cy="20" r="1.6" fill="#ffd27a"/><circle cx="62" cy="10" r="1.4" fill="#ffb63c"/>');
+    });
   },
 };
 

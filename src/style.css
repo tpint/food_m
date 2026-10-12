@@ -238,7 +238,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .cell.selected { box-shadow: inset 0 0 0 3px var(--gold), 0 0 10px var(--gold); background: #fff6dc; }
 .cell.drop { background: #fff2cc; }
 
-.piece { position: absolute; inset: 0; display: grid; place-items: center; }
+.piece { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; }
 .piece img { width: 100%; height: 100%; }
 .piece.gen::before {
   content: ''; position: absolute; inset: 1px; border-radius: 10px;
@@ -264,7 +264,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 /* Locked cells: veiled = bubble you merge onto, sealed = cobwebbed and hidden. */
 .cell.veiled .piece img { filter: saturate(.7) brightness(1.05); opacity: .9; transform: scale(.86); }
 .cell.veiled::after {
-  content: ''; position: absolute; inset: 2px; border-radius: 50%; pointer-events: none;
+  content: ''; position: absolute; z-index: 3; inset: 2px; border-radius: 50%; pointer-events: none;
   background:
     radial-gradient(circle at 32% 26%, rgba(255,255,255,.95) 0 9%, transparent 10%),
     radial-gradient(circle at 50% 50%, transparent 55%, rgba(150, 200, 255, .55) 72%, rgba(120, 170, 255, .8) 100%);
@@ -274,7 +274,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .cell.sealed { background: #d9cde6; box-shadow: inset 0 2px 4px rgba(70, 40, 110, .3); }
 .cell.sealed .piece img { filter: brightness(0) invert(.5) sepia(.4) hue-rotate(220deg); opacity: .28; transform: scale(.8); }
 .cell.sealed::after {
-  content: ''; position: absolute; inset: 0; border-radius: 10px; pointer-events: none;
+  content: ''; position: absolute; z-index: 3; inset: 0; border-radius: 10px; pointer-events: none;
   background: var(--web) 0 0 / 100% 100% no-repeat, radial-gradient(circle at 30% 30%, rgba(255,255,255,.45), rgba(120, 90, 170, .2));
 }
 
@@ -304,6 +304,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   background: linear-gradient(rgba(255,255,255,.4) 0 45%, transparent 46%), linear-gradient(#ffd96a, #f0a020);
   box-shadow: 0 3px 0 #8a520a;
 }
+.btn-ico { width: 20px; height: 20px; vertical-align: -5px; margin: 0 2px 0 4px; filter: drop-shadow(0 1px 0 var(--outline)); }
 .btn.off { border-color: #6d6580; background: linear-gradient(rgba(255,255,255,.3) 0 45%, transparent 46%), linear-gradient(#cfc6d8, #a29ab0); box-shadow: 0 3px 0 #5d5670; }
 .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #8a520a; }
 .hidden { display: none !important; }
@@ -327,6 +328,31 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .floater { position: fixed; z-index: 55; pointer-events: none; font-size: 20px; animation: floatup 1s ease-out forwards; transform: translate(-50%, -50%); }
 
 #app.shake { animation: shake .45s ease-out; }
+
+/* Casting circle under an item while a spell charges. */
+.mcircle {
+  position: absolute; z-index: 1; pointer-events: none; opacity: 0;
+  transform: translate(-50%, -50%) scale(.5);
+  animation: mc-in .35s cubic-bezier(.2, 1.4, .4, 1) forwards;
+  /* Dark hairline outline first so pale lines read on the cream board, then the glow. */
+  filter: drop-shadow(0 0 .6px var(--ink)) drop-shadow(0 0 .6px var(--ink)) drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 12px var(--glow));
+}
+.mcircle svg { width: 100%; height: 100%; overflow: visible; stroke: var(--line); }
+.mcircle .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: mc-draw calc(var(--charge) * .7) ease-out forwards; }
+.mcircle .fade { opacity: 0; animation: mc-fade calc(var(--charge) * .5) ease-out calc(var(--charge) * .25) forwards; }
+.mcircle .dot { fill: var(--line); stroke: none; }
+.mcircle .spin { transform-box: view-box; transform-origin: 50% 50%; animation: mc-spin var(--dur) linear infinite; }
+.mcircle .spin.rev { animation-direction: reverse; }
+.mcircle.release { animation: mc-out .45s ease-out forwards; }
+.mpillar {
+  position: absolute; left: 50%; bottom: 50%; width: 34%; height: 260%; transform: translateX(-50%) scaleY(0); transform-origin: 50% 100%;
+  border-radius: 50% 50% 0 0 / 20% 20% 0 0;
+  background: linear-gradient(to top, var(--glow), rgba(255,255,255,.6) 40%, transparent);
+  mix-blend-mode: screen; opacity: .8;
+  animation: mc-pillar var(--charge) ease-in forwards;
+}
+.piece.charging { z-index: 3; }
+.piece.charging img { animation: levitate .5s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px #fff) brightness(1.15); }
 .flash {
   position: fixed; inset: 0; z-index: 39; pointer-events: none;
   background: radial-gradient(circle at 50% 25%, var(--flash), transparent 75%);
@@ -343,6 +369,13 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   60% { transform: translate(calc(var(--shake) * .5), 0); }
   80% { transform: translate(calc(var(--shake) * -.2), 0); }
 }
+@keyframes mc-in { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes mc-out { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: brightness(2) drop-shadow(0 0 12px var(--glow)); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } }
+@keyframes mc-draw { to { stroke-dashoffset: 0; } }
+@keyframes mc-fade { to { opacity: 1; } }
+@keyframes mc-spin { to { transform: rotate(360deg); } }
+@keyframes mc-pillar { 0% { transform: translateX(-50%) scaleY(0); } 100% { transform: translateX(-50%) scaleY(1); } }
+@keyframes levitate { from { transform: translateY(0) scale(1); } to { transform: translateY(-14%) scale(1.12); } }
 @keyframes flash { 0% { opacity: var(--flash-o); } 100% { opacity: 0; } }
 
 @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
