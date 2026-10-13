@@ -4,8 +4,7 @@
 import { CHAPTERS, ChapterDef, TaskDef } from './story';
 import {
   ACTIVE_CUSTOMERS, BOARD_COLS, BOARD_ROWS, CHAINS, CRITIC, CRITIC_EVERY, CUSTOMERS, ChainId, CustomerKind,
-  ENERGY_REGEN_MS, FOOD_CHAINS, GEN_LEVELS, GENERATORS, GenId, MAX_ENERGY, REFRESH_BASE_COST,
-  REFRESH_COST_GROWTH, SPAWN_COST, maxLevel, xpForLevel,
+  ENERGY_REGEN_MS, FOOD_CHAINS, GEN_LEVELS, GENERATORS, GenId, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel,
 } from './config';
 
 export type Piece =
@@ -58,8 +57,6 @@ export interface GameState {
   storySeen: string[];
   /** Extra Stars every customer gives (a chapter reward). */
   starBonus?: number;
-  /** Customer refreshes since the last order served; each one makes the next cost more. */
-  refreshes?: number;
   /** Today's quests (filled in by ensureDaily). */
   daily?: Daily;
   /** Pieces stored in the fridge (the inventory), and how many slots it has. */
@@ -369,9 +366,9 @@ export function sell(s: GameState, i: number): number {
 
 // ---------------------------------------------------------------- customers
 
-/** A new customer. Pass `keep` to replace one in place (same id, critic or not). */
-export function makeCustomer(s: GameState, rng: Rng = Math.random, keep?: Customer): Customer {
-  const critic = keep ? keep.critic : (s.nextCustomerId % CRITIC_EVERY) === 0;
+/** A new customer. */
+export function makeCustomer(s: GameState, rng: Rng = Math.random): Customer {
+  const critic = (s.nextCustomerId % CRITIC_EVERY) === 0;
   const unlocked = CUSTOMERS.filter((m) => m.minLevel <= s.level);
   const fresh = unlocked.filter((m) => !s.customers.some((x) => x.kind === m.kind));
   const def = critic ? CRITIC : pick(rng, fresh.length ? fresh : unlocked);
@@ -388,7 +385,7 @@ export function makeCustomer(s: GameState, rng: Rng = Math.random, keep?: Custom
 
   const power = order.reduce((t, n) => t + Math.pow(3, n.level - 1), 0);
   return {
-    id: keep ? keep.id : s.nextCustomerId++,
+    id: s.nextCustomerId++,
     kind: def.kind,
     name: def.name,
     order,
@@ -437,34 +434,10 @@ export function serve(s: GameState, customerId: number, rng: Rng = Math.random):
   s.gems += m.gems;
   s.stars += (m.stars ?? 1) + (s.starBonus ?? 0);
   s.served++;
-  s.refreshes = 0;
   questProgress(s, 'serve');
   const levelUp = addXp(s, m.xp);
   s.customers.splice(mi, 1, makeCustomer(s, rng));
   return { cells, customer: m, levelUp };
-}
-
-export const refreshCost = (s: GameState) =>
-  REFRESH_BASE_COST * Math.pow(REFRESH_COST_GROWTH, s.refreshes ?? 0);
-
-export type RefreshResult =
-  | { ok: true; cost: number; old: Customer[] }
-  | { ok: false; reason: 'coins'; cost: number };
-
-/**
- * Pay coins to swap every customer for a new one. Each keeps its id and critic
- * status, so refreshing can't skip or call in a critic.
- */
-export function refreshCustomers(s: GameState, rng: Rng = Math.random): RefreshResult {
-  const cost = refreshCost(s);
-  if (s.coins < cost) return { ok: false, reason: 'coins', cost };
-  s.coins -= cost;
-  s.refreshes = (s.refreshes ?? 0) + 1;
-  const old = s.customers;
-  s.customers = [];
-  // Built one by one so the new customers differ from each other where possible.
-  for (const m of old) s.customers.push(makeCustomer(s, rng, m));
-  return { ok: true, cost, old };
 }
 
 export function addXp(s: GameState, xp: number): boolean {
@@ -674,6 +647,8 @@ export function validateSave(data: unknown): GameState | null {
   s.chapter ??= 0;
   s.tasksDone ??= [];
   s.storySeen ??= [];
+  // Older saves kept fewer customers waiting.
+  while (s.customers.length < ACTIVE_CUSTOMERS) s.customers.push(makeCustomer(s));
   return s;
 }
 

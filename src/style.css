@@ -138,23 +138,15 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 /* ------------------------------------------------------------ customers */
 
 #customers-wrap { position: relative; flex: none; }
-#btn-refresh {
-  position: absolute; right: 2px; top: -9px; z-index: 3;
-  display: flex; align-items: center; gap: 1px; height: 24px; padding: 0 8px 0 5px; border-radius: 12px; cursor: pointer;
-  font: 700 13px var(--font); color: #fff; font-variant-numeric: tabular-nums;
-  border: 2px solid var(--gold-lo);
-  background: linear-gradient(rgba(255,255,255,.35) 0 45%, transparent 46%), linear-gradient(#ffd96a, #f0a020);
-  box-shadow: 0 2px 0 #8a520a, 0 3px 6px rgba(0,0,0,.4);
-}
-#btn-refresh .spin { font-size: 16px; line-height: 1; display: inline-block; }
-#btn-refresh img { width: 18px; height: 18px; margin-left: 2px; }
-#btn-refresh.off { border-color: #6d6580; background: linear-gradient(rgba(255,255,255,.3) 0 45%, transparent 46%), linear-gradient(#cfc6d8, #a29ab0); box-shadow: 0 2px 0 #5d5670, 0 3px 6px rgba(0,0,0,.4); }
-#btn-refresh:active { transform: translateY(2px); box-shadow: 0 0 0 #8a520a; }
-#btn-refresh:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 2px; }
-#btn-refresh.go .spin { animation: spin .5s ease; }
-@keyframes spin { to { transform: rotate(360deg); } }
 
-#customers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; flex: none; }
+/* Three customers fit across; swipe the row sideways for the rest. */
+#customers {
+  display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 12px) / 3); gap: 6px; flex: none;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x mandatory;
+  scrollbar-width: none; touch-action: pan-x;
+}
+#customers::-webkit-scrollbar { display: none; }
+#customers > .customer { scroll-snap-align: start; }
 
 /* Customers stand on the board's edge like customers at a counter: a big picture with
    no card around it, small detail badges over it, and a tray in front holding the
@@ -182,8 +174,10 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   content: ''; position: absolute; left: 18%; right: 18%; bottom: 2px; height: 10px; border-radius: 50%;
   background: rgba(20, 60, 140, .28);
 }
+/* The square portraits are taller than their column is wide: fill the full height and
+   let the empty sides of the picture spill past the column instead of shrinking it. */
 .customer .portrait img {
-  position: relative; z-index: 1; height: 100%; width: 100%; object-fit: contain; object-position: 50% 100%;
+  position: relative; z-index: 1; height: 100%; width: 100%; object-fit: cover; object-position: 50% 100%;
   animation: bob 2.4s ease-in-out infinite; transform-origin: 50% 100%;
 }
 
@@ -220,16 +214,19 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .check::before { content: ''; width: 7px; height: 4px; margin-top: -2px; border-left: 2.2px solid #fff; border-bottom: 2.2px solid #fff; transform: rotate(-45deg); }
 .customer .need:not(.have) .check { display: none; }
 
-/* Attack! pops up over the tray once every item is on the board. */
+/* A round Serve button pops up in the customer's top-right once every item is on the board,
+   small enough to leave the customer's picture in view. */
 .customer .serve {
-  position: absolute; left: 50%; bottom: calc(var(--cell) * .7 + 10px); z-index: 4; transform: translateX(-50%) scale(0);
-  padding: 3px 14px 4px; border-radius: 12px; font: 700 14px var(--font); cursor: pointer;
+  position: absolute; right: 2px; top: 2px; z-index: 4; transform: scale(0);
+  width: 34px; height: 34px; padding: 0; border-radius: 50%; cursor: pointer; color: #fff;
+  display: grid; place-items: center;
   border: 2px solid var(--violet-lo);
   background: linear-gradient(rgba(255,255,255,.35) 0 45%, transparent 46%), linear-gradient(var(--violet-hi), var(--violet));
-  box-shadow: 0 3px 0 var(--violet-lo), 0 0 14px rgba(170, 120, 255, .9);
+  box-shadow: 0 2px 0 var(--violet-lo), 0 0 12px rgba(170, 120, 255, .9);
   transition: transform .25s cubic-bezier(.2, 1.6, .4, 1);
 }
-.customer.ready .serve { transform: translateX(-50%) scale(1); animation: pulse 1.2s ease-in-out infinite; }
+.customer .serve svg { width: 20px; height: 20px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.35)); }
+.customer.ready .serve { transform: scale(1); animation: pulse 1.2s ease-in-out infinite; }
 
 /* ------------------------------------------------------------ board */
 

@@ -2,7 +2,7 @@ import './style.css';
 import { CHAINS, GEN_LEVELS, GENERATORS, isFood, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
   GameState, MERGE_COUNT, Customer, Piece, canUpgrade, currentTask, restore, serve, collect, findOrder, genLevel, isWanted, load, movePiece, msToNextEnergy,
-  newGame, refreshCost, refreshCustomers, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
+  newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
   FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge,
   DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
 } from './game/state';
@@ -205,7 +205,6 @@ function renderHud() {
   $('#xptext').textContent = `${state.xp} / ${need} XP`;
   updateTimer();
   updateDinerBadge();
-  updateRefresh();
   // Keep the Upgrade button in sync with coins / level.
   if (selected >= 0 && state.board[selected]?.piece?.kind === 'gen') select(selected);
 }
@@ -218,6 +217,10 @@ function updateTimer() {
 }
 
 // ------------------------------------------------------------------ customers
+
+/** A serving cloche: the round Serve button in the customer's top-right corner. */
+const SERVE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'
+  + '<path d="M4.5 16a7.5 7.5 0 0 1 15 0z" fill="currentColor"/><circle cx="12" cy="6.6" r="1.7" fill="currentColor"/></svg>';
 
 const customerEls = new Map<number, HTMLElement>();
 const dyingIds = new Set<number>();
@@ -233,7 +236,7 @@ function customerCard(m: Customer): HTMLElement {
       <span class="reward"><img src="${iconArt.coin()}" alt="coins">${m.coins} <img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span>${m.gems ? ` <img src="${iconArt.gem()}" alt="gems">${m.gems}` : ''}</span>
     </div>
     <div class="tray"><div class="needs">${m.order.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
-    <button class="serve stroked">Serve!</button>`;
+    <button class="serve" aria-label="Serve ${m.name}" title="Serve">${SERVE_ICON}</button>`;
   el.querySelector('.serve')!.addEventListener('click', (e) => { e.stopPropagation(); doServe(m.id); });
   el.querySelector('.portrait')!.addEventListener('click', () => showCustomerInfo(m));
   setTimeout(() => el.classList.remove('enter'), 600);
@@ -267,43 +270,6 @@ function renderCustomers() {
     if (starN) starN.textContent = String((m.stars ?? 1) + (state.starBonus ?? 0));
   });
 }
-
-function updateRefresh() {
-  const cost = refreshCost(state);
-  const btn = $('#btn-refresh');
-  btn.querySelector('.val')!.textContent = String(cost);
-  btn.classList.toggle('off', state.coins < cost);
-  btn.setAttribute('aria-label', `New customers for ${cost} coins`);
-}
-
-/** Pay coins to swap all the customers for new ones. */
-function doRefresh() {
-  if (dyingIds.size) return; // let a serve finish first
-  const r = refreshCustomers(state);
-  if (!r.ok) {
-    sfx.error();
-    toast(`Need ${r.cost} coins for new customers. Serve one and the price resets!`);
-    return;
-  }
-  sfx.coin();
-  const btn = $('#btn-refresh');
-  restartAnim(btn, 'go');
-  const at = center(btn);
-  floater(`-${r.cost}`, at.x, at.y + 20);
-  // The old cards poof, then the new ones bounce in.
-  const old = [...customerEls.values()];
-  customerEls.clear();
-  old.forEach((el) => el.classList.add('leaving'));
-  setTimeout(() => {
-    old.forEach((el) => el.remove());
-    renderCustomers();
-    renderBoard();
-  }, 450);
-  toast(`New customers! The next refresh costs ${refreshCost(state)} coins.`);
-  renderHud();
-  persist();
-}
-$('#btn-refresh').addEventListener('click', (e) => { e.stopPropagation(); doRefresh(); });
 
 function showCustomerInfo(m: Customer) {
   const stars = (m.stars ?? 1) + (state.starBonus ?? 0);

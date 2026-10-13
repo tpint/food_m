@@ -40,14 +40,12 @@ node scripts/play.mjs http://localhost:5173/ shots   # scripted playtest with sc
 - **Merge**: put three identical items side by side (drag one onto or next to the other two) to make one of the next level.
   Five touching items make two. Two alone won't merge. Items you can merge with glow blue while you drag.
 - **Customers**: each customer's order is shown in front of them. Items you have on the board get a ✓ and sit on a
-  green tile. When the whole order is ready, press **Serve!**: a plate draws itself under each dish, the dish flies
-  over, the customer takes a happy bite and pays coins, XP and Stars. Badges over the customer show the XP, coins
+  green tile. When the whole order is ready, a round Serve button (a serving cloche) pops up at the customer's
+  top right: press it and a plate draws itself under each dish, the dish flies over, the customer takes a happy bite and pays coins, XP and Stars. Badges over the customer show the XP, coins
   and stars they give; tap them for their name and full order. Every 6th customer is **Sir Walrus, the food critic**,
-  with a bigger order and bigger rewards. New customers arrive as you level up: Felix Fox (level 2), Woolly Sheep (3),
-  Dash Deer and Sammy Squirrel (4), Bao Panda (5), Rex Wolf (6), Rocco Raccoon (8) and Tora Tiger (10).
-- **New customers**: don't like the current orders? The ⟳ button above the customer cards swaps all three.
-  It costs 10 coins, and the price doubles with every refresh until you serve someone, which resets it to 10.
-  A critic stays a critic when you refresh. Tuning lives in `REFRESH_BASE_COST` / `REFRESH_COST_GROWTH`.
+  with a bigger order and bigger rewards. Six customers wait at once: three fit across the screen and you swipe the
+  row sideways for the rest. Benny Bunny, Mittens, Bruno Bear, Felix Fox and Woolly Sheep come from the start, and more
+  arrive as you level up: Dash Deer and Sammy Squirrel (4), Bao Panda (5), Rex Wolf (6), Rocco Raccoon (8) and Tora Tiger (10).
 - **Fridge**: drag any item or station onto the fridge (bottom left) to store it and free up the board. Tap the fridge
   to see what is inside, and tap a stored piece to put it back on the nearest free tile. The fridge starts with 5 slots;
   more cost gems (10, then 5 more each time, up to 15 slots).
