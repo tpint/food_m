@@ -59,4 +59,4 @@ all listed in `manifest.json`. Tasks are always done in order, so the number of 
 done picks the picture, and each new one fades in over the last. Register the chapter
 in `PAINTED` in `src/render/room.ts`, with where each task's sparkle goes (fractions
 of the picture). Chapters without a full set keep their code-drawn room. Done so far:
-`dining` (454×472 px).
+`dining` (1152×928 px, about the frame's 5:4).
