@@ -140,7 +140,12 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 #customers-wrap { position: relative; flex: none; }
 
 /* Three customers fit across; swipe the row sideways for the rest. */
+/* The scroller would clip ears poking above the row, so it gets headroom of a sixth of a
+   portrait's height (the transparent band above each picture) and is pulled up by as much,
+   letting ears overlap the XP bar. */
 #customers {
+  --portrait-h: calc(max(72px, var(--cell) * 1.75) + var(--mon-extra));
+  padding-top: calc(var(--portrait-h) / 6); margin-top: calc(var(--portrait-h) / -6);
   display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 12px) / 3); gap: 6px; flex: none;
   overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x mandatory;
   scrollbar-width: none; touch-action: pan-x;
@@ -160,8 +165,10 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .customer.leaving .portrait img { animation: leave .55s ease forwards; }
 
 .customer .portrait {
-  position: relative; width: 100%;
-  height: calc(max(72px, var(--cell) * 1.75) + var(--mon-extra));
+  /* Layout containment: the oversized picture still paints past the box, but doesn't
+     stretch the row's scroll width (which made swiping overshoot the last customer). */
+  position: relative; width: 100%; contain: layout;
+  height: var(--portrait-h);
   display: flex; justify-content: center; align-items: flex-end; cursor: pointer;
 }
 /* A soft spotlight and floor shadow so the customer pops off the busy backdrop. */
@@ -174,10 +181,12 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   content: ''; position: absolute; left: 18%; right: 18%; bottom: 2px; height: 10px; border-radius: 50%;
   background: rgba(20, 60, 140, .28);
 }
-/* The square portraits are taller than their column is wide: fill the full height and
-   let the empty sides of the picture spill past the column instead of shrinking it. */
+/* Each portrait PNG is a 384px square of customer (faces the same size in all of them) with
+   64px of spare room left, right and above for ears and tails (512x448). The square fills
+   the portrait's height; ears and tails spill over the neighbours and the XP bar untrimmed. */
 .customer .portrait img {
-  position: relative; z-index: 1; height: 100%; width: 100%; object-fit: cover; object-position: 50% 100%;
+  position: absolute; z-index: 1; bottom: 0; left: -100%; right: -100%; margin: 0 auto;
+  height: calc(100% * 448 / 384); width: auto; max-width: none;
   animation: bob 2.4s ease-in-out infinite; transform-origin: 50% 100%;
 }
 
