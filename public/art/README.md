@@ -22,4 +22,17 @@ Example `manifest.json` after adding `drinks-1.png` and `cus-bunny.png`:
 ["drinks-1", "cus-bunny"]
 ```
 
-No painted art exists yet, so `manifest.json` is empty and everything uses its SVG.
+## Painted set
+
+Every key above now has a painted PNG (384 px), and all of them are listed in
+`manifest.json`; the code-drawn SVGs remain as the fallback. The PNGs are made by the
+scripts in `scripts/art/`: `fitems.mjs`, `fcustomers.mjs`, `ficons.mjs` and
+`fstations.mjs` build a detailed SVG for each sprite (with shared helpers in
+`paint.mjs`, `items.mjs` and `extras.mjs`), and `render-art.mjs` draws it at 3× in
+Chromium and downsamples it to 384 px.
+
+```bash
+npm i -D sharp                                        # one-off; Playwright already comes with @playwright/test
+node scripts/art/render-art.mjs public/art 384        # every sprite
+ONLY=gen-bbq,cus-critic node scripts/art/render-art.mjs   # only keys starting with these
+```
