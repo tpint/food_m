@@ -745,7 +745,7 @@ function renderDiner(fresh?: string, chapterIdx = viewChapter()) {
   const room = $('#room');
   if (roomFor !== ch.id) { room.innerHTML = roomSvg(ch.id); roomFor = ch.id; }
   const done = ch.tasks.filter((t) => state.tasksDone.includes(t.id)).map((t) => t.id);
-  updateRoom(room.querySelector('svg')!, done, ch.tasks.length, fresh);
+  updateRoom(room.firstElementChild!, done, ch.tasks.length, fresh);
   $('#diner-fill').style.width = `${(done.length / ch.tasks.length) * 100}%`;
   $('#diner-progress-text').textContent = allDone ? (state.chapter >= CHAPTERS.length ? 'Fully restored! More rooms coming soon' : 'Fully restored!') : `${done.length} / ${ch.tasks.length} restored`;
   const cur = currentTask(state);
@@ -784,10 +784,9 @@ function doRestore() {
   // Keep showing the room this task belongs to, even if the chapter just ended.
   const shown = r.chapterDone ? state.chapter - 1 : state.chapter;
   renderDiner(r.task.id, shown);
-  const svg = $('#room svg');
-  const box = svg.getBoundingClientRect();
+  const box = $('#room').firstElementChild!.getBoundingClientRect();
   const [ax, ay] = roomAnchor(CHAPTERS[shown].id, r.task.id);
-  const x = box.left + (ax / 400) * box.width, y = box.top + (ay / 320) * box.height;
+  const x = box.left + ax * box.width, y = box.top + ay * box.height;
   burst(x, y, '#ffe680', 1.5);
   shower(x, y, ['#ffe680', '#b98cff', '#fff']);
   const lines: StoryLine[] = [{ text: r.task.story }];

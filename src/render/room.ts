@@ -1,6 +1,9 @@
-// The restaurant room shown on the Restaurant screen. Every restoration task
-// has a "broken" and a "fixed" layer; finishing a task swaps them with a
-// sparkle. The whole room also gets brighter as more tasks are done.
+import { hasArt } from './art';
+
+// The restaurant room shown on the Restaurant screen. A chapter with painted
+// pictures (see PAINTED) shows one per restoration state. The others are drawn
+// here: every task has a "broken" and a "fixed" layer, and finishing a task swaps
+// them with a sparkle. The whole room also gets brighter as more tasks are done.
 
 const INK = '#2e1d40';
 const sw = `stroke="${INK}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
@@ -283,13 +286,48 @@ const ROOMS: Record<string, { svg: () => string; anchors: Record<string, [number
   rooftop: { svg: rooftopRoom, anchors: ROOFTOP_ANCHORS },
 };
 
-export const roomSvg = (chapterId: string) => (ROOMS[chapterId] ?? ROOMS.dining).svg();
-export const roomAnchor = (chapterId: string, task: string): [number, number] =>
-  (ROOMS[chapterId] ?? ROOMS.dining).anchors[task] ?? [200, 160];
+/**
+ * Painted rooms: one picture per restoration state (`room-<chapter>-0.jpg` with nothing
+ * fixed, up to `-<tasks>.jpg` fully restored), cross-faded as tasks finish. Tasks are always
+ * done in order, so the number done picks the picture. Anchors are fractions of the picture.
+ * A chapter uses them only when all its pictures are in art/manifest.json.
+ */
+const PAINTED: Record<string, { states: number; anchors: Record<string, [number, number]> }> = {
+  dining: {
+    states: 7,
+    anchors: { dust: [0.55, 0.75], cloths: [0.55, 0.8], lamps: [0.6, 0.22], window: [0.72, 0.45], flowers: [0.56, 0.68], sign: [0.86, 0.3] },
+  },
+};
+
+const painted = (chapterId: string) => {
+  const p = PAINTED[chapterId];
+  return p && Array.from({ length: p.states }, (_, n) => hasArt(`room-${chapterId}-${n}`)).every(Boolean) ? p : null;
+};
+
+/** The room's markup: a painted picture stack, or the code-drawn SVG. */
+export function roomSvg(chapterId: string): string {
+  const p = painted(chapterId);
+  if (!p) return (ROOMS[chapterId] ?? ROOMS.dining).svg();
+  return `<div class="room painted">${Array.from({ length: p.states }, (_, n) =>
+    `<img class="rs" data-n="${n}" src="art/room-${chapterId}-${n}.jpg" alt="">`).join('')}</div>`;
+}
+
+/** Where a task's sparkle goes, as fractions of the room's width and height. */
+export function roomAnchor(chapterId: string, task: string): [number, number] {
+  const p = painted(chapterId);
+  if (p) return p.anchors[task] ?? [0.5, 0.5];
+  const [x, y] = (ROOMS[chapterId] ?? ROOMS.dining).anchors[task] ?? [200, 160];
+  return [x / 400, y / 320];
+}
 
 /** Show each task's broken or fixed layer; `fresh` is the task just finished (it pops in). */
-export function updateRoom(svg: SVGSVGElement, done: string[], total: number, fresh?: string) {
-  svg.querySelectorAll<SVGGElement>('.rl').forEach((g) => {
+export function updateRoom(room: Element, done: string[], total: number, fresh?: string) {
+  if (room.classList.contains('painted')) {
+    // Earlier states stay shown underneath, so the new picture fades in over the last one.
+    room.querySelectorAll<HTMLImageElement>('.rs').forEach((img) => img.classList.toggle('on', Number(img.dataset.n) <= done.length));
+    return;
+  }
+  room.querySelectorAll<SVGGElement>('.rl').forEach((g) => {
     const isDone = done.includes(g.dataset.task!);
     const show = (g.dataset.state === 'fixed') === isDone;
     g.style.opacity = show ? '1' : '0';
@@ -299,6 +337,6 @@ export function updateRoom(svg: SVGSVGElement, done: string[], total: number, fr
       g.classList.add('pop');
     }
   });
-  const dark = svg.querySelector<SVGRectElement>('#room-dark');
+  const dark = room.querySelector<SVGRectElement>('#room-dark');
   if (dark) dark.style.opacity = String(0.5 * (1 - done.length / Math.max(1, total)));
 }
