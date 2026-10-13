@@ -7,6 +7,9 @@ then uses the PNG instead of the code-drawn SVG for that piece.
 
 - Square images with a transparent background, about 256–384 px (384 stays sharp on 3x phone screens).
 - Frame the object centred and filling about 97% of the square: items fill their board tile edge to edge.
+- Customers (`cus-*`) are the exception: 512×448, a 384 px square at the bottom centre holding the
+  customer (face 128 px wide, body touching the bottom), plus 64 px of room left, right and above
+  where ears and tails can spill over the neighbouring customers untrimmed.
 - Keys: `bakery-1` … `bakery-7`, `drinks-1` … `drinks-7`, `dessert-1` … `dessert-7`,
   `grill-1` … `grill-7`, `coin-1` … `coin-4`, `energy-1` … `energy-3`,
   `gen-oven`, `gen-fountain`, `gen-mixer`, `gen-bbq` (level 1, and every level that has no own PNG),
