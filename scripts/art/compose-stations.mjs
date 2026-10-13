@@ -25,16 +25,16 @@ for (const id of ids) {
       const { stationDressing } = await import('/src/render/art.ts');
       const d = stationDressing(lv, glow);
       const img = new Image(); img.src = src; await img.decode();
-      // The station sits in the same box the code-drawn stations use, standing on y = 93.
-      const box = { x: 8, y: 12, w: 84, h: 81 };
+      // The station fills almost the whole tile, standing on y = 96; the decorations overlap its edges.
+      const box = { x: 0, y: 1, w: 100, h: 95 };
       const k = Math.min(box.w / img.width, box.h / img.height);
       const w = img.width * k, h = img.height * k, x = 50 - w / 2, y = box.y + box.h - h;
       // Levels 2-3 have no plate or rays yet, so give them the star badge early.
       const badge = lv === 2 || lv === 3
         ? '<path d="M80 72L82.4 77L88 77.6L83.8 81.4L85 87L80 84.2L75 87L76.2 81.4L72 77.6L77.6 77Z" fill="#ffd147" stroke="#7a5418" stroke-width="1.4" stroke-linejoin="round"/>'
         : '';
-      const shadow = lv < 3 ? `<ellipse cx="50" cy="93" rx="${w * 0.45}" ry="${w * 0.08}" fill="#3a2350" opacity=".22"/>` : '';
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${S * SS}" height="${S * SS}" viewBox="-8 -7 116 116"><defs>${d.defs}</defs>${d.behind}${shadow}`
+      const shadow = lv < 3 ? `<ellipse cx="50" cy="96" rx="${w * 0.45}" ry="${w * 0.08}" fill="#3a2350" opacity=".22"/>` : '';
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${S * SS}" height="${S * SS}" viewBox="-3 -3 106 106"><defs>${d.defs}</defs>${d.behind}${shadow}`
         + `<image href="${src}" x="${x}" y="${y}" width="${w}" height="${h}"/>${d.fx}${badge}</svg>`;
       const pic = new Image(); pic.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`; await pic.decode();
       const big = document.createElement('canvas'); big.width = big.height = S * SS;

@@ -512,5 +512,6 @@ const energy = [
 ];
 
 export const SPRITES = {};
-const fill = (lv) => Math.min(0.95, 0.68 + lv * 0.04);
-for (const [name, arr] of Object.entries({ bakery, drinks, dessert, grill, coin: coins, energy })) arr.forEach((d, i) => { SPRITES[`${name}-${i + 1}`] = { draw: d, fill: fill(i + 1) }; });
+// Every level fills the tile edge to edge, like the big casual merge games.
+const fill = () => 0.97;
+for (const [name, arr] of Object.entries({ bakery, drinks, dessert, grill, coin: coins, energy })) arr.forEach((d, i) => { SPRITES[`${name}-${i + 1}`] = { draw: d, fill: fill() }; });

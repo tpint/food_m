@@ -1046,9 +1046,9 @@ function toUrl(key: string, draw: (s: Svg) => void, fill = 0.86): string {
   return url;
 }
 
-// Higher levels fill a little more of the tile, so size grows with the chain too.
+// Every level fills the tile edge to edge.
 export const itemArt = (chain: ChainId, level: number) =>
-  toUrl(`${chain}-${level}`, chainArt[chain][level - 1], Math.min(0.95, 0.68 + level * 0.04));
+  toUrl(`${chain}-${level}`, chainArt[chain][level - 1], 0.97);
 /** Level 1 uses the plain key; a painted `gen-x` override covers every level unless `gen-x-N` exists. */
 export const generatorArt = (g: GenId, lv = 1) =>
   lv > 1 && !overrides.has(`gen-${g}-${lv}`) && overrides.has(`gen-${g}`)

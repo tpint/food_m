@@ -6,7 +6,7 @@ here named after the art key and list the key in `manifest.json`. The game
 then uses the PNG instead of the code-drawn SVG for that piece.
 
 - Square images with a transparent background, about 256–384 px (384 stays sharp on 3x phone screens).
-- Frame the object the way the SVGs are framed: centred, filling about 80–90% of the square.
+- Frame the object centred and filling about 97% of the square: items fill their board tile edge to edge.
 - Keys: `bakery-1` … `bakery-7`, `drinks-1` … `drinks-7`, `dessert-1` … `dessert-7`,
   `grill-1` … `grill-7`, `coin-1` … `coin-4`, `energy-1` … `energy-3`,
   `gen-oven`, `gen-fountain`, `gen-mixer`, `gen-bbq` (level 1, and every level that has no own PNG),
@@ -39,13 +39,11 @@ ONLY=gen-bbq,cus-critic node scripts/art/render-art.mjs   # only keys starting w
 
 ### Station art from a single picture
 
-The Bread Oven, Drink Fountain and Dessert Mixer use one painted picture each
+All four kitchen stations use one painted picture each
 (`scripts/art/station-src/<id>.png`, transparent background). All 10 levels are built
 from it by adding the game's own level decorations around it:
 
 ```bash
 npm run dev    # in another terminal
-node scripts/art/compose-stations.mjs http://localhost:5173/ oven fountain mixer
+node scripts/art/compose-stations.mjs http://localhost:5173/ oven fountain mixer bbq
 ```
-
-To give the BBQ Grill the same treatment, add `scripts/art/station-src/bbq.png` and run it with `bbq`.
