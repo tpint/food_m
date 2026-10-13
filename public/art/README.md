@@ -36,3 +36,16 @@ npm i -D sharp                                        # one-off; Playwright alre
 node scripts/art/render-art.mjs public/art 384        # every sprite
 ONLY=gen-bbq,cus-critic node scripts/art/render-art.mjs   # only keys starting with these
 ```
+
+### Station art from a single picture
+
+The Bread Oven, Drink Fountain and Dessert Mixer use one painted picture each
+(`scripts/art/station-src/<id>.png`, transparent background). All 10 levels are built
+from it by adding the game's own level decorations around it:
+
+```bash
+npm run dev    # in another terminal
+node scripts/art/compose-stations.mjs http://localhost:5173/ oven fountain mixer
+```
+
+To give the BBQ Grill the same treatment, add `scripts/art/station-src/bbq.png` and run it with `bbq`.

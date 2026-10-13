@@ -1054,6 +1054,17 @@ export const generatorArt = (g: GenId, lv = 1) =>
   lv > 1 && !overrides.has(`gen-${g}-${lv}`) && overrides.has(`gen-${g}`)
     ? toUrl(`gen-${g}`, (s) => genArt[g](s, 1), 0.9)
     : toUrl(lv > 1 ? `gen-${g}-${lv}` : `gen-${g}`, (s) => genArt[g](s, lv), 0.9);
+/**
+ * The level decorations dress() puts around a station, without the station
+ * itself, as SVG fragments in station coordinates. scripts/art/compose-stations.mjs
+ * uses it to dress painted station art.
+ */
+export function stationDressing(lv: number, glow: string): { defs: string; behind: string; fx: string } {
+  const s = new Svg();
+  dress(s, lv, glow, () => {});
+  return { defs: s.defs.join(''), behind: s.behind.join(''), fx: s.fx.join('') };
+}
+
 export const customerImg = (k: CustomerKind) => toUrl(`cus-${k}`, customerArt[k], 0.94);
 export const pieceArt = (p: Piece) => (p.kind === 'gen' ? generatorArt(p.gen, p.level ?? 1) : itemArt(p.chain, p.level));
 
