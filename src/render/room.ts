@@ -295,7 +295,7 @@ const ROOMS: Record<string, { svg: () => string; anchors: Record<string, [number
 const PAINTED: Record<string, { states: number; anchors: Record<string, [number, number]> }> = {
   dining: {
     states: 7,
-    anchors: { dust: [0.55, 0.75], cloths: [0.55, 0.8], lamps: [0.6, 0.22], window: [0.72, 0.45], flowers: [0.56, 0.68], sign: [0.86, 0.3] },
+    anchors: { dust: [0.45, 0.72], cloths: [0.45, 0.76], lamps: [0.5, 0.17], window: [0.6, 0.36], flowers: [0.45, 0.66], sign: [0.19, 0.33] },
   },
 };
 

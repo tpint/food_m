@@ -418,8 +418,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .room .rl { transition: opacity .9s ease; }
 .room .rl.pop { transform-box: fill-box; transform-origin: 50% 70%; animation: room-pop .8s cubic-bezier(.2, 1.5, .4, 1); }
 #room-dark { transition: opacity 1.2s ease; }
-/* Painted rooms are nearly square pictures, stacked; the current restoration state fades in. */
-.room-frame:has(.painted) { aspect-ratio: 454 / 472; }
+/* Painted rooms: the restoration states' pictures stacked; the current one fades in. */
 .room.painted { position: relative; width: 100%; height: 100%; }
 .room.painted .rs { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1s ease; }
 .room.painted .rs.on { opacity: 1; }
