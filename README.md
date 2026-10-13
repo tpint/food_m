@@ -43,8 +43,8 @@ node scripts/play.mjs http://localhost:5173/ shots   # scripted playtest with sc
   green tile. When the whole order is ready, press **Serve!**: a plate draws itself under each dish, the dish flies
   over, the customer takes a happy bite and pays coins, XP and Stars. Badges over the customer show the XP, coins
   and stars they give; tap them for their name and full order. Every 6th customer is **Sir Walrus, the food critic**,
-  with a bigger order and bigger rewards. New customers arrive as you level up: Felix Fox (level 2), Pablo Penguin (3),
-  Penny Pig and Freddie Frog (4), Bao Panda (5), Biscuit Pup (6), Rocco Raccoon (8) and Leo the Lion (10).
+  with a bigger order and bigger rewards. New customers arrive as you level up: Felix Fox (level 2), Woolly Sheep (3),
+  Dash Deer and Sammy Squirrel (4), Bao Panda (5), Rex Wolf (6), Rocco Raccoon (8) and Tora Tiger (10).
 - **New customers**: don't like the current orders? The ⟳ button above the customer cards swaps all three.
   It costs 10 coins, and the price doubles with every refresh until you serve someone, which resets it to 10.
   A critic stays a critic when you refresh. Tuning lives in `REFRESH_BASE_COST` / `REFRESH_COST_GROWTH`.

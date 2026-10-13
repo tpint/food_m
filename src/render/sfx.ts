@@ -268,28 +268,26 @@ export const sfx = {
       case 'fox': // two quick yips
         [0, 0.14].forEach((t) => osc('sawtooth', t, [[0, 900], [0.05, 1400], [0.1, 1000]], [[0, 0], [0.01, 0.07], [0.11, 0]], { filter: { type: 'bandpass', freq: [[0, 1500], [0.1, 1500]], q: 3 } }));
         break;
-      case 'penguin': // a honky squawk
-        osc('square', 0, [[0, 600], [0.1, 700], [0.3, 550]], [[0, 0], [0.02, 0.05], [0.25, 0.04], [0.32, 0]], { filter: { type: 'bandpass', freq: [[0, 1200], [0.3, 1000]], q: 5 } });
+      case 'penguin': // the sheep: a wobbly "baa"
+        osc('sawtooth', 0, [[0, 420], [0.1, 470], [0.45, 400]], [[0, 0], [0.04, 0.07], [0.4, 0.05], [0.5, 0]], { tremolo: { rate: 18, depth: 0.5 }, filter: { type: 'bandpass', freq: [[0, 1100], [0.5, 900]], q: 3 } });
         break;
-      case 'pig': // oink oink
-        [0, 0.2].forEach((t) => osc('sawtooth', t, [[0, 260], [0.06, 340], [0.15, 220]], [[0, 0], [0.01, 0.09], [0.15, 0]], { filter: { type: 'bandpass', freq: [[0, 700], [0.15, 500]], q: 6 } }));
+      case 'pig': // the deer: a soft, rising bleat
+        osc('triangle', 0, [[0, 700], [0.12, 1100], [0.25, 950]], [[0, 0], [0.02, 0.08], [0.25, 0]], { vibrato: { rate: 9, depth: 15 } });
         break;
-      case 'frog': // ribbit
-        [0, 0.12].forEach((t) => {
-          for (let i = 0; i < 4; i++) osc('square', t + i * 0.02, [[0, 300], [0.015, 260]], [[0, 0], [0.002, 0.06], [0.018, 0]], { filter: { type: 'lowpass', freq: [[0, 1200], [0.02, 900]] } });
-        });
+      case 'frog': // the squirrel: quick excited squeaks
+        for (let i = 0; i < 4; i++) osc('sine', i * 0.07, [[0, 2200 + (i % 2) * 300], [0.05, 2600 + (i % 2) * 300]], [[0, 0], [0.005, 0.06], [0.05, 0]]);
         break;
       case 'panda': // munch munch and a happy hum
         bursts(0, 0.3, 8, 900, 2, 0.1, 0.03);
         osc('triangle', 0.3, [[0, 300], [0.3, 360]], [[0, 0], [0.05, 0.06], [0.35, 0]]);
         break;
-      case 'dog': // a happy woof
-        osc('sawtooth', 0, [[0, 300], [0.05, 420], [0.18, 240]], [[0, 0], [0.01, 0.12], [0.18, 0]], { filter: { type: 'lowpass', freq: [[0, 1600], [0.18, 700]], q: 2 }, distort: true });
+      case 'dog': // the wolf: a short, happy howl
+        osc('sawtooth', 0, [[0, 380], [0.2, 620], [0.6, 520]], [[0, 0], [0.1, 0.07], [0.5, 0.05], [0.65, 0]], { filter: { type: 'lowpass', freq: [[0, 1200], [0.65, 900]] }, vibrato: { rate: 6, depth: 8 } });
         break;
       case 'raccoon': // a little chitter
         for (let i = 0; i < 6; i++) osc('square', i * 0.045, [[0, 1800 + (i % 2) * 400], [0.03, 1600]], [[0, 0], [0.004, 0.035], [0.035, 0]], { filter: { type: 'bandpass', freq: [[0, 2200], [0.03, 2000]], q: 4 } });
         break;
-      case 'lion': // a big, purring rumble
+      case 'lion': // the tiger: a big, purring rumble
         osc('sawtooth', 0, [[0, 70], [0.6, 80]], [[0, 0], [0.1, 0.1], [0.6, 0.08], [0.7, 0]], { tremolo: { rate: 24, depth: 0.05 }, filter: { type: 'lowpass', freq: [[0, 300], [0.7, 260]] } });
         break;
       case 'critic': { // a pompous "hm-HMM!" and a little fanfare
