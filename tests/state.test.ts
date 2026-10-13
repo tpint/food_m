@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   canUpgrade, serve, collect, mergeYield, findOrder, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
-  upgradeGen, GameState, currentTask, restore, load, save, refreshCost, refreshCustomers,
+  upgradeGen, GameState, currentTask, restore, load, save,
   makeCustomer, validateSave, storeInFridge, takeFromFridge, buyFridgeSlot, fridgeSlots, fridgeSlotCost, FRIDGE_START_SLOTS, FRIDGE_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
 } from '../src/game/state';
-import { ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS, REFRESH_BASE_COST, REFRESH_COST_GROWTH } from '../src/game/config';
+import { ACTIVE_CUSTOMERS, ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
 import { untilReset } from '../src/online';
 
@@ -157,58 +157,19 @@ describe('customers', () => {
     expect(r).not.toBeNull();
     expect(s.coins).toBe(coins + m.coins);
     expect(s.customers.find((x) => x.id === m.id)).toBeUndefined();
-    expect(s.customers).toHaveLength(3);
+    expect(s.customers).toHaveLength(ACTIVE_CUSTOMERS);
     m.order.forEach((_, i) => expect(s.board[10 + i].piece).toBeNull());
   });
 
-});
-
-describe('customer refresh', () => {
-  it('costs coins, rerolls every customer and gets pricier each time', () => {
+  it('tops up older saves to the full row of customers', () => {
     const s = empty();
-    s.coins = 1000;
-    const before = s.customers.map((m) => ({ ...m }));
-    const next = s.nextCustomerId;
-    const r = refreshCustomers(s, seeded(7));
-    expect(r).toEqual({ ok: true, cost: REFRESH_BASE_COST, old: before });
-    expect(s.coins).toBe(1000 - REFRESH_BASE_COST);
-    expect(s.customers).toHaveLength(3);
-    expect(s.customers.map((m) => m.id)).toEqual(before.map((m) => m.id));
-    expect(s.customers).not.toEqual(before);
-    expect(s.nextCustomerId).toBe(next);
-    expect(refreshCost(s)).toBe(REFRESH_BASE_COST * REFRESH_COST_GROWTH);
-    refreshCustomers(s, seeded(8));
-    expect(refreshCost(s)).toBe(REFRESH_BASE_COST * REFRESH_COST_GROWTH ** 2);
+    s.customers = s.customers.slice(0, 3);
+    const v = validateSave(JSON.parse(JSON.stringify(s)))!;
+    expect(v.customers).toHaveLength(ACTIVE_CUSTOMERS);
+    expect(v.customers.slice(0, 3)).toEqual(s.customers);
+    expect(new Set(v.customers.map((m) => m.id)).size).toBe(ACTIVE_CUSTOMERS);
   });
 
-  it('keeps a critic a critic', () => {
-    const s = empty();
-    s.coins = 1000;
-    s.customers[1].critic = true;
-    refreshCustomers(s, seeded(2));
-    expect(s.customers.map((m) => m.critic)).toEqual([false, true, false]);
-  });
-
-  it('refuses without enough coins', () => {
-    const s = empty();
-    s.coins = REFRESH_BASE_COST - 1;
-    const before = s.customers;
-    expect(refreshCustomers(s)).toEqual({ ok: false, reason: 'coins', cost: REFRESH_BASE_COST });
-    expect(s.customers).toBe(before);
-    expect(s.coins).toBe(REFRESH_BASE_COST - 1);
-  });
-
-  it('resets the cost when a customer is served', () => {
-    const s = empty();
-    s.coins = 1000;
-    refreshCustomers(s, seeded(4));
-    refreshCustomers(s, seeded(5));
-    expect(refreshCost(s)).toBeGreaterThan(REFRESH_BASE_COST);
-    const m = s.customers[0];
-    m.order.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
-    serve(s, m.id, seeded(3));
-    expect(refreshCost(s)).toBe(REFRESH_BASE_COST);
-  });
 });
 
 describe('station upgrades', () => {
@@ -468,8 +429,9 @@ describe('customer roster', () => {
   };
 
   it('unlocks the new customers as the player levels up', () => {
-    expect([...kindsAt(1)].sort()).toEqual(['bear', 'bunny', 'cat']);
-    expect(kindsAt(2).has('fox')).toBe(true);
+    expect([...kindsAt(1)].sort()).toEqual(['bear', 'bunny', 'cat', 'fox', 'penguin']);
+    expect(kindsAt(3).has('pig')).toBe(false);
+    expect(kindsAt(4).has('pig')).toBe(true);
     expect(kindsAt(7).has('raccoon')).toBe(false);
     expect(kindsAt(10)).toEqual(new Set(CUSTOMERS.map((m) => m.kind)));
   });

@@ -113,14 +113,15 @@ export interface CustomerDef {
   minLevel: number;
 }
 
+/** Five kinds from level 1, so a full row of customers (one is the critic) has no repeats. */
 export const CUSTOMERS: CustomerDef[] = [
   { kind: 'bunny', name: 'Benny Bunny', minLevel: 1 },
   { kind: 'cat', name: 'Mittens', minLevel: 1 },
   { kind: 'bear', name: 'Bruno Bear', minLevel: 1 },
-  { kind: 'penguin', name: 'Woolly Sheep', minLevel: 3 },
+  { kind: 'penguin', name: 'Woolly Sheep', minLevel: 1 },
   { kind: 'pig', name: 'Dash Deer', minLevel: 4 },
   { kind: 'panda', name: 'Bao Panda', minLevel: 5 },
-  { kind: 'fox', name: 'Felix Fox', minLevel: 2 },
+  { kind: 'fox', name: 'Felix Fox', minLevel: 1 },
   { kind: 'frog', name: 'Sammy Squirrel', minLevel: 4 },
   { kind: 'dog', name: 'Rex Wolf', minLevel: 6 },
   { kind: 'raccoon', name: 'Rocco Raccoon', minLevel: 8 },
@@ -135,11 +136,9 @@ export const BOARD_ROWS = 9;
 export const MAX_ENERGY = 100;
 export const ENERGY_REGEN_MS = 20_000;
 export const SPAWN_COST = 1;
-export const ACTIVE_CUSTOMERS = 3;
+/** Customers waiting at once. Three fit on screen; swipe the row for the rest. */
+export const ACTIVE_CUSTOMERS = 6;
 export const CRITIC_EVERY = 6;
-/** New customers cost this many coins, doubling with each refresh until one is served. */
-export const REFRESH_BASE_COST = 10;
-export const REFRESH_COST_GROWTH = 2;
 
 export const xpForLevel = (level: number) => 10 + (level - 1) * 12;
 export const maxLevel = (chain: ChainId) => CHAINS[chain].levels.length;
