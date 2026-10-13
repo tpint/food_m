@@ -41,7 +41,7 @@ node scripts/play.mjs http://localhost:5173/ shots   # scripted playtest with sc
   Five touching items make two. Two alone won't merge. Items you can merge with glow blue while you drag.
 - **Customers**: each customer's order is shown in front of them. Items you have on the board get a ✓ and sit on a
   green tile. When the whole order is ready, a round Serve button (a serving cloche) pops up at the customer's
-  top right: press it and a plate draws itself under each dish, the dish flies over, the customer takes a happy bite and pays coins, XP and Stars. Badges over the customer show the XP, coins
+  top right: press it and a plate draws itself under each dish, the dish flies over, the customer takes a happy bite and pays coins, XP and Stars. Badges stacked down the customer's left edge show the XP, coins
   and stars they give; tap them for their name and full order. Every 6th customer is **Sir Walrus, the food critic**,
   with a bigger order and bigger rewards. Six customers wait at once: three fit across the screen and you swipe the
   row sideways for the rest. Benny Bunny, Mittens, Bruno Bear, Felix Fox and Woolly Sheep come from the start, and more

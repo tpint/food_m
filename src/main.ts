@@ -233,7 +233,9 @@ function customerCard(m: Customer): HTMLElement {
     <div class="portrait" aria-label="${m.name}"><img src="${customerImg(m.kind)}" alt="${m.name}"></div>
     <div class="tags">
       <span class="xp-badge stroked" title="Experience for serving them">+${m.xp} XP</span>
-      <span class="reward"><img src="${iconArt.coin()}" alt="coins">${m.coins} <img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span>${m.gems ? ` <img src="${iconArt.gem()}" alt="gems">${m.gems}` : ''}</span>
+      <span class="reward"><img src="${iconArt.coin()}" alt="coins">${m.coins}</span>
+      <span class="reward"><img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span></span>
+      ${m.gems ? `<span class="reward"><img src="${iconArt.gem()}" alt="gems">${m.gems}</span>` : ''}
     </div>
     <div class="tray"><div class="needs">${m.order.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
     <button class="serve" aria-label="Serve ${m.name}" title="Serve">${SERVE_ICON}</button>`;
