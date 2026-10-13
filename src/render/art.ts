@@ -1034,6 +1034,9 @@ export async function loadArtOverrides(): Promise<void> {
   } catch { /* no overrides (e.g. single-file build) */ }
 }
 
+/** Whether a painted file for `key` is listed in the manifest. */
+export const hasArt = (key: string) => overrides.has(key);
+
 function toUrl(key: string, draw: (s: Svg) => void, fill = 0.86): string {
   if (overrides.has(key)) return `art/${key}.png`;
   let url = cache.get(key);

@@ -50,3 +50,13 @@ from it by adding the game's own level decorations around it:
 npm run dev    # in another terminal
 node scripts/art/compose-stations.mjs http://localhost:5173/ oven fountain mixer bbq
 ```
+
+### Restaurant rooms
+
+A chapter's room can be painted too: one picture per restoration state, named
+`room-<chapter>-0.jpg` (nothing fixed) up to `room-<chapter>-6.jpg` (fully restored),
+all listed in `manifest.json`. Tasks are always done in order, so the number of tasks
+done picks the picture, and each new one fades in over the last. Register the chapter
+in `PAINTED` in `src/render/room.ts`, with where each task's sparkle goes (fractions
+of the picture). Chapters without a full set keep their code-drawn room. Done so far:
+`dining` (454×472 px).
