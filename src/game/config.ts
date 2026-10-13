@@ -4,6 +4,11 @@ export type ChainId = 'bakery' | 'drinks' | 'dessert' | 'grill' | 'coin' | 'ener
 export type GenId = 'oven' | 'fountain' | 'mixer' | 'bbq';
 /** The four kinds of food customers order. */
 export type FoodId = 'bakery' | 'drinks' | 'dessert' | 'grill';
+/**
+ * Customer kinds. These ids are stored in saves, so they stay as they are even where
+ * the painted portrait shows a different animal: penguin is a sheep, pig a deer,
+ * frog a squirrel, dog a wolf and lion a tiger.
+ */
 export type CustomerKind =
   | 'bunny' | 'cat' | 'bear' | 'fox' | 'penguin' | 'pig' | 'frog'
   | 'panda' | 'dog' | 'raccoon' | 'lion' | 'critic';
@@ -109,17 +114,17 @@ export interface CustomerDef {
 }
 
 export const CUSTOMERS: CustomerDef[] = [
-  { kind: 'bunny', name: 'Bonnie Bunny', minLevel: 1 },
+  { kind: 'bunny', name: 'Benny Bunny', minLevel: 1 },
   { kind: 'cat', name: 'Mittens', minLevel: 1 },
   { kind: 'bear', name: 'Bruno Bear', minLevel: 1 },
-  { kind: 'penguin', name: 'Pablo Penguin', minLevel: 3 },
-  { kind: 'pig', name: 'Penny Pig', minLevel: 4 },
+  { kind: 'penguin', name: 'Woolly Sheep', minLevel: 3 },
+  { kind: 'pig', name: 'Dash Deer', minLevel: 4 },
   { kind: 'panda', name: 'Bao Panda', minLevel: 5 },
   { kind: 'fox', name: 'Felix Fox', minLevel: 2 },
-  { kind: 'frog', name: 'Freddie Frog', minLevel: 4 },
-  { kind: 'dog', name: 'Biscuit Pup', minLevel: 6 },
+  { kind: 'frog', name: 'Sammy Squirrel', minLevel: 4 },
+  { kind: 'dog', name: 'Rex Wolf', minLevel: 6 },
   { kind: 'raccoon', name: 'Rocco Raccoon', minLevel: 8 },
-  { kind: 'lion', name: 'Leo the Lion', minLevel: 10 },
+  { kind: 'lion', name: 'Tora Tiger', minLevel: 10 },
 ];
 
 /** Every few customers a food critic drops by: a bigger order, bigger rewards. */
