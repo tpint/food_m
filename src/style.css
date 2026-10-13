@@ -231,9 +231,9 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   position: absolute; right: 2px; top: 2px; z-index: 4; transform: scale(0);
   width: 34px; height: 34px; padding: 0; border-radius: 50%; cursor: pointer; color: #fff;
   display: grid; place-items: center;
-  border: 2px solid var(--violet-lo);
-  background: linear-gradient(rgba(255,255,255,.35) 0 45%, transparent 46%), linear-gradient(var(--violet-hi), var(--violet));
-  box-shadow: 0 2px 0 var(--violet-lo), 0 0 12px rgba(170, 120, 255, .9);
+  border: 2px solid var(--ok-lo);
+  background: linear-gradient(rgba(255,255,255,.35) 0 45%, transparent 46%), linear-gradient(#7ee08e, var(--ok));
+  box-shadow: 0 2px 0 var(--ok-lo), 0 0 12px rgba(110, 230, 130, .9);
   transition: transform .25s cubic-bezier(.2, 1.6, .4, 1);
 }
 .customer .serve svg { width: 20px; height: 20px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.35)); }
