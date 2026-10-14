@@ -105,7 +105,13 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .pill .val { font-variant-numeric: tabular-nums; }
 /* Dark numbers on the white counters, like the reference art direction. */
 .pill .val.stroked { color: var(--ink); text-shadow: 0 1px 0 #fff; }
-.pill .timer { position: absolute; right: 6px; bottom: -13px; font-size: 10px; font-weight: 600; color: #ffe9a8; text-shadow: 0 1px 2px #000; }
+/* Energy countdown: a small grey tag hanging off the bar's bottom-right corner. */
+.pill .timer {
+  position: absolute; right: 4px; bottom: -14px; z-index: 1; padding: 1px 6px; border-radius: 6px;
+  font-size: 10px; font-weight: 700; line-height: 14px; white-space: nowrap; font-variant-numeric: tabular-nums;
+  color: #9fdcff; background: rgba(60, 66, 80, .92); box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+.pill .timer:empty { display: none; }
 .pill.bump { animation: bump .35s ease; }
 @media (max-width: 400px) {
   #hud { gap: 4px; }
