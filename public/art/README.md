@@ -17,7 +17,8 @@ then uses the PNG instead of the code-drawn SVG for that piece.
   `cus-bunny`, `cus-cat`, `cus-bear`, `cus-fox`, `cus-penguin`, `cus-pig`, `cus-frog`,
   `cus-panda`, `cus-dog`, `cus-raccoon`, `cus-lion`, `cus-critic`,
   `icon-chef`, `icon-diner`, `icon-toque`, `icon-coin`, `icon-gem`, `icon-energy`,
-  `icon-trophy`, `icon-gstar`, `icon-pad`, `icon-fridge`, `icon-star`.
+  `icon-trophy`, `icon-gstar`, `icon-pad`, `icon-fridge`, `icon-star`, `icon-wheel`, `icon-calendar`,
+  `icon-mail`, `icon-gear`.
 
 Example `manifest.json` after adding `drinks-1.png` and `cus-bunny.png`:
 
@@ -28,7 +29,8 @@ Example `manifest.json` after adding `drinks-1.png` and `cus-bunny.png`:
 ## Painted set
 
 Every key above now has a painted PNG (384 px), and all of them are listed in
-`manifest.json`; the code-drawn SVGs remain as the fallback. The PNGs are made by the
+`manifest.json`; the code-drawn SVGs remain as the fallback. `icon-wheel`,
+`icon-calendar`, `icon-mail` and `icon-gear` were cut from a supplied painting; the rest are made by the
 scripts in `scripts/art/`: `fitems.mjs`, `fcustomers.mjs`, `ficons.mjs` and
 `fstations.mjs` build a detailed SVG for each sprite (with shared helpers in
 `paint.mjs`, `items.mjs` and `extras.mjs`), and `render-art.mjs` draws it at 3× in
