@@ -1173,6 +1173,17 @@ export const iconArt = {
     s.add(shape('M36 72L48 72L48 82L36 82Z', s.rad(LEMON), LEMON.ink, 'stroke-width="2"'));
     s.sparkle(84, 14, 4, '#fff');
   }),
+  /** An envelope with a heart seal, for the inbox. */
+  mail: () => toUrl('icon-mail', (s) => {
+    s.shadow(34);
+    const env = { hi: '#ffffff', mid: '#f2f6ff', lo: '#c8d6f0', ink: '#3a4a7a' };
+    s.add(shape('M10 28Q10 22 16 22L84 22Q90 22 90 28L90 78Q90 84 84 84L16 84Q10 84 10 78Z', s.rad(env), env.ink));
+    s.add(`<path d="M12 80L42 54M88 80L58 54" stroke="${env.ink}" stroke-width="2.4" stroke-linecap="round" opacity=".6"/>`);
+    s.add(shape('M12 26L50 58L88 26', s.lin('#ffffff', '#dfe8fb'), env.ink));
+    s.add(shape('M50 50Q42 40 36 46Q32 52 50 66Q68 52 64 46Q58 40 50 50Z', s.rad({ hi: '#ffb0c8', mid: '#ff4f7e', lo: '#c01848', ink: '#6a0a28' }), '#6a0a28', 'stroke-width="2.4"'));
+    s.add(hl('M18 30L18 74', 3, 0.7));
+    s.sparkle(86, 14, 5, '#ffe680');
+  }),
   /** A cog, for settings. */
   gear: () => toUrl('icon-gear', (s) => {
     s.shadow(34);

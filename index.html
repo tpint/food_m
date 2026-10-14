@@ -28,6 +28,7 @@
       <h1 class="hub-title stroked">Hub</h1>
       <div class="hub-list">
         <button class="hub-row" id="btn-diner"><img data-icon="diner" alt="" /><span class="hub-text"><b>Restaurant</b><small id="hub-diner-sub"></small></span><span class="star-badge stroked" id="star-badge">0</span></button>
+        <button class="hub-row" id="btn-inbox"><img data-icon="mail" alt="" /><span class="hub-text"><b>Inbox</b><small id="hub-inbox-sub">Messages and gifts</small></span></button>
         <button class="hub-row" id="btn-quests"><img data-icon="pad" alt="" /><span class="hub-text"><b>Daily quests</b><small id="hub-quests-sub"></small></span></button>
         <button class="hub-row" id="btn-checkin"><img data-icon="calendar" alt="" /><span class="hub-text"><b>Daily check-in</b><small id="hub-checkin-sub"></small></span></button>
         <button class="hub-row" id="btn-wheel"><img data-icon="wheel" alt="" /><span class="hub-text"><b>Lucky wheel</b><small id="hub-wheel-sub"></small></span></button>
@@ -150,6 +151,20 @@
       <div class="weekly-head"><b class="stroked">Weekly chests</b><small id="weekly-sub"></small></div>
       <div class="quest-bar weekly-bar" id="weekly-bar"></div>
       <ol id="weekly-list"></ol>
+    </div>
+  </section>
+
+  <section id="inbox" class="hidden" aria-label="Inbox">
+    <div class="sheet-inner">
+      <header class="sheet-head">
+        <button class="round" id="btn-inbox-back" aria-label="Back">←</button>
+        <div class="sheet-title">
+          <small id="inbox-sub">Messages and gifts</small>
+          <b class="stroked">Inbox</b>
+        </div>
+      </header>
+      <ol id="mail-list"></ol>
+      <p class="fridge-hint">Gifts with items need free spaces on the board to claim.</p>
     </div>
   </section>
 

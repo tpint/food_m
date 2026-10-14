@@ -682,6 +682,33 @@ export function grantPiece(s: GameState, piece: Piece): number {
   return at;
 }
 
+// ---------------------------------------------------------------- inbox
+
+/** What a message hands out when claimed. */
+export interface MailReward { coins: number; gems: number; energy: number; items: { chain: string; level: number }[] }
+
+/** A message's board items that this game knows; anything else is skipped. */
+export function mailItems(r: Pick<MailReward, 'items'>): Piece[] {
+  return (Array.isArray(r.items) ? r.items : [])
+    .filter((x) => x && x.chain in CHAINS && Number.isInteger(x.level) && x.level >= 1 && x.level <= maxLevel(x.chain as ChainId))
+    .map((x) => item(x.chain as ChainId, x.level));
+}
+
+export const freeCells = (s: GameState) => s.board.filter((c) => !c.piece).length;
+
+/** Board spaces still needed before a message can be claimed (0: it fits). */
+export function mailSpaceNeeded(s: GameState, r: Pick<MailReward, 'items'>): number {
+  return Math.max(0, mailItems(r).length - freeCells(s));
+}
+
+/** Hand out a claimed message's rewards; items go on free cells. Returns the cells they landed on. */
+export function applyMail(s: GameState, r: MailReward): number[] {
+  s.coins += Math.max(0, r.coins | 0);
+  s.gems += Math.max(0, r.gems | 0);
+  s.energy += Math.max(0, r.energy | 0);
+  return mailItems(r).map((p) => grantPiece(s, p)).filter((i) => i >= 0);
+}
+
 /** Put the oldest piece in the reward bag on the board (first in, first out). */
 export function takeFromRewardBag(s: GameState, near = bottomMiddle(s)): TakeResult {
   const piece = s.rewardBag?.[0];

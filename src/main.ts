@@ -7,6 +7,7 @@ import {
   CHECKIN_REWARDS, FREE_MAKEUPS, checkIn, checkInReward, checkInStreak, checkedIn, checkedInToday, makeUpCost, makeUpDay, missedDays, dayKey,
   SPINS_PER_DAY, WHEEL, spinWheel, spinsLeft, DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, WEEKLY_CHESTS, claimWeeklyChest, msToNextWeek, weekly, ensureDaily, msToNextDay, questDone,
   TutorialStep, advanceTutorial, skipTutorial, tutorialStep, discover, gen, isDiscovered, stats, favouriteCustomer,
+  applyMail, mailItems, mailSpaceNeeded,
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, customerImg, pieceArt } from './render/art';
 import { burst, cookCharge, puff, shower, trail, yum } from './render/fx';
@@ -14,7 +15,7 @@ import { sceneArt } from './render/scene';
 import { plateRing, serveDish } from './render/serve';
 import { roomAnchor, roomSvg, updateRoom } from './render/room';
 import { CHAPTERS, COMING_SOON, MENTOR } from './game/story';
-import { Board, Period, online, untilReset } from './online';
+import { Board, Mail, Period, online, untilReset } from './online';
 import { sfx } from './render/sfx';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -840,6 +841,8 @@ Object.assign(window, {
     reset() { state = newGame(); save(state); location.reload(); },
     energy(n = 100) { state.energy += n; renderHud(); persist(); },
     get state() { return state; },
+    /** With ?mock=1: send a test message, e.g. kitchen.mail({ title: 'Hi', gems: 5, items: [{ chain: 'dessert', level: 3 }] }). */
+    mail(m: Parameters<typeof online.mockSend>[0], toMe = false) { online.mockSend(m, toMe); refreshMail(); },
     /** Play any sound from the console, e.g. kitchen.sfx.customerCheer('critic'). */
     sfx,
     /** Diner chapters (read-only reference for testing). */
@@ -852,6 +855,15 @@ Object.assign(window, {
 // The top-right button switches between the kitchen and the hub, which holds
 // the restaurant, daily quests, leaderboard, profile and settings. The kitchen keeps
 // running underneath while the hub is open.
+/** The inbox as last fetched; null until the first fetch works. */
+let mailbox: Mail[] | null = null;
+let mailError = false;
+const MAIL_POLL_MS = 3 * 60_000;
+
+const hasGift = (m: Mail) => !!(m.coins || m.gems || m.energy || mailItems(m).length);
+/** Gifts not claimed yet and messages not read yet. */
+const mailWaiting = () => (mailbox ?? []).filter((m) => (hasGift(m) ? !m.claimed : !m.read)).length;
+
 const hubEl = $('#hub');
 const hubBtn = $('#btn-hub');
 const inHub = () => !hubEl.classList.contains('hidden');
@@ -882,6 +894,8 @@ function renderHub() {
   const spins = spinsLeft(state);
   $('#btn-wheel').classList.toggle('ready', spins > 0);
   $('#hub-wheel-sub').textContent = spins ? `${spins} free spin${spins > 1 ? 's' : ''} left today` : `New spins in ${untilNewQuests()}`;
+  const unread = mailWaiting();
+  $('#hub-inbox-sub').textContent = unread ? `${unread} new message${unread > 1 ? 's' : ''}` : 'Messages and gifts';
   $('#hub-profile-sub').textContent = `${online.name} · level ${state.level}`;
   $('#hub-settings-sub').textContent = online.code ? 'Saved to the cloud · recovery code made' : 'Cloud save · make a recovery code';
 }
@@ -889,7 +903,8 @@ function renderHub() {
 /** The hub button wears a "!" when quests or the diner have something ready. */
 function updateMenuBadge() {
   $('#btn-checkin').classList.toggle('ready', !checkedInToday(state));
-  hubBtn.classList.toggle('ready', ['#btn-quests', '#btn-diner', '#btn-checkin'].some((b) => $(b).classList.contains('ready')));
+  $('#btn-inbox').classList.toggle('ready', mailWaiting() > 0);
+  hubBtn.classList.toggle('ready', ['#btn-quests', '#btn-diner', '#btn-checkin', '#btn-inbox'].some((b) => $(b).classList.contains('ready')));
   if (inHub()) renderHub();
 }
 
@@ -1331,6 +1346,9 @@ function replaceState(next: GameState) {
   updateFridgeCount();
   updateRewardBag();
   showTutorial(state.tutorial ? tutorialStep(state) : null);
+  // A recovered or brand new player has a different inbox.
+  mailbox = null;
+  refreshMail();
 }
 
 function ago(ms: number) {
@@ -1874,9 +1892,105 @@ $('#btn-profile').addEventListener('click', openProfile);
 $('#btn-profile-back').addEventListener('click', () => profileEl.classList.add('hidden'));
 $('#btn-settings-from-profile').addEventListener('click', () => { profileEl.classList.add('hidden'); openSettings(); });
 
+// ------------------------------------------------------------------ inbox
+
+const inboxEl = $('#inbox');
+async function refreshMail() {
+  try {
+    mailbox = await online.mail();
+    mailError = false;
+  } catch {
+    mailError = true;
+  }
+  updateMenuBadge();
+  if (!inboxEl.classList.contains('hidden')) renderInbox();
+}
+
+function renderInbox() {
+  const list = $('#mail-list');
+  const waiting = mailWaiting();
+  $('#inbox-sub').textContent = waiting ? `${waiting} new` : 'Messages and gifts';
+  if (!mailbox) {
+    list.innerHTML = `<li class="mail-empty">${mailError ? "Couldn't reach the inbox. Check your connection." : 'Checking for mail...'}</li>`;
+    return;
+  }
+  if (!mailbox.length) {
+    list.innerHTML = '<li class="mail-empty">No messages yet. News and gifts from the Sunny Spoon team will show up here.</li>';
+    return;
+  }
+  list.innerHTML = mailbox.map((m) => {
+    const items = mailItems(m);
+    const gift = hasGift(m);
+    const need = gift && !m.claimed ? mailSpaceNeeded(state, m) : 0;
+    const side = !gift ? ''
+      : m.claimed ? '<span class="quest-check" aria-label="Claimed">✓</span>'
+      : need ? `<button class="btn stroked" disabled>Claim</button><span class="mail-need">Free ${need} more space${need > 1 ? 's' : ''} on the board</span>`
+      : `<button class="btn stroked" data-mail="${m.id}">Claim</button>`;
+    const gifts = gift
+      ? `<span class="mail-gifts">${reward(m.coins, m.gems, m.energy)}${items.map((p) => `<img class="mail-item" src="${pieceArt(p)}" alt="${pieceName(p)}" title="${pieceName(p)}">`).join('')}</span>`
+      : '';
+    const cls = m.claimed ? ' done' : gift ? ' ready' : m.read ? '' : ' unread';
+    return `<li class="task${cls}"><img class="quest-ico" src="${iconArt.mail()}" alt="">`
+      + `<span class="mail-main"><b>${escapeHtml(m.title)}</b><small>${new Date(m.sent).toLocaleDateString()}</small>`
+      + `${m.body ? `<p>${escapeHtml(m.body)}</p>` : ''}${gifts}</span>`
+      + `<span class="mail-side">${side}</span></li>`;
+  }).join('');
+}
+
+function openInbox() {
+  sfx.pick();
+  inboxEl.classList.remove('hidden');
+  renderInbox();
+  refreshMail().then(() => {
+    // Opening the inbox reads the messages that have nothing to claim.
+    const unread = (mailbox ?? []).filter((m) => !m.read && !hasGift(m));
+    if (!unread.length) return;
+    online.readMail(unread.map((m) => m.id)).then(() => {
+      unread.forEach((m) => (m.read = true));
+      updateMenuBadge();
+    }).catch(() => {});
+  });
+}
+
+$('#mail-list').addEventListener('click', async (e) => {
+  const btn = (e.target as Element).closest<HTMLButtonElement>('button[data-mail]');
+  const m = btn && mailbox?.find((x) => x.id === Number(btn.dataset.mail));
+  if (!btn || !m || m.claimed) return;
+  if (mailSpaceNeeded(state, m)) { sfx.error(); renderInbox(); return; }
+  btn.disabled = true;
+  const at = center(btn);
+  try {
+    const got = await online.claimMail(m.id);
+    m.claimed = m.read = true;
+    const cells = applyMail(state, got);
+    shower(at.x, at.y, ['#ff6fb8', '#ffd147', '#7ee08e', '#fff']);
+    sfx.levelUp();
+    const parts = [got.coins && `+${got.coins} coins`, got.gems && `+${got.gems} gems`, got.energy && `+${got.energy} energy`,
+      cells.length && `${cells.length} item${cells.length > 1 ? 's' : ''} on the board`].filter(Boolean);
+    toast(parts.length ? `Gift claimed! ${parts.join(', ')}` : 'Claimed!', true, 2000);
+    renderBoard();
+    for (const i of cells) renderCell(i, 'pop');
+    renderHud();
+    persist();
+  } catch (err) {
+    sfx.error();
+    if (err instanceof Error && err.message.includes('Already claimed')) {
+      m.claimed = m.read = true;
+      toast('You already claimed this gift.');
+    } else {
+      toast("Couldn't claim the gift. Check your connection and try again.");
+    }
+  }
+  renderInbox();
+  updateMenuBadge();
+});
+
+$('#btn-inbox').addEventListener('click', openInbox);
+$('#btn-inbox-back').addEventListener('click', () => inboxEl.classList.add('hidden'));
+
 // Tapping empty space on a full-screen panel (the dimmed backdrop, the gaps between
 // cards, the header) works like its back button. Taps on cards and controls don't.
-for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#settings', '#btn-settings-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back'], ['#wheel', '#btn-wheel-back'], ['#checkin', '#btn-checkin-back']]) {
+for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#settings', '#btn-settings-back'], ['#inbox', '#btn-inbox-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back'], ['#wheel', '#btn-wheel-back'], ['#checkin', '#btn-checkin-back']]) {
   $(panel).addEventListener('click', (e) => {
     const t = e.target as Element;
     if (t === e.currentTarget || t.matches('.sheet-inner, .sheet-head, .sheet-title, .sheet-title > *, .fridge-hint')) $(back).click();
@@ -1916,8 +2030,11 @@ async function boot() {
     if (!questsEl.classList.contains('hidden')) $('#quests-sub').textContent = `New quests in ${untilNewQuests()}`;
     if (inHub()) renderHub();
   }, 1000);
+  // Check the inbox at startup, when the game comes back to the screen, and every few minutes.
+  refreshMail();
+  setInterval(() => { if (!document.hidden) refreshMail(); }, MAIL_POLL_MS);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) return;
+    if (!document.hidden) { refreshMail(); return; }
     save(state);
     online.cloudSave(state, true);
   });
