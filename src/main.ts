@@ -1379,10 +1379,9 @@ $('#btn-reset').addEventListener('click', () => {
 $('#btn-reset-no').addEventListener('click', () => $('#reset-confirm').classList.add('hidden'));
 $('#btn-reset-yes').addEventListener('click', () => {
   online.reset();
-  // The tutorial is for first-time players only.
-  const fresh = newGame();
-  skipTutorial(fresh);
-  replaceState(fresh);
+  replaceState(newGame());
+  // Hold the tutorial until Chef Pip has said hello.
+  showTutorial(null);
   const ch = CHAPTERS[0];
   state.storySeen.push(`${ch.id}-intro`);
   persist();
@@ -1390,7 +1389,7 @@ $('#btn-reset-yes').addEventListener('click', () => {
   profileEl.classList.add('hidden');
   sfx.levelUp();
   toast(`A fresh start! Welcome, ${online.name}.`, true, 2200);
-  setTimeout(() => tell(ch.intro), 600);
+  setTimeout(() => tell(introLines(ch.intro)), 600);
 });
 
 /** On startup, use the cloud save if it is newer than this device's (e.g. played on another device). */
@@ -1541,6 +1540,12 @@ function tutorialMerged() {
   ]);
 }
 
+/** A chapter intro; a new player's tutorial starts once Chef Pip has said hello. */
+function introLines(intro: string[]): (string | StoryLine)[] {
+  if (!state.tutorial) return intro;
+  return [...intro, { text: 'First, let me show you how to cook. Watch my paw!', then: startTutorial }];
+}
+
 $('#btn-tut-skip').addEventListener('click', () => {
   skipTutorial(state);
   persist();
@@ -1607,10 +1612,7 @@ async function boot() {
   if (ch && !state.storySeen.includes(`${ch.id}-intro`)) {
     state.storySeen.push(`${ch.id}-intro`);
     persist();
-    // A new player's tutorial starts once Chef Pip has said hello.
-    const lines: (string | StoryLine)[] = [...ch.intro];
-    if (state.tutorial) lines.push({ text: "First, let me show you how to cook. Watch my paw!", then: startTutorial });
-    setTimeout(() => tell(lines), 500);
+    setTimeout(() => tell(introLines(ch.intro)), 500);
   } else if (state.tutorial) startTutorial();
 }
 
