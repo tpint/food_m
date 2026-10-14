@@ -1156,10 +1156,12 @@ function openFridge() {
 
 fridgeBtn.addEventListener('click', openFridge);
 $('#btn-fridge-back').addEventListener('click', () => fridgeEl.classList.add('hidden'));
-$('#fridge-grid').addEventListener('click', (e) => {
+$('#fridge-grid').addEventListener('click', async (e) => {
   const btn = (e.target as Element).closest<HTMLButtonElement>('button');
   if (!btn) return;
   if (btn.dataset.buy !== undefined) {
+    const cost = fridgeSlotCost(state);
+    if (fridgeSlots(state) < FRIDGE_MAX_SLOTS && state.gems >= cost && !await confirmGems(cost, 'Buy another fridge slot')) return;
     const r = buyFridgeSlot(state);
     if (!r.ok) {
       sfx.error();
@@ -1700,6 +1702,34 @@ $('#btn-spin').addEventListener('click', () => {
 $('#btn-wheel').addEventListener('click', openWheel);
 $('#btn-wheel-back').addEventListener('click', () => wheelEl.classList.add('hidden'));
 
+// ------------------------------------------------------------------ gem confirm
+
+const gemConfirmEl = $('#gem-confirm');
+let gemAnswer: ((yes: boolean) => void) | null = null;
+
+/** Ask before spending gems. Resolves true if the player agrees. */
+function confirmGems(cost: number, what: string): Promise<boolean> {
+  gemAnswer?.(false);
+  $('#gem-confirm-text').textContent = `${what} for ${cost} gem${cost === 1 ? '' : 's'}? You have ${state.gems}.`;
+  $('#btn-gem-yes').innerHTML = `Spend <img class="btn-ico" src="${iconArt.gem()}" alt="gems">${cost}`;
+  gemConfirmEl.classList.remove('hidden');
+  $('#btn-gem-yes').focus();
+  return new Promise((resolve) => { gemAnswer = resolve; });
+}
+
+function answerGems(yes: boolean) {
+  gemConfirmEl.classList.add('hidden');
+  const done = gemAnswer;
+  gemAnswer = null;
+  done?.(yes);
+}
+
+$('#btn-gem-yes').addEventListener('click', () => answerGems(true));
+$('#btn-gem-no').addEventListener('click', () => answerGems(false));
+// Tapping outside the card cancels.
+gemConfirmEl.addEventListener('click', (e) => { if (e.target === gemConfirmEl) answerGems(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gemAnswer) answerGems(false); });
+
 // ------------------------------------------------------------------ daily check-in
 
 const checkinEl = $('#checkin');
@@ -1763,9 +1793,11 @@ $('#btn-checkin-today').addEventListener('click', (e) => {
   afterCheckIn();
 });
 
-$('#cal').addEventListener('click', (e) => {
+$('#cal').addEventListener('click', async (e) => {
   const btn = (e.target as Element).closest<HTMLButtonElement>('button[data-day]');
   if (!btn) return;
+  const cost = makeUpCost(state);
+  if (cost && state.gems >= cost && !await confirmGems(cost, `Make up ${btn.getAttribute('aria-label')?.match(/day \d+/)?.[0] ?? 'this day'}`)) return;
   const r = makeUpDay(state, btn.dataset.day!);
   if (!r.ok) {
     sfx.error();
