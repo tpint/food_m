@@ -64,6 +64,8 @@ export interface GameState {
   fridgeSlots?: number;
   /** When the player last changed something (ms); the newest of local and cloud wins. */
   savedAt?: number;
+  /** First-time tutorial step (1-based); absent once it is done or for older saves. */
+  tutorial?: number;
 }
 
 export type QuestKind = 'serve' | 'merge' | 'cook' | 'mergeHigh';
@@ -134,6 +136,7 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
     chapter: 0,
     tasksDone: [],
     storySeen: [],
+    tutorial: 1,
   };
 
   // A row of starter items across the board (the two rows above start empty).
@@ -159,6 +162,57 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
 
   while (s.customers.length < ACTIVE_CUSTOMERS) s.customers.push(makeCustomer(s, rng));
   return s;
+}
+
+// ---------------------------------------------------------------- tutorial
+
+export interface TutorialStep {
+  /** Every setup cell holds this item. */
+  piece: Piece;
+  setup: number[];
+  /** Drag the item at `from` to `to` to make the merge. */
+  from: number;
+  to: number;
+  /** How many items the merge uses (3 make one, 5 make two). */
+  count: number;
+}
+
+/** The first-time tutorial: merge three drinks, then five desserts. Cells are [x, y]. */
+const TUTORIAL: { chain: ChainId; setup: [number, number][]; from: [number, number]; to: [number, number] }[] = [
+  // Uses newGame's water pair and the lone water below it.
+  { chain: 'drinks', setup: [[1, 5], [2, 5], [5, 7]], from: [5, 7], to: [3, 5] },
+  // Four candies along the empty top row, plus one more to drag in.
+  { chain: 'dessert', setup: [[1, 0], [2, 0], [3, 0], [4, 0], [5, 1]], from: [5, 1], to: [5, 0] },
+];
+export const TUTORIAL_STEPS = TUTORIAL.length;
+
+/**
+ * The current tutorial step, placing its items on any empty setup cells. Ends
+ * the tutorial (and returns null) when it is done or the board no longer fits.
+ */
+export function tutorialStep(s: GameState): TutorialStep | null {
+  const t = s.tutorial ? TUTORIAL[s.tutorial - 1] : undefined;
+  if (!t) { delete s.tutorial; return null; }
+  const at = ([x, y]: [number, number]) => idx(s, x, y);
+  const piece = item(t.chain, 1);
+  const setup = t.setup.map(at);
+  if (s.board[at(t.to)].piece || setup.some((i) => s.board[i].piece && !samePiece(s.board[i].piece, piece))) {
+    delete s.tutorial;
+    return null;
+  }
+  for (const i of setup) s.board[i].piece ??= { ...piece };
+  return { piece, setup, from: at(t.from), to: at(t.to), count: setup.length };
+}
+
+/** Move on after the step's merge; returns the next step, or null when the tutorial is over. */
+export function advanceTutorial(s: GameState): TutorialStep | null {
+  if (!s.tutorial) return null;
+  s.tutorial++;
+  return tutorialStep(s);
+}
+
+export function skipTutorial(s: GameState) {
+  delete s.tutorial;
 }
 
 // ---------------------------------------------------------------- energy

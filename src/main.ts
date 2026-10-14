@@ -5,6 +5,7 @@ import {
   item, newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
   FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge,
   DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
+  TutorialStep, advanceTutorial, skipTutorial, tutorialStep,
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, customerImg, pieceArt } from './render/art';
 import { burst, cookCharge, puff, shower, trail, yum } from './render/fx';
@@ -140,6 +141,7 @@ function layout() {
   // Give leftover height to the customer portraits instead of a dead gap.
   const spare = wrap.clientHeight - boardEl.offsetHeight - 12;
   root.setProperty('--mon-extra', `${Math.max(0, Math.min(70, spare))}px`);
+  placeHand();
 }
 
 let layoutQueued = false;
@@ -710,7 +712,9 @@ function onDrop(from: number, to: number) {
       renderBoard();
       renderCustomers();
       select(to);
+      if (tut) setTimeout(tutorialMerged, 500);
     });
+    if (tut) handEl.classList.add('hidden');
     persist();
     return;
   } else {
@@ -742,6 +746,8 @@ boardEl.addEventListener('pointerdown', (e) => {
   const el = (e.target as HTMLElement).closest<HTMLElement>('.cell');
   if (!el || drag) return;
   const i = Number(el.dataset.i);
+  // The tutorial only lets you pick up the item it points at.
+  if (tut && i !== tut.from) return;
   drag = { from: i, x0: e.clientX, y0: e.clientY, active: false, over: -1, pointer: e.pointerId };
 });
 
@@ -787,8 +793,13 @@ function endDrag(e: PointerEvent) {
   cells[d.from].firstElementChild?.classList.remove('dragging-src');
   clearHints();
   fridgeBtn.classList.remove('target');
-  if (overFridge(e.clientX, e.clientY)) { doStore(d.from); return; }
   const to = cellAt(e.clientX, e.clientY);
+  if (tut && to !== tut.to) {
+    renderCell(d.from, 'squish');
+    restartAnim(cells[tut.to], 'tut-nudge');
+    return;
+  }
+  if (overFridge(e.clientX, e.clientY)) { doStore(d.from); return; }
   if (to >= 0 && to !== d.from) onDrop(d.from, to);
   else renderCell(d.from, 'squish');
 }
@@ -1251,6 +1262,7 @@ function replaceState(next: GameState) {
   questsReady = claimableQuests(state);
   updateQuestBadge();
   updateFridgeCount();
+  showTutorial(state.tutorial ? tutorialStep(state) : null);
 }
 
 function ago(ms: number) {
@@ -1367,7 +1379,10 @@ $('#btn-reset').addEventListener('click', () => {
 $('#btn-reset-no').addEventListener('click', () => $('#reset-confirm').classList.add('hidden'));
 $('#btn-reset-yes').addEventListener('click', () => {
   online.reset();
-  replaceState(newGame());
+  // The tutorial is for first-time players only.
+  const fresh = newGame();
+  skipTutorial(fresh);
+  replaceState(fresh);
   const ch = CHAPTERS[0];
   state.storySeen.push(`${ch.id}-intro`);
   persist();
@@ -1461,6 +1476,77 @@ function nextStory() {
 
 $('#story-next').addEventListener('click', nextStory);
 
+// ------------------------------------------------------------------ tutorial
+
+// First-time players get a short guided tour: merge three drinks, then five
+// desserts. Only the pointed-at drag works until it is done or skipped.
+const tutEl = $('#tutorial');
+const handEl = $('#tut-hand');
+let tut: TutorialStep | null = null;
+
+function showTutorial(step: TutorialStep | null) {
+  cells.forEach((c) => c.classList.remove('tut-from', 'tut-to', 'tut-group'));
+  tut = step;
+  document.body.classList.toggle('tutorial', !!step);
+  tutEl.classList.toggle('hidden', !step);
+  handEl.classList.toggle('hidden', !step);
+  if (!step) return;
+  const name = pieceName(step.piece).toLowerCase();
+  const others = step.count - 1;
+  $('#tut-title').textContent = step.count > 3 ? `Merge ${step.count} for a bonus!` : `Merge ${step.count} to cook!`;
+  $('#tut-text').textContent = step.count > 3
+    ? `Drag the ${name} next to the other ${others}. Five of a kind make TWO!`
+    : `Drag the ${name} next to the other ${others}. Three of a kind make one better dish.`;
+  for (const i of step.setup) cells[i].classList.add('tut-group');
+  cells[step.from].classList.add('tut-from');
+  cells[step.to].classList.add('tut-to');
+  $<HTMLImageElement>('#tut-hand-item').src = pieceArt(step.piece);
+  restartAnim(tutEl.firstElementChild!, 'tut-card');
+  placeHand();
+}
+
+/** Point the hand from the item to drag to where it goes (redone on every layout). */
+function placeHand() {
+  if (!tut || !cells[tut.from]) return;
+  const a = center(cells[tut.from]);
+  const b = center(cells[tut.to]);
+  handEl.style.setProperty('--x0', `${a.x}px`);
+  handEl.style.setProperty('--y0', `${a.y}px`);
+  handEl.style.setProperty('--x1', `${b.x}px`);
+  handEl.style.setProperty('--y1', `${b.y}px`);
+}
+
+function startTutorial() {
+  const had = state.tutorial;
+  const step = tutorialStep(state);
+  if (had) persist(false);
+  if (step) for (const i of step.setup) renderCell(i);
+  showTutorial(step);
+}
+
+function tutorialMerged() {
+  const step = advanceTutorial(state);
+  persist();
+  if (step) {
+    for (const i of step.setup) renderCell(i, 'pop');
+    sfx.pick();
+    select(-1);
+    showTutorial(step);
+    return;
+  }
+  showTutorial(null);
+  tell([
+    'Well done, chef! Three of a kind make one better dish, and five make two.',
+    'Now tap a kitchen station, then tap it again to cook. Merge up what your customers order and serve them!',
+  ]);
+}
+
+$('#btn-tut-skip').addEventListener('click', () => {
+  skipTutorial(state);
+  persist();
+  showTutorial(null);
+});
+
 // ------------------------------------------------------------------ boot
 
 // Tapping empty space on a full-screen panel (the dimmed backdrop, the gaps between
@@ -1521,8 +1607,11 @@ async function boot() {
   if (ch && !state.storySeen.includes(`${ch.id}-intro`)) {
     state.storySeen.push(`${ch.id}-intro`);
     persist();
-    setTimeout(() => tell(ch.intro), 500);
-  }
+    // A new player's tutorial starts once Chef Pip has said hello.
+    const lines: (string | StoryLine)[] = [...ch.intro];
+    if (state.tutorial) lines.push({ text: "First, let me show you how to cook. Watch my paw!", then: startTutorial });
+    setTimeout(() => tell(lines), 500);
+  } else if (state.tutorial) startTutorial();
 }
 
 boot();
