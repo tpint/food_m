@@ -66,6 +66,8 @@ export interface GameState {
   rewardBag?: Piece[];
   /** Quests claimed this week and the weekly chests opened (see WEEKLY_CHESTS). */
   weekly?: Weekly;
+  /** Daily check-in: days checked in and this month's make-ups (see checkIn). */
+  checkin?: CheckIn;
   /** Lucky wheel spins used today. */
   spins?: { day: string; used: number };
   /** When the player last changed something (ms); the newest of local and cloud wins. */
@@ -106,6 +108,17 @@ export interface Weekly {
   quests: number;
   /** Indexes into WEEKLY_CHESTS of the chests opened this week. */
   opened: number[];
+}
+
+export interface CheckIn {
+  /** dayKey()s checked in (or made up), oldest first; only recent ones are kept. */
+  days: string[];
+  /** Month ("2026-10") the make-up counts are for. */
+  month: string;
+  /** Free make-ups used this month. */
+  free: number;
+  /** Make-ups bought with gems this month. */
+  paid: number;
 }
 
 export type Rng = () => number;
@@ -658,6 +671,107 @@ export function spinWheel(s: GameState, rng: Rng = Math.random, now = Date.now()
   s.energy += prize.energy;
   s.gems += prize.gems;
   return { slice, prize };
+}
+
+// ---------------------------------------------------------------- daily check-in
+
+export interface CheckInReward { coins: number; gems: number; energy: number }
+
+/** Reward for day N of a streak; day 7 and beyond pay the last one. */
+export const CHECKIN_REWARDS: CheckInReward[] = [
+  { coins: 20, gems: 0, energy: 0 },
+  { coins: 30, gems: 0, energy: 10 },
+  { coins: 40, gems: 1, energy: 0 },
+  { coins: 50, gems: 0, energy: 20 },
+  { coins: 60, gems: 2, energy: 0 },
+  { coins: 80, gems: 0, energy: 30 },
+  { coins: 100, gems: 5, energy: 30 },
+];
+/** Missed days a month that can be made up for free. */
+export const FREE_MAKEUPS = 3;
+/** Days of check-ins kept: enough for streaks and this month's calendar. */
+const CHECKIN_KEEP_DAYS = 40;
+
+export const checkInReward = (streak: number) => CHECKIN_REWARDS[Math.min(Math.max(streak, 1), CHECKIN_REWARDS.length) - 1];
+
+const monthKey = (now = Date.now()) => dayKey(now).slice(0, 7);
+
+/** The day `n` days after the day of `now` (negative for earlier), at local noon. */
+const shiftDay = (now: number, n: number) => {
+  const d = new Date(now);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12).getTime();
+};
+
+/** Check-in record with the make-up counts for this month. */
+function checkInFor(s: GameState, now: number): CheckIn {
+  const c = s.checkin ?? { days: [], month: '', free: 0, paid: 0 };
+  return c.month === monthKey(now) ? c : { ...c, month: monthKey(now), free: 0, paid: 0 };
+}
+
+export const checkedIn = (s: GameState, day: string) => !!s.checkin?.days.includes(day);
+export const checkedInToday = (s: GameState, now = Date.now()) => checkedIn(s, dayKey(now));
+
+/** Consecutive checked-in days ending today, or yesterday when today isn't done yet. */
+export function checkInStreak(s: GameState, now = Date.now()): number {
+  let n = 0;
+  let k = checkedInToday(s, now) ? 0 : -1;
+  while (checkedIn(s, dayKey(shiftDay(now, k)))) { n++; k--; }
+  return n;
+}
+
+function payCheckIn(s: GameState, r: CheckInReward) {
+  s.coins += r.coins;
+  s.gems += r.gems;
+  s.energy += r.energy;
+}
+
+function recordDay(s: GameState, c: CheckIn, day: string, now: number) {
+  const oldest = dayKey(shiftDay(now, -CHECKIN_KEEP_DAYS));
+  s.checkin = { ...c, days: [...c.days, day].filter((d) => d >= oldest).sort() };
+}
+
+/** Check in for today; the reward grows with the streak. */
+export function checkIn(s: GameState, now = Date.now()): { streak: number; reward: CheckInReward } | null {
+  if (checkedInToday(s, now)) return null;
+  recordDay(s, checkInFor(s, now), dayKey(now), now);
+  const streak = checkInStreak(s, now);
+  const reward = checkInReward(streak);
+  payCheckIn(s, reward);
+  return { streak, reward };
+}
+
+/** Gems to make up a missed day: free for the first FREE_MAKEUPS a month, then 5, 10, 15... */
+export function makeUpCost(s: GameState, now = Date.now()): number {
+  const c = checkInFor(s, now);
+  return c.free < FREE_MAKEUPS ? 0 : 5 * (c.paid + 1);
+}
+
+/** Days earlier this month that were missed and can still be made up. */
+export function missedDays(s: GameState, now = Date.now()): string[] {
+  const out: string[] = [];
+  for (let k = new Date(now).getDate() - 1; k >= 1; k--) {
+    const day = dayKey(shiftDay(now, -k));
+    if (!checkedIn(s, day)) out.push(day);
+  }
+  return out;
+}
+
+export type MakeUpResult = { ok: true; cost: number; reward: CheckInReward } | { ok: false; reason: 'invalid' | 'gems'; cost?: number };
+
+/**
+ * Check in on a missed day earlier this month, which also mends the streak.
+ * It pays the first day's reward.
+ */
+export function makeUpDay(s: GameState, day: string, now = Date.now()): MakeUpResult {
+  if (!missedDays(s, now).includes(day)) return { ok: false, reason: 'invalid' };
+  const cost = makeUpCost(s, now);
+  if (s.gems < cost) return { ok: false, reason: 'gems', cost };
+  const c = checkInFor(s, now);
+  s.gems -= cost;
+  recordDay(s, cost ? { ...c, paid: c.paid + 1 } : { ...c, free: c.free + 1 }, day, now);
+  const reward = CHECKIN_REWARDS[0];
+  payCheckIn(s, reward);
+  return { ok: true, cost, reward };
 }
 
 // ---------------------------------------------------------------- daily quests

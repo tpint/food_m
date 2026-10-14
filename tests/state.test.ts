@@ -3,6 +3,7 @@ import {
   canUpgrade, serve, collect, mergeYield, findOrder, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save,
   makeCustomer, validateSave, storeInFridge, takeFromFridge, buyFridgeSlot, fridgeSlots, fridgeSlotCost, FRIDGE_START_SLOTS, FRIDGE_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
+  CHECKIN_REWARDS, FREE_MAKEUPS, checkIn, checkInStreak, checkedInToday, makeUpCost, makeUpDay, missedDays,
   WEEKLY_CHESTS, claimWeeklyChest, weekKey, msToNextWeek, weekly, weeklyChestsReady,
   grantPiece, takeFromRewardBag, spinWheel, spinsLeft, SPINS_PER_DAY, WHEEL, tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS, discover, isDiscovered,
 } from '../src/game/state';
@@ -412,6 +413,54 @@ describe('daily quests', () => {
     expect(s.energy).toBe(e + DAILY_BONUS.energy);
     expect(claimDailyBonus(s)).toBeNull();
     expect(claimableQuests(s)).toBe(0);
+  });
+});
+
+describe('daily check-in', () => {
+  const day = (d: number, h = 12) => new Date(2026, 9, d, h).getTime();
+
+  it('checks in once a day with rewards that grow with the streak', () => {
+    const s = empty();
+    const coins = s.coins;
+    expect(checkIn(s, day(1))).toEqual({ streak: 1, reward: CHECKIN_REWARDS[0] });
+    expect(s.coins).toBe(coins + CHECKIN_REWARDS[0].coins);
+    expect(checkIn(s, day(1, 20))).toBeNull();
+    expect(checkedInToday(s, day(1))).toBe(true);
+    expect(checkIn(s, day(2, 0))!.streak).toBe(2);
+    expect(checkIn(s, day(3))!.reward).toEqual(CHECKIN_REWARDS[2]);
+    for (let d = 4; d <= 9; d++) checkIn(s, day(d));
+    expect(checkInStreak(s, day(9))).toBe(9);
+    // Past day 7 the reward stays at the top.
+    expect(checkIn(s, day(10))!.reward).toEqual(CHECKIN_REWARDS[CHECKIN_REWARDS.length - 1]);
+    // A missed day breaks the streak; not checking in yet today keeps it.
+    expect(checkInStreak(s, day(11))).toBe(10);
+    expect(checkInStreak(s, day(12))).toBe(0);
+    expect(checkIn(s, day(12))!.streak).toBe(1);
+  });
+
+  it('makes up missed days this month: free three times, then for gems', () => {
+    const s = empty();
+    checkIn(s, day(9));
+    checkIn(s, day(10));
+    expect(missedDays(s, day(10))).toHaveLength(8);
+    expect(makeUpDay(s, '2026-10-10', day(10))).toEqual({ ok: false, reason: 'invalid' });
+    expect(makeUpDay(s, '2026-10-11', day(10))).toEqual({ ok: false, reason: 'invalid' });
+    expect(makeUpDay(s, '2026-09-30', day(10))).toEqual({ ok: false, reason: 'invalid' });
+    for (const d of ['2026-10-08', '2026-10-07', '2026-10-06'].slice(0, FREE_MAKEUPS)) {
+      const gems = s.gems;
+      expect(makeUpDay(s, d, day(10))).toMatchObject({ ok: true, cost: 0 });
+      expect(s.gems).toBe(gems);
+    }
+    expect(checkInStreak(s, day(10))).toBe(5);
+    expect(makeUpCost(s, day(10))).toBe(5);
+    s.gems = 4;
+    expect(makeUpDay(s, '2026-10-05', day(10))).toEqual({ ok: false, reason: 'gems', cost: 5 });
+    s.gems = 20;
+    expect(makeUpDay(s, '2026-10-05', day(10))).toMatchObject({ ok: true, cost: 5 });
+    expect(s.gems).toBe(15);
+    expect(makeUpCost(s, day(10))).toBe(10);
+    // A new month brings the free make-ups back.
+    expect(makeUpCost(s, new Date(2026, 10, 2, 12).getTime())).toBe(0);
   });
 });
 

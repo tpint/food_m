@@ -29,6 +29,7 @@
       <div class="hub-list">
         <button class="hub-row" id="btn-diner"><img data-icon="diner" alt="" /><span class="hub-text"><b>Restaurant</b><small id="hub-diner-sub"></small></span><span class="star-badge stroked" id="star-badge">0</span></button>
         <button class="hub-row" id="btn-quests"><img data-icon="pad" alt="" /><span class="hub-text"><b>Daily quests</b><small id="hub-quests-sub"></small></span></button>
+        <button class="hub-row" id="btn-checkin"><img data-icon="calendar" alt="" /><span class="hub-text"><b>Daily check-in</b><small id="hub-checkin-sub"></small></span></button>
         <button class="hub-row" id="btn-wheel"><img data-icon="wheel" alt="" /><span class="hub-text"><b>Lucky wheel</b><small id="hub-wheel-sub"></small></span></button>
         <button class="hub-row" id="btn-leaders"><img data-icon="trophy" alt="" /><span class="hub-text"><b>Leaderboard</b><small>See how you rank against other chefs</small></span><span class="hub-more" aria-hidden="true">›</span></button>
         <button class="hub-row" id="btn-profile"><img data-icon="chef" alt="" /><span class="hub-text"><b>Profile</b><small id="hub-profile-sub"></small></span><span class="hub-more" aria-hidden="true">›</span></button>
@@ -148,6 +149,23 @@
       <div class="weekly-head"><b class="stroked">Weekly chests</b><small id="weekly-sub"></small></div>
       <div class="quest-bar weekly-bar" id="weekly-bar"></div>
       <ol id="weekly-list"></ol>
+    </div>
+  </section>
+
+  <section id="checkin" class="hidden" aria-label="Daily check-in">
+    <div class="sheet-inner">
+      <header class="sheet-head">
+        <button class="round" id="btn-checkin-back" aria-label="Back">←</button>
+        <div class="sheet-title">
+          <small id="checkin-sub"></small>
+          <b class="stroked">Daily check-in</b>
+        </div>
+      </header>
+      <ol class="streak-list" id="streak-list"></ol>
+      <button class="btn stroked checkin-btn" id="btn-checkin-today">Check in</button>
+      <div class="cal-head"><b class="stroked" id="cal-month"></b><small id="cal-makeups"></small></div>
+      <div class="cal" id="cal"></div>
+      <p class="fridge-hint">Check in every day for bigger rewards. Missed a day this month? Tap it to make it up and keep your streak.</p>
     </div>
   </section>
 
