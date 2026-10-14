@@ -64,6 +64,8 @@ export interface GameState {
   fridgeSlots?: number;
   /** Reward pieces that didn't fit on the board, oldest first. Only the game adds to it. */
   rewardBag?: Piece[];
+  /** Lucky wheel spins used today. */
+  spins?: { day: string; used: number };
   /** When the player last changed something (ms); the newest of local and cloud wins. */
   savedAt?: number;
   /** First-time tutorial step (1-based); absent once it is done or for older saves. */
@@ -609,6 +611,42 @@ export function takeFromRewardBag(s: GameState, near = bottomMiddle(s)): TakeRes
   s.board[at].piece = piece;
   s.rewardBag!.shift();
   return { ok: true, at, piece };
+}
+
+// ---------------------------------------------------------------- lucky wheel
+
+export const SPINS_PER_DAY = 5;
+
+export interface WheelPrize { energy: number; gems: number; weight: number }
+
+/** The wheel's slices, clockwise from the top. Bigger prizes are rarer. */
+export const WHEEL: WheelPrize[] = [
+  { energy: 10, gems: 0, weight: 24 },
+  { energy: 0, gems: 2, weight: 20 },
+  { energy: 20, gems: 0, weight: 16 },
+  { energy: 0, gems: 5, weight: 10 },
+  { energy: 15, gems: 0, weight: 20 },
+  { energy: 0, gems: 3, weight: 16 },
+  { energy: 50, gems: 0, weight: 5 },
+  { energy: 0, gems: 15, weight: 3 },
+];
+
+export function spinsLeft(s: GameState, now = Date.now()): number {
+  return s.spins?.day === dayKey(now) ? Math.max(0, SPINS_PER_DAY - s.spins.used) : SPINS_PER_DAY;
+}
+
+/** Spin the wheel once, if a spin is left today, and pay out the slice it lands on. */
+export function spinWheel(s: GameState, rng: Rng = Math.random, now = Date.now()): { slice: number; prize: WheelPrize } | null {
+  if (spinsLeft(s, now) <= 0) return null;
+  const day = dayKey(now);
+  s.spins = { day, used: s.spins?.day === day ? s.spins.used + 1 : 1 };
+  let r = rng() * WHEEL.reduce((t, w) => t + w.weight, 0);
+  let slice = 0;
+  while (slice < WHEEL.length - 1 && r >= WHEEL[slice].weight) r -= WHEEL[slice++].weight;
+  const prize = WHEEL[slice];
+  s.energy += prize.energy;
+  s.gems += prize.gems;
+  return { slice, prize };
 }
 
 // ---------------------------------------------------------------- daily quests

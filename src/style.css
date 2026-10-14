@@ -818,3 +818,29 @@ body.loading-art::after {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ------------------------------------------------------------ lucky wheel */
+
+#wheel { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
+.wheel-box { position: relative; width: min(84vw, 340px); aspect-ratio: 1; margin: 18px auto 4px; }
+.wheel-pointer {
+  position: absolute; z-index: 1; left: 50%; top: -14px; width: 32px; height: 36px; transform: translateX(-50%);
+  background: var(--frame); clip-path: polygon(0 0, 100% 0, 50% 100%); filter: drop-shadow(0 2px 0 var(--frame-lo));
+}
+.wheel-disc {
+  position: absolute; inset: 0; border-radius: 50%; border: 6px solid var(--gold-lo);
+  box-shadow: 0 0 0 4px #fff, 0 8px 0 var(--frame-lo), 0 12px 24px rgba(30, 60, 140, .35);
+  transition: transform 3.6s cubic-bezier(.12, .7, .1, 1);
+}
+.wheel-disc::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 18%; height: 18%; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--gold-hi), var(--gold) 60%, var(--gold-lo)); border: 3px solid #8a5a10;
+}
+.wheel-label {
+  position: absolute; left: 50%; top: 0; height: 50%; width: 56px; margin-left: -28px; transform-origin: 50% 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding-top: 12%;
+  font-size: 17px; color: #fff;
+}
+.wheel-label img { width: 30px; height: 30px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+.wheel-spin { display: block; margin: 0 auto; padding: 10px 40px; font-size: 22px; }
+.wheel-spin:disabled { filter: grayscale(.8); opacity: .7; cursor: default; }
