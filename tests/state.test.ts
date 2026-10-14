@@ -3,6 +3,7 @@ import {
   canUpgrade, serve, collect, mergeYield, findOrder, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save,
   makeCustomer, validateSave, storeInFridge, takeFromFridge, buyFridgeSlot, fridgeSlots, fridgeSlotCost, FRIDGE_START_SLOTS, FRIDGE_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
+  WEEKLY_CHESTS, claimWeeklyChest, weekKey, msToNextWeek, weekly, weeklyChestsReady,
   grantPiece, takeFromRewardBag, spinWheel, spinsLeft, SPINS_PER_DAY, WHEEL, tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS, discover, isDiscovered,
 } from '../src/game/state';
 import { ACTIVE_CUSTOMERS, ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS } from '../src/game/config';
@@ -411,6 +412,56 @@ describe('daily quests', () => {
     expect(s.energy).toBe(e + DAILY_BONUS.energy);
     expect(claimDailyBonus(s)).toBeNull();
     expect(claimableQuests(s)).toBe(0);
+  });
+});
+
+describe('weekly chests', () => {
+  // Wednesday 2026-10-14, noon.
+  const wed = new Date(2026, 9, 14, 12).getTime();
+
+  it('weeks start on Monday at local midnight', () => {
+    expect(weekKey(wed)).toBe('2026-10-12');
+    expect(weekKey(new Date(2026, 9, 12, 0, 0).getTime())).toBe('2026-10-12');
+    expect(weekKey(new Date(2026, 9, 18, 23, 59).getTime())).toBe('2026-10-12');
+    expect(weekKey(new Date(2026, 9, 19).getTime())).toBe('2026-10-19');
+    expect(msToNextWeek(wed)).toBe(new Date(2026, 9, 19).getTime() - wed);
+  });
+
+  it('counts claimed quests and opens each chest once it is reached', () => {
+    const s = empty();
+    const claimN = (n: number, now: number) => {
+      for (let k = 0; k < n; k++) {
+        s.daily = { day: dayKey(now), bonusClaimed: false, quests: [{ ...makeQuest(s, 'merge'), progress: 999 }] };
+        claimQuest(s, 0, now);
+      }
+    };
+    const first = WEEKLY_CHESTS[0];
+    claimN(first.quests - 1, wed);
+    expect(weekly(s, wed).quests).toBe(first.quests - 1);
+    expect(claimWeeklyChest(s, 0, wed)).toBeNull();
+    claimN(1, wed);
+    expect(weeklyChestsReady(s, wed)).toBe(1);
+    expect(claimableQuests(s, wed)).toBe(2); // the chest, plus today's bonus (all claimed)
+    const coins = s.coins, gems = s.gems, energy = s.energy;
+    expect(claimWeeklyChest(s, 0, wed)).toBe(first);
+    expect(s.coins).toBe(coins + first.coins);
+    expect(s.gems).toBe(gems + first.gems);
+    expect(s.energy).toBe(energy + first.energy);
+    expect(claimWeeklyChest(s, 0, wed)).toBeNull();
+    expect(claimWeeklyChest(s, 1, wed)).toBeNull();
+    expect(weeklyChestsReady(s, wed)).toBe(0);
+  });
+
+  it('starts over the next week, dropping unopened chests', () => {
+    const s = empty();
+    s.weekly = { week: weekKey(wed), quests: WEEKLY_CHESTS[2].quests, opened: [0] };
+    expect(weeklyChestsReady(s, wed)).toBe(2);
+    const nextWeek = wed + 7 * 86400_000;
+    expect(weekly(s, nextWeek)).toEqual({ week: '2026-10-19', quests: 0, opened: [] });
+    expect(weeklyChestsReady(s, nextWeek)).toBe(0);
+    s.daily = { day: dayKey(nextWeek), bonusClaimed: false, quests: [{ ...makeQuest(s, 'cook'), progress: 999 }] };
+    claimQuest(s, 0, nextWeek);
+    expect(s.weekly).toEqual({ week: '2026-10-19', quests: 1, opened: [] });
   });
 });
 

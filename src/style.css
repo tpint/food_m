@@ -693,6 +693,13 @@ body.loading-art::after {
 .quest-check { font-size: 20px; color: var(--ok); font-weight: 700; }
 .quest-bonus .quest-main b { font-size: 15px; }
 .quest-bonus.locked { opacity: .7; }
+.weekly-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 16px 2px 6px; color: #fff; }
+.weekly-head b { font-size: 17px; }
+.weekly-head small { font-size: 12px; font-weight: 700; }
+.weekly-bar { height: 18px; border-radius: 9px; margin-bottom: 8px; }
+.weekly-bar span { font-size: 11px; }
+#weekly-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+#weekly-list .locked { opacity: .7; }
 
 /* ------------------------------------------------------------ profile */
 

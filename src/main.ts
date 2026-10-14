@@ -4,7 +4,7 @@ import {
   GameState, MERGE_COUNT, Customer, Piece, canUpgrade, currentTask, restore, serve, collect, findOrder, genLevel, isWanted, load, movePiece, msToNextEnergy,
   item, newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
   FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge, takeFromRewardBag,
-  SPINS_PER_DAY, WHEEL, spinWheel, spinsLeft, DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
+  SPINS_PER_DAY, WHEEL, spinWheel, spinsLeft, DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, WEEKLY_CHESTS, claimWeeklyChest, msToNextWeek, weekly, ensureDaily, msToNextDay, questDone,
   TutorialStep, advanceTutorial, skipTutorial, tutorialStep, discover, gen, isDiscovered,
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, customerImg, pieceArt } from './render/art';
@@ -1241,6 +1241,24 @@ function renderQuests() {
   bonus.innerHTML = `<img class="quest-ico" src="${iconArt.gem()}" alt="">`
     + `<span class="quest-main"><b>Finish every quest</b>${reward(0, DAILY_BONUS.gems, DAILY_BONUS.energy)}</span>`
     + `<span class="quest-side">${d.bonusClaimed ? '<span class="quest-check" aria-label="Claimed">✓</span>' : all ? '<button class="btn stroked" data-bonus>Open</button>' : ''}</span>`;
+  renderWeekly();
+}
+
+function renderWeekly() {
+  const w = weekly(state);
+  const goal = WEEKLY_CHESTS[WEEKLY_CHESTS.length - 1].quests;
+  const days = Math.ceil(msToNextWeek() / 86400000);
+  $('#weekly-sub').textContent = `Resets in ${days > 1 ? `${days} days` : untilNewQuests()}`;
+  $('#weekly-bar').innerHTML = `<i style="width:${Math.min(1, w.quests / goal) * 100}%"></i><span class="stroked">${Math.min(w.quests, goal)} / ${goal} quests this week</span>`;
+  $('#weekly-list').innerHTML = WEEKLY_CHESTS.map((c, i) => {
+    const opened = w.opened.includes(i);
+    const ready = !opened && w.quests >= c.quests;
+    const side = opened ? '<span class="quest-check" aria-label="Claimed">✓</span>'
+      : ready ? `<button class="btn stroked" data-weekly="${i}">Open</button>` : '';
+    return `<li class="task${opened ? ' done' : ready ? ' ready' : ' locked'}"><img class="quest-ico" src="${iconArt.gem()}" alt="">`
+      + `<span class="quest-main"><b>Claim ${c.quests} quests</b>${reward(c.coins, c.gems, c.energy)}</span>`
+      + `<span class="quest-side">${side}</span></li>`;
+  }).join('');
 }
 
 function openQuests() {
@@ -1251,7 +1269,7 @@ function openQuests() {
 }
 
 questsEl.addEventListener('click', (e) => {
-  const btn = (e.target as Element).closest<HTMLButtonElement>('button[data-claim], button[data-bonus]');
+  const btn = (e.target as Element).closest<HTMLButtonElement>('button[data-claim], button[data-bonus], button[data-weekly]');
   if (!btn) return;
   const at = center(btn);
   if (btn.dataset.claim !== undefined) {
@@ -1259,6 +1277,12 @@ questsEl.addEventListener('click', (e) => {
     if (!q) return;
     shower(at.x, at.y, ['#ffd147', '#7ee08e', '#fff']);
     floater(`+${q.coins}`, at.x, at.y - 20);
+  } else if (btn.dataset.weekly !== undefined) {
+    const c = claimWeeklyChest(state, Number(btn.dataset.weekly));
+    if (!c) return;
+    shower(at.x, at.y, ['#ff6fb8', '#ffd147', '#7ee08e', '#fff']);
+    const got = [c.coins && `+${c.coins} coins`, c.gems && `+${c.gems} gems`, c.energy && `+${c.energy} energy`].filter(Boolean).join(', ');
+    toast(`Weekly chest! ${got}`, true, 2000);
   } else {
     const b = claimDailyBonus(state);
     if (!b) return;
