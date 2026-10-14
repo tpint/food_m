@@ -30,9 +30,9 @@ node scripts/play.mjs http://localhost:5173/ shots   # scripted playtest with sc
   - Drinks (Drink Fountain): water → lemonade → coffee → hot cocoa → milkshake → bubble tea → party punch.
   - Desserts (Dessert Mixer): candy → cookie → cupcake → donut → sundae → strawberry cake → wedding cake.
   - Grill (BBQ Grill): egg → fried egg → sausage → kebab → burger → pizza → roast chicken.
-- **Tutorial**: a brand-new player (no save yet) is walked through two merges after Chef Pip's hello: three waters
+- **Tutorial**: a brand-new player (no save yet, or after a fresh start from the profile) is walked through two merges after Chef Pip's hello: three waters
   into a lemonade, then five candies into two cookies. Until each drag is done only that item can be moved; **Skip**
-  ends it. Older saves, cloud or recovered games and a fresh start from the profile don't get it. Steps live in
+  ends it. Older saves and cloud or recovered games don't get it. Steps live in
   `TUTORIAL` in `src/game/state.ts`.
 - **Kitchen stations**: tap one to select it (free; shows its info and Upgrade button), then tap it again to cook an
   ingredient. Each one costs 1 ⚡ energy. Energy refills over time (+1 every 20 s, up to 100).
