@@ -736,6 +736,23 @@ body.loading-art::after {
 .link-btn.danger { margin-top: 10px; color: #b8302a; }
 .hint.warn .link-btn.inline { color: #6a1a14; }
 
+/* ------------------------------------------------------------ inbox */
+
+#inbox { position: fixed; inset: 0; z-index: 31; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(40, 70, 150, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
+#mail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+#mail-list .task { align-items: flex-start; }
+.mail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.mail-main b { color: var(--ink); font-size: 15px; overflow-wrap: anywhere; }
+.mail-main small { color: var(--ink-soft); font-size: 11px; }
+.mail-main p { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; }
+.mail-gifts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.mail-gifts .mail-item { width: 34px; height: 34px; }
+.mail-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: 110px; text-align: right; }
+.mail-side .btn[disabled] { opacity: .5; filter: grayscale(.6); cursor: default; }
+.mail-need { font-size: 11px; color: #a02a20; font-weight: 600; line-height: 1.3; }
+#mail-list .unread b::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #e2504a; vertical-align: middle; }
+.mail-empty { padding: 24px 12px; text-align: center; color: #fff; font-size: 15px; text-shadow: 0 1px 2px rgba(20, 40, 100, .6); }
+
 /* Settings opens from the profile, so it sits above it. */
 #settings { z-index: 32; }
 #btn-settings-from-profile { padding: 0; display: grid; place-items: center; }

@@ -6,7 +6,7 @@ import {
   CHECKIN_REWARDS, FREE_MAKEUPS, checkIn, checkInStreak, checkedInToday, makeUpCost, makeUpDay, missedDays,
   WEEKLY_CHESTS, claimWeeklyChest, weekKey, msToNextWeek, weekly, weeklyChestsReady,
   grantPiece, takeFromRewardBag, spinWheel, spinsLeft, SPINS_PER_DAY, WHEEL, tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS, discover, isDiscovered,
-  stats, favouriteCustomer, sell,
+  stats, favouriteCustomer, sell, applyMail, mailItems, mailSpaceNeeded, freeCells,
 } from '../src/game/state';
 import { ACTIVE_CUSTOMERS, ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
@@ -790,5 +790,39 @@ describe('chef profile stats', () => {
     s.board[0].piece = item('bakery', 2);
     sell(s, 0);
     expect(stats(s).sold).toBe(1);
+  });
+});
+
+describe('inbox rewards', () => {
+  const gift = { coins: 10, gems: 5, energy: 20, items: [{ chain: 'dessert', level: 3 }, { chain: 'coin', level: 2 }] };
+
+  it('skips items this game does not know', () => {
+    expect(mailItems({ items: [{ chain: 'dessert', level: 3 }, { chain: 'pizza', level: 1 }, { chain: 'drinks', level: 99 }, { chain: 'grill', level: 1.5 }] }))
+      .toEqual([item('dessert', 3)]);
+    expect(mailItems({ items: null as never })).toEqual([]);
+  });
+
+  it('needs a free board space for every item', () => {
+    const s = empty();
+    s.board.forEach((c) => { c.piece = item('bakery', 1); });
+    expect(mailSpaceNeeded(s, gift)).toBe(2);
+    s.board[0].piece = null;
+    expect(mailSpaceNeeded(s, gift)).toBe(1);
+    s.board[1].piece = null;
+    expect(mailSpaceNeeded(s, gift)).toBe(0);
+    expect(mailSpaceNeeded(s, { items: [] })).toBe(0);
+  });
+
+  it('hands out resources and puts items on the board', () => {
+    const s = empty();
+    const before = { coins: s.coins, gems: s.gems, energy: s.energy, free: freeCells(s) };
+    const cells = applyMail(s, gift);
+    expect(s.coins).toBe(before.coins + 10);
+    expect(s.gems).toBe(before.gems + 5);
+    expect(s.energy).toBe(before.energy + 20);
+    expect(cells).toHaveLength(2);
+    expect(cells.map((i) => s.board[i].piece)).toEqual([item('dessert', 3), item('coin', 2)]);
+    expect(freeCells(s)).toBe(before.free - 2);
+    expect(s.rewardBag ?? []).toHaveLength(0);
   });
 });

@@ -1,4 +1,4 @@
-// Online features: leaderboard, cloud save and recovery codes.
+// Online features: leaderboard, cloud save, recovery codes and the inbox.
 //
 // These run against the Supabase project "food_m": the game calls the
 // database functions in supabase/migrations/ through Supabase's REST API with
@@ -22,6 +22,21 @@ export interface Board {
   me: { rank: number | null; score: number; name: string } | null;
 }
 
+/** A message in the inbox. `sent` is ms since the epoch. */
+export interface Mail {
+  id: number;
+  title: string;
+  body: string;
+  coins: number;
+  gems: number;
+  energy: number;
+  items: { chain: string; level: number }[];
+  sent: number;
+  read: boolean;
+  claimed: boolean;
+}
+export type MailRewards = Pick<Mail, 'coins' | 'gems' | 'energy' | 'items'>;
+
 /** Everything the game asks of the server. `token` identifies this device's player. */
 export interface Backend {
   register(token: string, name: string): Promise<{ name: string }>;
@@ -31,14 +46,23 @@ export interface Backend {
   cloudLoad(token: string): Promise<{ save: unknown; save_at: number | null } | null>;
   newCode(token: string): Promise<{ code: string }>;
   recover(code: string, token: string): Promise<{ name: string; save: unknown; save_at: number | null }>;
+  listMail(token: string): Promise<Mail[]>;
+  readMail(token: string, ids: number[]): Promise<void>;
+  /** Throws 'Already claimed' if this player claimed it before. */
+  claimMail(token: string, id: number): Promise<MailRewards>;
 }
 
 // ------------------------------------------------------------------ mock backend
 
 const MOCK_DB = 'food-mock-server-v1';
 
-interface MockPlayer { name: string; served: number; weekServed: number; week: string; level: number; save?: unknown; saveAt?: number | null; code?: string }
-interface MockDb { players: Record<string, MockPlayer> }
+interface MockPlayer {
+  name: string; served: number; weekServed: number; week: string; level: number; save?: unknown; saveAt?: number | null; code?: string;
+  joined?: number; read?: number[]; claimed?: number[];
+}
+/** A mock message; `to` is a player token, or absent for everyone. */
+type MockMail = MailRewards & { id: number; to?: string; title: string; body: string; sent: number };
+interface MockDb { players: Record<string, MockPlayer>; mail?: MockMail[] }
 
 const RIVALS = [
   'Chef Mango', 'Waffle Queen', 'Sir Pancake', 'Noodle Ninja', 'Captain Crumble', 'Lady Latte', 'Tofu Tom',
@@ -86,7 +110,7 @@ const mockBackend: Backend = {
     const clean = name.trim().replace(/\s+/g, ' ');
     if (clean.length < 1 || clean.length > 16) throw new Error('Names must be 1 to 16 characters.');
     const db = loadDb();
-    db.players[token] ??= { name: clean, served: 0, weekServed: 0, week: weekStart(), level: 1 };
+    db.players[token] ??= { name: clean, served: 0, weekServed: 0, week: weekStart(), level: 1, joined: Date.now() };
     db.players[token].name = clean;
     storeDb(db);
     return { name: clean };
@@ -157,7 +181,43 @@ const mockBackend: Backend = {
     storeDb(db);
     return { name: p.name, save: p.save ?? null, save_at: p.saveAt ?? null };
   },
+  async listMail(token) {
+    await lag();
+    const db = loadDb();
+    const p = db.players[token];
+    if (!p) throw new Error('Unknown player');
+    return mockMailFor(db, token).sort((a, b) => b.sent - a.sent).map((m) => ({
+      id: m.id, title: m.title, body: m.body, coins: m.coins, gems: m.gems, energy: m.energy, items: m.items, sent: m.sent,
+      read: !!p.read?.includes(m.id), claimed: !!p.claimed?.includes(m.id),
+    }));
+  },
+  async readMail(token, ids) {
+    await lag();
+    const db = loadDb();
+    const p = db.players[token];
+    if (!p) throw new Error('Unknown player');
+    p.read = [...new Set([...(p.read ?? []), ...ids])];
+    storeDb(db);
+  },
+  async claimMail(token, id) {
+    await lag();
+    const db = loadDb();
+    const p = db.players[token];
+    const m = p && mockMailFor(db, token).find((x) => x.id === id);
+    if (!m) throw new Error('Message not found');
+    if (p.claimed?.includes(id)) throw new Error('Already claimed');
+    p.claimed = [...(p.claimed ?? []), id];
+    p.read = [...new Set([...(p.read ?? []), id])];
+    storeDb(db);
+    return { coins: m.coins, gems: m.gems, energy: m.energy, items: m.items };
+  },
 };
+
+/** Like the server: your own messages, and messages to everyone sent since you joined. */
+function mockMailFor(db: MockDb, token: string): MockMail[] {
+  const p = db.players[token];
+  return (db.mail ?? []).filter((m) => m.sent <= Date.now() && (m.to === token || (!m.to && m.sent >= (p.joined ?? 0))));
+}
 
 // ------------------------------------------------------------------ Supabase backend
 
@@ -186,6 +246,11 @@ const supabaseBackend: Backend = {
   cloudLoad: (token) => rpc('cloud_load', { p_token: token }),
   newCode: (token) => rpc('new_code', { p_token: token }),
   recover: (code, token) => rpc('recover', { p_code: code, p_token: token }),
+  listMail: (token) => rpc('list_mail', { p_token: token }),
+  async readMail(token, ids) {
+    await rpc('read_mail', { p_token: token, p_ids: ids });
+  },
+  claimMail: (token, id) => rpc('claim_mail', { p_token: token, p_mail_id: id }),
 };
 
 const useMock = typeof location !== 'undefined' && new URLSearchParams(location.search).has('mock');
@@ -312,6 +377,29 @@ export const online = {
     player.name = res.name;
     player.registered = true;
     storePlayer();
+  },
+
+  /** This player's inbox (registering first, so a new player's inbox starts now). */
+  async mail(): Promise<Mail[]> {
+    await ensureRegistered();
+    return backend.listMail(player.token);
+  },
+
+  async readMail(ids: number[]) {
+    if (ids.length) await backend.readMail(player.token, ids);
+  },
+
+  async claimMail(id: number): Promise<MailRewards> {
+    return backend.claimMail(player.token, id);
+  },
+
+  /** With ?mock=1 only: send a message, to this player (`toMe`) or to everyone. For testing the inbox. */
+  mockSend(m: Partial<MailRewards> & { title: string; body?: string }, toMe = false) {
+    if (!useMock) throw new Error('Only with ?mock=1; send real messages with public.send_mail in Supabase.');
+    const db = loadDb();
+    const mail = db.mail ??= [];
+    mail.push({ id: mail.length + 1, to: toMe ? player.token : undefined, sent: Date.now(), body: '', coins: 0, gems: 0, energy: 0, items: [], ...m });
+    storeDb(db);
   },
 
   async board(period: Period): Promise<Board> {
