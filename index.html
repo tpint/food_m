@@ -29,6 +29,7 @@
       <div class="hub-list">
         <button class="hub-row" id="btn-diner"><img data-icon="diner" alt="" /><span class="hub-text"><b>Restaurant</b><small id="hub-diner-sub"></small></span><span class="star-badge stroked" id="star-badge">0</span></button>
         <button class="hub-row" id="btn-quests"><img data-icon="pad" alt="" /><span class="hub-text"><b>Daily quests</b><small id="hub-quests-sub"></small></span></button>
+        <button class="hub-row" id="btn-wheel"><img data-icon="wheel" alt="" /><span class="hub-text"><b>Lucky wheel</b><small id="hub-wheel-sub"></small></span></button>
         <button class="hub-row" id="btn-leaders"><img data-icon="trophy" alt="" /><span class="hub-text"><b>Leaderboard</b><small>See how you rank against other chefs</small></span><span class="hub-more" aria-hidden="true">›</span></button>
         <button class="hub-row" id="btn-profile"><img data-icon="chef" alt="" /><span class="hub-text"><b>Profile</b><small id="hub-profile-sub"></small></span><span class="hub-more" aria-hidden="true">›</span></button>
       </div>
@@ -150,6 +151,24 @@
       </header>
       <ol id="quest-list"></ol>
       <div class="task quest-bonus" id="quest-bonus"></div>
+    </div>
+  </section>
+
+  <section id="wheel" class="hidden" aria-label="Lucky wheel">
+    <div class="sheet-inner">
+      <header class="sheet-head">
+        <button class="round" id="btn-wheel-back" aria-label="Back">←</button>
+        <div class="sheet-title">
+          <small id="wheel-sub">5 of 5 spins left today</small>
+          <b class="stroked">Lucky wheel</b>
+        </div>
+      </header>
+      <div class="wheel-box">
+        <div class="wheel-pointer" aria-hidden="true"></div>
+        <div class="wheel-disc" id="wheel-disc"></div>
+      </div>
+      <button class="btn stroked wheel-spin" id="btn-spin">Spin!</button>
+      <p class="fridge-hint">Spin up to 5 times a day for free energy and gems.</p>
     </div>
   </section>
 
