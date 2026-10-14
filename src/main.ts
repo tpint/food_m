@@ -1,8 +1,8 @@
 import './style.css';
-import { CHAINS, GEN_LEVELS, GENERATORS, isFood, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
+import { CHAINS, ChainId, GEN_LEVELS, GENERATORS, GenId, isFood, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
   GameState, MERGE_COUNT, Customer, Piece, canUpgrade, currentTask, restore, serve, collect, findOrder, genLevel, isWanted, load, movePiece, msToNextEnergy,
-  newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
+  item, newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
   FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge,
   DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
 } from './game/state';
@@ -411,6 +411,7 @@ function setInfo(img: string | null, title: string, desc: string, action?: { lab
 function select(i: number) {
   if (selected >= 0) cells[selected]?.classList.remove('selected');
   selected = i;
+  $('#info-more').classList.toggle('hidden', !(i >= 0 && state.board[i]?.piece));
   if (i < 0) {
     setInfo(iconArt.toque(), 'Serve the customers!', 'Merge ingredients into the dishes each customer orders.');
     return;
@@ -448,6 +449,98 @@ function select(i: number) {
   const v = sellValue(p);
   setInfo(pieceArt(p), title, `${next}.${isWanted(state, p) ? ' A customer ordered this!' : ''}`, v ? { label: `Sell +${v}`, fn: () => doSell(i) } : undefined);
 }
+
+// ------------------------------------------------------------------ details panel
+
+/** What the details panel shows: an item's merge chain or a kitchen station. */
+type Detail = { kind: 'item'; chain: ChainId; level: number } | { kind: 'gen'; gen: GenId; level: number };
+
+const detailsEl = $('#details');
+/** The piece the panel opened on (highlighted green) and the level being looked at (described). */
+let detail: Detail | null = null;
+let detailFocus = 1;
+
+const pct = (w: number, odds: number[]) => `${Math.round((w / odds.reduce((t, x) => t + x, 0)) * 100)}%`;
+
+function renderDetails() {
+  if (!detail) return;
+  const d = detail;
+  const body = $('#details-body');
+  if (d.kind === 'item') {
+    const def = CHAINS[d.chain];
+    const max = maxLevel(d.chain);
+    const f = detailFocus;
+    $('#details-sub').textContent = 'Merge chain';
+    $('#details-name').textContent = def.name;
+    const tiles = def.levels.map((name, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}" data-focus="${k + 1}" aria-label="${name}, level ${k + 1}">`
+      + `<img src="${itemArt(d.chain, k + 1)}" alt=""><span class="dlv">${k + 1}</span></button>`).join('');
+    const next = f < max ? `Merge ${MERGE_COUNT} to make <b>${def.levels[f]}</b>.` : 'The top of the chain!';
+    const use = def.collect
+      ? ` Tap it on the board to collect ${def.collect.amounts[f - 1]} ${def.collect.resource}.`
+      : sellValue(item(d.chain, f)) ? ` Sells for ${sellValue(item(d.chain, f))} coins.` : '';
+    const makers = Object.values(GENERATORS).filter((g) => g.chain === d.chain);
+    const madeBy = makers.length
+      ? `<div class="dmakers">${makers.map((g) => `<button class="dtile" data-open="gen:${g.id}" aria-label="${g.name}"><img src="${generatorArt(g.id, 1)}" alt=""></button>`).join('')}</div>`
+        + `<p class="dnote">${makers.map((g) => g.name).join(', ')} makes levels 1 to ${Math.max(...GEN_LEVELS.map((l) => l.odds.length))} as it levels up. Tap it for the odds.</p>`
+      : '<p class="dnote">No station makes these. You earn them as chapter rewards.</p>';
+    body.innerHTML = `<h3>Level ${f} of ${max}</h3><div class="dgrid chain">${tiles}</div>`
+      + `<p class="dnote"><b>${def.levels[f - 1]}</b>. ${next}${use}</p>`
+      + `<h3>Created by</h3>${madeBy}`;
+  } else {
+    const def = GENERATORS[d.gen];
+    const chain = CHAINS[def.chain];
+    const f = detailFocus;
+    const lv = GEN_LEVELS[f - 1];
+    $('#details-sub').textContent = 'Kitchen station';
+    $('#details-name').textContent = def.name;
+    const tiles = GEN_LEVELS.map((_, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}" data-focus="${k + 1}" aria-label="${def.name}, level ${k + 1}">`
+      + `<img src="${generatorArt(d.gen, k + 1)}" alt=""><span class="dlv">${k + 1}</span></button>`).join('');
+    const top = Math.max(...GEN_LEVELS.map((l) => l.odds.length));
+    const makes = Array.from({ length: top }, (_, k) => {
+      const w = lv.odds[k];
+      const firstAt = GEN_LEVELS.findIndex((l) => (l.odds[k] ?? 0) > 0) + 1;
+      return `<button class="dtile make${w ? '' : ' locked'}" data-open="item:${def.chain}:${k + 1}" aria-label="${chain.levels[k]}${w ? `, ${pct(w, lv.odds)}` : `, from station level ${firstAt}`}">`
+        + `<img src="${itemArt(def.chain, k + 1)}" alt=""><span class="dlv">${k + 1}</span><span class="dodds">${w ? pct(w, lv.odds) : `Lv ${firstAt}`}</span></button>`;
+    }).join('');
+    const free = lv.freeChance ? ` ${Math.round(lv.freeChance * 100)}% chance cooking is free.` : '';
+    const up = lv.upgradeCost ? ` Upgrading to level ${f + 1} costs ${lv.upgradeCost} coins and needs player level ${lv.upgradeReq}.` : ' Max level.';
+    body.innerHTML = `<h3>Level ${f} of ${GEN_LEVELS.length}</h3><div class="dgrid chain">${tiles}</div>`
+      + `<p class="dnote">Each cook costs ⚡${SPAWN_COST}.${free}${up}</p>`
+      + `<h3>Creates at level ${f}</h3><div class="dgrid">${makes}</div>`;
+  }
+}
+
+function openDetails(d: Detail) {
+  detail = d;
+  detailFocus = d.level;
+  sfx.pick();
+  renderDetails();
+  detailsEl.classList.remove('hidden');
+  detailsEl.scrollTop = 0;
+}
+
+function openSelectedDetails() {
+  const p = selected >= 0 ? state.board[selected]?.piece : null;
+  if (!p) return;
+  openDetails(p.kind === 'gen' ? { kind: 'gen', gen: p.gen, level: genLevel(p) } : { kind: 'item', chain: p.chain, level: p.level });
+}
+
+$('#info-more').addEventListener('click', (e) => { e.stopPropagation(); openSelectedDetails(); });
+$('#info-frame').addEventListener('click', (e) => { e.stopPropagation(); openSelectedDetails(); });
+$('#btn-details-back').addEventListener('click', () => detailsEl.classList.add('hidden'));
+$('#details-body').addEventListener('click', (e) => {
+  const t = (e.target as Element).closest<HTMLElement>('[data-focus], [data-open]');
+  if (!t) return;
+  if (t.dataset.focus) { detailFocus = Number(t.dataset.focus); sfx.pick(); renderDetails(); return; }
+  const [kind, id, lv] = t.dataset.open!.split(':');
+  if (kind === 'gen') {
+    // Open on the player's own station of this kind, if they have one on the board.
+    const own = state.board.find((c) => c.piece?.kind === 'gen' && c.piece.gen === id)?.piece;
+    openDetails({ kind: 'gen', gen: id as GenId, level: own ? genLevel(own) : 1 });
+  } else {
+    openDetails({ kind: 'item', chain: id as ChainId, level: Number(lv) });
+  }
+});
 
 // ------------------------------------------------------------------ actions
 
@@ -1335,7 +1428,7 @@ $('#story-next').addEventListener('click', nextStory);
 
 // Tapping empty space on a full-screen panel (the dimmed backdrop, the gaps between
 // cards, the header) works like its back button. Taps on cards and controls don't.
-for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#fridge', '#btn-fridge-back']]) {
+for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back']]) {
   $(panel).addEventListener('click', (e) => {
     const t = e.target as Element;
     if (t === e.currentTarget || t.matches('.sheet-inner, .sheet-head, .sheet-title, .sheet-title > *, .fridge-hint')) $(back).click();

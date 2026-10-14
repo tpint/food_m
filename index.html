@@ -44,7 +44,7 @@
     <div id="bottom">
     <button id="btn-fridge" aria-label="Open the fridge. Drag items here to store them"><img data-icon="fridge" alt="" /><span class="fridge-count stroked" id="fridge-count">0/5</span></button>
     <footer id="info">
-      <div id="info-frame"><img id="info-img" alt="" /></div>
+      <div id="info-frame"><img id="info-img" alt="" /><button id="info-more" class="hidden" aria-label="Details">i</button></div>
       <div id="info-text">
         <b id="info-title">Welcome, chef!</b>
         <span id="info-desc">Tap a kitchen station, then tap again to cook. Merge three of a kind!</span>
@@ -117,6 +117,19 @@
       </header>
       <div class="fridge-grid" id="fridge-grid"></div>
       <p class="fridge-hint">Drag an item or kitchen station onto the fridge to store it. Tap a stored one to put it back on the board.</p>
+    </div>
+  </section>
+
+  <section id="details" class="hidden" aria-label="Details">
+    <div class="sheet-inner">
+      <header class="sheet-head">
+        <button class="round" id="btn-details-back" aria-label="Back to the board">←</button>
+        <div class="sheet-title">
+          <small id="details-sub">Merge chain</small>
+          <b class="stroked" id="details-name"></b>
+        </div>
+      </header>
+      <div class="details-card" id="details-body"></div>
     </div>
   </section>
 

@@ -316,6 +316,14 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   background: #e3ecfd; box-shadow: inset 0 2px 3px rgba(40, 70, 140, .2), 0 0 0 2px var(--chip-edge);
 }
 #info { position: relative; }
+#info-frame { position: relative; cursor: pointer; }
+/* The "i" badge on the picture opens the details panel for the selected piece. */
+#info-more {
+  position: absolute; right: -6px; top: -6px; width: 20px; height: 20px; padding: 0; border-radius: 50%; cursor: pointer;
+  font: italic 700 13px/1 Georgia, serif; color: #fff; border: 2px solid #fff;
+  background: linear-gradient(#5fb6ff, #2f7fe0); box-shadow: 0 1px 3px rgba(20, 40, 100, .5);
+}
+#info-more:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 1px; }
 .version-tag { position: absolute; right: 8px; bottom: 2px; font-size: 9px; font-weight: 600; color: var(--ink-soft); opacity: .7; letter-spacing: .3px; font-variant-numeric: tabular-nums; pointer-events: none; }
 .update-banner {
   position: fixed; left: 50%; top: max(10px, env(safe-area-inset-top)); transform: translateX(-50%); z-index: 70;
@@ -552,6 +560,48 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .fridge-slot.buy span { display: flex; align-items: center; gap: 1px; }
 .fridge-slot.buy img { width: 14px; height: 14px; }
 .fridge-hint { margin: 0; text-align: center; color: #fff; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 2px rgba(20, 40, 100, .6); }
+
+/* ------------------------------------------------------------ details panel */
+
+/* Every level of an item's merge chain or a station, plus what makes it or what it makes. */
+#details { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
+.details-card {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px 12px 16px; border-radius: 18px;
+  background: linear-gradient(var(--parch-hi), var(--parch) 60%, var(--parch-lo)); border: 3px solid var(--wood); box-shadow: 0 3px 0 var(--wood-lo);
+}
+.details-card h3 {
+  display: flex; align-items: center; gap: 10px; margin: 0; font-size: 17px; color: var(--ink-soft);
+}
+.details-card h3::before, .details-card h3::after { content: ''; flex: 1; height: 2px; border-radius: 1px; background: linear-gradient(90deg, transparent, rgba(120, 90, 50, .35)); }
+.details-card h3::after { transform: scaleX(-1); }
+.dgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; }
+.dtile {
+  position: relative; min-width: 0; aspect-ratio: 1; padding: 6px; border: 0; border-radius: 14px; cursor: pointer;
+  background: #dceefb; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 2px 0 rgba(60, 100, 160, .25);
+}
+.dtile img { width: 100%; height: 100%; object-fit: contain; }
+/* Arrows between tiles in a row, like the merge order reads. */
+.dgrid.chain .dtile:not(:last-child):not(:nth-child(4n))::after {
+  content: ''; position: absolute; right: -12px; top: 50%; transform: translateY(-50%);
+  border: 5px solid transparent; border-left: 7px solid rgba(190, 140, 80, .6);
+}
+.dtile .dlv {
+  position: absolute; left: 3px; top: 3px; min-width: 16px; padding: 0 4px; border-radius: 8px;
+  font: 700 10px/16px var(--font); color: #fff; background: rgba(40, 60, 110, .55);
+}
+.dtile.now { background: #c8f0cf; box-shadow: 0 0 0 3px var(--ok), 0 0 10px rgba(80, 200, 100, .7); }
+.dtile.focus:not(.now) { box-shadow: 0 0 0 3px #5fb6ff; }
+.dtile.make { background: #bfeccb; }
+.dtile.locked img { filter: grayscale(.8) brightness(1.05); opacity: .55; }
+.dtile .dodds {
+  position: absolute; right: 3px; bottom: 3px; padding: 0 4px; border-radius: 8px;
+  font: 700 10px/15px var(--font); color: #fff; background: rgba(31, 110, 51, .8);
+}
+.dtile.locked .dodds { background: rgba(90, 90, 110, .7); }
+.dnote { margin: 0; text-align: center; font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
+.dnote b { color: var(--violet); }
+.dmakers { display: flex; justify-content: center; gap: 12px; }
+.dmakers .dtile { width: 84px; background: #bfeccb; }
 
 /* ------------------------------------------------------------ daily quests */
 

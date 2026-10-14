@@ -46,6 +46,10 @@ node scripts/play.mjs http://localhost:5173/ shots   # scripted playtest with sc
   with a bigger order and bigger rewards. Six customers wait at once: three fit across the screen and you swipe the
   row sideways for the rest. Benny Bunny, Mittens, Bruno Bear, Felix Fox and Woolly Sheep come from the start, and more
   arrive as you level up: Dash Deer and Sammy Squirrel (4), Bao Panda (5), Rex Wolf (6), Rocco Raccoon (8) and Tora Tiger (10).
+- **Details**: select an item or station, then tap the blue "i" on its picture in the info box (or the picture
+  itself). The panel shows every level of the item's merge chain and the station that makes it, or every level of
+  the station and what it makes at each level, with the odds. Tap a level to read about it, and tap a station or
+  item to jump to its own panel.
 - **Fridge**: drag any item or station onto the fridge (bottom left) to store it and free up the board. Tap the fridge
   to see what is inside, and tap a stored piece to put it back on the nearest free tile. The fridge starts with 5 slots;
   more cost gems (10, then 5 more each time, up to 15 slots).
