@@ -64,6 +64,8 @@ export interface GameState {
   fridgeSlots?: number;
   /** Reward pieces that didn't fit on the board, oldest first. Only the game adds to it. */
   rewardBag?: Piece[];
+  /** Quests claimed this week and the weekly chests opened (see WEEKLY_CHESTS). */
+  weekly?: Weekly;
   /** Lucky wheel spins used today. */
   spins?: { day: string; used: number };
   /** When the player last changed something (ms); the newest of local and cloud wins. */
@@ -95,6 +97,15 @@ export interface Daily {
   quests: Quest[];
   /** The chest for finishing every quest has been opened. */
   bonusClaimed: boolean;
+}
+
+export interface Weekly {
+  /** Local date of the week's Monday, e.g. "2026-10-12". */
+  week: string;
+  /** Daily quests claimed this week. */
+  quests: number;
+  /** Indexes into WEEKLY_CHESTS of the chests opened this week. */
+  opened: number[];
 }
 
 export type Rng = () => number;
@@ -699,21 +710,69 @@ export function questProgress(s: GameState, kind: QuestKind, amount = 1, level =
 
 export const questDone = (q: Quest) => q.progress >= q.target;
 
-/** Quests finished but not claimed, plus the bonus chest if it is ready. */
-export function claimableQuests(s: GameState): number {
+/** Quests finished but not claimed, plus the bonus chest and weekly chests that are ready. */
+export function claimableQuests(s: GameState, now = Date.now()): number {
   const qs = s.daily?.quests ?? [];
   const ready = qs.filter((q) => questDone(q) && !q.claimed).length;
   const bonus = qs.length > 0 && qs.every((q) => q.claimed) && !s.daily!.bonusClaimed ? 1 : 0;
-  return ready + bonus;
+  return ready + bonus + weeklyChestsReady(s, now);
 }
 
-export function claimQuest(s: GameState, i: number): Quest | null {
+export function claimQuest(s: GameState, i: number, now = Date.now()): Quest | null {
   const q = s.daily?.quests[i];
   if (!q || q.claimed || !questDone(q)) return null;
   q.claimed = true;
   s.coins += q.coins;
   s.gems += q.gems;
+  const w = weekly(s, now);
+  s.weekly = { ...w, quests: w.quests + 1 };
   return q;
+}
+
+// ---------------------------------------------------------------- weekly chests
+
+export interface WeeklyChest { quests: number; coins: number; gems: number; energy: number }
+
+/** Chests for claiming this many daily quests in a week (at most 21: 3 a day). */
+export const WEEKLY_CHESTS: WeeklyChest[] = [
+  { quests: 6, coins: 150, gems: 5, energy: 0 },
+  { quests: 12, coins: 0, gems: 10, energy: 60 },
+  { quests: 18, coins: 300, gems: 25, energy: 100 },
+];
+
+/** Local date of the Monday starting the week, e.g. "2026-10-12". */
+export function weekKey(now = Date.now()): string {
+  const d = new Date(now);
+  return dayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)).getTime());
+}
+
+/** Milliseconds until local midnight next Monday, when the weekly count starts over. */
+export function msToNextWeek(now = Date.now()): number {
+  const d = new Date(now);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7 - ((d.getDay() + 6) % 7)).getTime() - now;
+}
+
+/** This week's progress; a save from an earlier week starts over at zero. */
+export function weekly(s: GameState, now = Date.now()): Weekly {
+  const week = weekKey(now);
+  return s.weekly?.week === week ? s.weekly : { week, quests: 0, opened: [] };
+}
+
+export function weeklyChestsReady(s: GameState, now = Date.now()): number {
+  const w = weekly(s, now);
+  return WEEKLY_CHESTS.filter((c, i) => w.quests >= c.quests && !w.opened.includes(i)).length;
+}
+
+/** Open weekly chest `i` if enough quests were claimed this week. */
+export function claimWeeklyChest(s: GameState, i: number, now = Date.now()): WeeklyChest | null {
+  const c = WEEKLY_CHESTS[i];
+  const w = weekly(s, now);
+  if (!c || w.quests < c.quests || w.opened.includes(i)) return null;
+  s.weekly = { ...w, opened: [...w.opened, i] };
+  s.coins += c.coins;
+  s.gems += c.gems;
+  s.energy += c.energy;
+  return c;
 }
 
 /** Open the chest for finishing all of today's quests. */
