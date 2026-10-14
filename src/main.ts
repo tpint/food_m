@@ -4,6 +4,7 @@ import {
   GameState, MERGE_COUNT, Customer, Piece, canUpgrade, currentTask, restore, serve, collect, findOrder, genLevel, isWanted, load, movePiece, msToNextEnergy,
   item, newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
   FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge, takeFromRewardBag,
+  CHECKIN_REWARDS, FREE_MAKEUPS, checkIn, checkInReward, checkInStreak, checkedIn, checkedInToday, makeUpCost, makeUpDay, missedDays, dayKey,
   SPINS_PER_DAY, WHEEL, spinWheel, spinsLeft, DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, WEEKLY_CHESTS, claimWeeklyChest, msToNextWeek, weekly, ensureDaily, msToNextDay, questDone,
   TutorialStep, advanceTutorial, skipTutorial, tutorialStep, discover, gen, isDiscovered,
 } from './game/state';
@@ -874,6 +875,10 @@ function renderHub() {
   const ready = claimableQuests(state);
   const finished = d ? d.quests.filter((q) => q.claimed || questDone(q)).length : 0;
   $('#hub-quests-sub').textContent = `${ready ? `${ready} reward${ready > 1 ? 's' : ''} ready` : `${finished} of ${d?.quests.length ?? 0} done`} · new in ${untilNewQuests()}`;
+  const streak = checkInStreak(state);
+  $('#hub-checkin-sub').textContent = checkedInToday(state)
+    ? `Day ${streak} streak · come back tomorrow`
+    : `Check in for day ${streak + 1} of your streak!`;
   const spins = spinsLeft(state);
   $('#btn-wheel').classList.toggle('ready', spins > 0);
   $('#hub-wheel-sub').textContent = spins ? `${spins} free spin${spins > 1 ? 's' : ''} left today` : `New spins in ${untilNewQuests()}`;
@@ -882,7 +887,8 @@ function renderHub() {
 
 /** The hub button wears a "!" when quests or the diner have something ready. */
 function updateMenuBadge() {
-  hubBtn.classList.toggle('ready', $('#btn-quests').classList.contains('ready') || $('#btn-diner').classList.contains('ready'));
+  $('#btn-checkin').classList.toggle('ready', !checkedInToday(state));
+  hubBtn.classList.toggle('ready', ['#btn-quests', '#btn-diner', '#btn-checkin'].some((b) => $(b).classList.contains('ready')));
   if (inHub()) renderHub();
 }
 
@@ -1694,9 +1700,97 @@ $('#btn-spin').addEventListener('click', () => {
 $('#btn-wheel').addEventListener('click', openWheel);
 $('#btn-wheel-back').addEventListener('click', () => wheelEl.classList.add('hidden'));
 
+// ------------------------------------------------------------------ daily check-in
+
+const checkinEl = $('#checkin');
+
+const rewardText = (r: { coins: number; gems: number; energy: number }) =>
+  [r.coins && `+${r.coins} coins`, r.gems && `+${r.gems} gems`, r.energy && `+${r.energy} energy`].filter(Boolean).join(', ');
+
+function renderCheckIn() {
+  const now = new Date();
+  const today = checkedInToday(state);
+  const streak = checkInStreak(state);
+  $('#checkin-sub').textContent = streak ? `${streak} day streak${today ? ' · see you tomorrow' : ''}` : 'Start a streak today';
+  // The 7-day ladder: days already earned in this streak, and the next one.
+  const next = today ? streak : streak + 1;
+  $('#streak-list').innerHTML = CHECKIN_REWARDS.map((r, k) => {
+    const n = k + 1;
+    const cls = n < next || (today && n === next) ? 'got' : n === Math.min(next, CHECKIN_REWARDS.length) && !today ? 'next' : '';
+    const top = r.gems ? `<img src="${iconArt.gem()}" alt="gems">${r.gems}` : r.energy ? `<img src="${iconArt.energy()}" alt="energy">${r.energy}` : `<img src="${iconArt.coin()}" alt="coins">${r.coins}`;
+    return `<li class="${cls}"><small>Day ${n}${n === CHECKIN_REWARDS.length ? '+' : ''}</small>${top}</li>`;
+  }).join('');
+  const btn = $<HTMLButtonElement>('#btn-checkin-today');
+  btn.disabled = today;
+  btn.textContent = today ? 'Checked in ✓' : `Check in · day ${next}`;
+  btn.title = today ? '' : rewardText(checkInReward(next));
+
+  // This month's calendar, weeks starting on Monday.
+  const y = now.getFullYear(), m = now.getMonth();
+  $('#cal-month').textContent = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const cost = makeUpCost(state);
+  const missed = new Set(missedDays(state));
+  const freeLeft = cost ? 0 : FREE_MAKEUPS - (state.checkin?.month === dayKey().slice(0, 7) ? state.checkin.free : 0);
+  $('#cal-makeups').textContent = missed.size ? (cost ? `Make-ups cost ${cost} gems` : `${freeLeft} free make-up${freeLeft === 1 ? '' : 's'} left`) : '';
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;
+  const days = new Date(y, m + 1, 0).getDate();
+  let html = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => `<span class="dow">${d}</span>`).join('') + '<span></span>'.repeat(lead);
+  for (let d = 1; d <= days; d++) {
+    const key = dayKey(new Date(y, m, d, 12).getTime());
+    const isToday = d === now.getDate();
+    if (checkedIn(state, key)) html += `<span class="cal-day done${isToday ? ' today' : ''}">${d}</span>`;
+    else if (missed.has(key)) {
+      html += `<button class="cal-day missed" data-day="${key}" aria-label="Make up day ${d}${cost ? ` for ${cost} gems` : ' for free'}">${d}`
+        + `<small>${cost ? `<img src="${iconArt.gem()}" alt="">${cost}` : 'free'}</small></button>`;
+    } else html += `<span class="cal-day${isToday ? ' today' : ' future'}">${d}</span>`;
+  }
+  $('#cal').innerHTML = html;
+}
+
+function openCheckIn() {
+  sfx.pick();
+  renderCheckIn();
+  revealWhenReady(checkinEl);
+}
+
+$('#btn-checkin-today').addEventListener('click', (e) => {
+  const r = checkIn(state);
+  if (!r) return;
+  const at = center(e.currentTarget as Element);
+  shower(at.x, at.y, ['#ffd147', '#7ee08e', '#fff']);
+  sfx.levelUp();
+  toast(`Day ${r.streak}! ${rewardText(r.reward)}`, true, 2000);
+  afterCheckIn();
+});
+
+$('#cal').addEventListener('click', (e) => {
+  const btn = (e.target as Element).closest<HTMLButtonElement>('button[data-day]');
+  if (!btn) return;
+  const r = makeUpDay(state, btn.dataset.day!);
+  if (!r.ok) {
+    sfx.error();
+    if (r.reason === 'gems') toast(`Not enough gems (${r.cost} needed)`);
+    return;
+  }
+  const at = center(btn);
+  shower(at.x, at.y, ['#7ee08e', '#fff']);
+  sfx.pick();
+  toast(`Day made up${r.cost ? ` for ${r.cost} gems` : ''}! ${rewardText(r.reward)}`, true, 1800);
+  afterCheckIn();
+});
+
+function afterCheckIn() {
+  renderCheckIn();
+  renderHud();
+  persist();
+}
+
+$('#btn-checkin').addEventListener('click', openCheckIn);
+$('#btn-checkin-back').addEventListener('click', () => checkinEl.classList.add('hidden'));
+
 // Tapping empty space on a full-screen panel (the dimmed backdrop, the gaps between
 // cards, the header) works like its back button. Taps on cards and controls don't.
-for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back'], ['#wheel', '#btn-wheel-back']]) {
+for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back'], ['#wheel', '#btn-wheel-back'], ['#checkin', '#btn-checkin-back']]) {
   $(panel).addEventListener('click', (e) => {
     const t = e.target as Element;
     if (t === e.currentTarget || t.matches('.sheet-inner, .sheet-head, .sheet-title, .sheet-title > *, .fridge-hint')) $(back).click();

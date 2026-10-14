@@ -818,6 +818,31 @@ body.loading-art::after {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
+/* ------------------------------------------------------------ daily check-in */
+
+#checkin { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
+.streak-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.streak-list li { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 4px; border-radius: 10px; background: #fff7e6; border: 2px solid #d8c4a0; color: var(--ink); font-size: 10px; font-weight: 700; }
+.streak-list li small { font-size: 9px; opacity: .7; }
+.streak-list li img { width: 20px; height: 20px; }
+.streak-list li.got { background: #c8f0cf; border-color: var(--ok); }
+.streak-list li.next { border-color: var(--gold-lo); box-shadow: 0 0 10px rgba(255, 200, 80, .8); }
+.checkin-btn { display: block; margin: 12px auto 0; padding: 10px 36px; font-size: 20px; }
+.checkin-btn:disabled { filter: grayscale(.8); opacity: .7; cursor: default; }
+.cal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 16px 2px 6px; color: #fff; }
+.cal-head b { font-size: 17px; }
+.cal-head small { font-size: 12px; font-weight: 700; text-align: right; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal .dow { text-align: center; color: #fff; font-size: 11px; font-weight: 700; }
+.cal-day { position: relative; aspect-ratio: 1; display: grid; place-items: center; border-radius: 8px; border: 2px solid #d8c4a0; background: #fff7e6; color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; padding: 0; }
+.cal-day.done { background: #c8f0cf; border-color: var(--ok); }
+.cal-day.done::after { content: '✓'; position: absolute; right: 2px; bottom: 0; font-size: 11px; color: var(--ok); }
+.cal-day.today { border-color: var(--gold-lo); box-shadow: 0 0 10px rgba(255, 200, 80, .8); }
+.cal-day.future { opacity: .5; }
+.cal-day.missed { background: #ffe0dc; border-color: #e88a80; border-style: dashed; cursor: pointer; }
+.cal-day.missed small { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 1px; font-size: 9px; color: #a01a1a; }
+.cal-day.missed small img { width: 10px; height: 10px; }
+
 /* ------------------------------------------------------------ lucky wheel */
 
 #wheel { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }

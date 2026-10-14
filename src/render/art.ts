@@ -1152,6 +1152,15 @@ export const iconArt = {
     s.add(circ(50, 46, 7, s.rad(P.coin), P.coin.ink, 'stroke-width="2"'));
     s.add(shape('M43 2L57 2L50 16Z', '#e8403a', '#5a0a0a', 'stroke-width="2"'));
   }),
+  /** A calendar page, for the daily check-in. */
+  calendar: () => toUrl('icon-calendar', (s) => {
+    s.shadow(34);
+    s.add(shape('M14 20Q14 14 20 14L80 14Q86 14 86 20L86 86Q86 92 80 92L20 92Q14 92 14 86Z', s.lin(P.paper.hi, P.paper.mid), P.paper.ink));
+    s.add(shape('M14 20Q14 14 20 14L80 14Q86 14 86 20L86 36L14 36Z', s.rad({ hi: '#ffb0b0', mid: '#e8403a', lo: '#a01a1a', ink: '#5a0a0a' }), '#5a0a0a'));
+    for (const x of [32, 68]) s.add(`<rect x="${x - 3}" y="6" width="6" height="16" rx="3" fill="${P.stone.mid}" stroke="${P.stone.ink}" stroke-width="1.5"/>`);
+    for (const [x, y] of [[28, 50], [44, 50], [60, 50], [28, 66], [44, 66], [28, 80], [44, 80], [60, 80]]) s.add(`<rect x="${x - 5}" y="${y - 5}" width="10" height="9" rx="2" fill="#c8d8f0"/>`);
+    s.add('<path d="M66 64L72 72L84 54" fill="none" stroke="#3aa04a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>');
+  }),
   /** The fridge where spare pieces are kept. */
   fridge: () => toUrl('icon-fridge', (s) => {
     s.shadow(34);
