@@ -40,22 +40,20 @@ node scripts/art/render-art.mjs public/art 384        # every sprite
 ONLY=gen-bbq,cus-critic node scripts/art/render-art.mjs   # only keys starting with these
 ```
 
-### Station art from a single picture
+### Station evolution lines
 
-The Bread Oven, Drink Fountain and Dessert Mixer have their own painted picture for every
-level, an evolution line (the oven from a mixing bowl `gen-oven` to a golden bakery oven
-`gen-oven-10`, the fountain from a water pitcher `gen-fountain` to a golden drink fountain
-`gen-fountain-10`, the mixer from a candy jar `gen-mixer` to a golden dessert cart
-`gen-mixer-10`), so don't rebuild them with the script below.
+Every kitchen station has its own painted picture for each of its 10 levels, an evolution
+line from humble to grand:
 
-The BBQ Grill still uses one painted picture
-(`scripts/art/station-src/<id>.png`, transparent background). All 10 levels are built
-from it by adding the game's own level decorations around it:
+- Bread Oven: mixing bowl (`gen-oven`) to golden bakery oven (`gen-oven-10`)
+- Drink Fountain: water pitcher (`gen-fountain`) to golden drink fountain (`gen-fountain-10`)
+- Dessert Mixer: candy jar (`gen-mixer`) to golden dessert cart (`gen-mixer-10`)
+- BBQ Grill: egg basket (`gen-bbq`) to golden BBQ grill (`gen-bbq-10`)
 
-```bash
-npm run dev    # in another terminal
-node scripts/art/compose-stations.mjs http://localhost:5173/ bbq
-```
+They were cut out of painted sheets, so don't rebuild them with
+`scripts/art/compose-stations.mjs`. That script builds all 10 levels from one picture
+(`scripts/art/station-src/<id>.png`) by adding the game's level decorations around it,
+and would overwrite the evolution art.
 
 ### Restaurant rooms
 
