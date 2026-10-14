@@ -557,7 +557,12 @@ body.tutorial #customers-wrap, body.tutorial #bottom { filter: brightness(.82) s
 #rename-input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 10px; border: 2px solid var(--wood); font: 600 15px var(--font); color: var(--ink); background: #fffaf0; }
 #rename-input:focus-visible { outline: 3px solid var(--violet-hi); }
 #rename-form .btn { padding: 6px 10px; }
-.me-card .round { background: linear-gradient(#a08060, #6a4a2a); border-color: var(--wood-lo); }
+#btn-rename {
+  width: 38px; height: 38px; font-size: 20px; font-weight: 700; line-height: 1; color: #fff;
+  background: linear-gradient(var(--violet-hi), var(--violet)); border: 2px solid var(--violet-lo);
+  box-shadow: 0 3px 0 var(--violet-lo); text-shadow: 0 1px 1px rgba(0, 0, 0, .45);
+}
+#btn-rename:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--violet-lo); }
 
 .board-msg { margin: 0; padding: 14px; border-radius: 14px; text-align: center; color: #f0e6ff; background: rgba(20, 50, 120, .35); font-size: 14px; line-height: 1.4; }
 .board-msg button { margin-top: 8px; }
