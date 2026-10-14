@@ -62,6 +62,8 @@ export interface GameState {
   /** Pieces stored in the fridge (the inventory), and how many slots it has. */
   fridge?: Piece[];
   fridgeSlots?: number;
+  /** Reward pieces that didn't fit on the board, oldest first. Only the game adds to it. */
+  rewardBag?: Piece[];
   /** When the player last changed something (ms); the newest of local and cloud wins. */
   savedAt?: number;
   /** First-time tutorial step (1-based); absent once it is done or for older saves. */
@@ -580,6 +582,35 @@ export function buyFridgeSlot(s: GameState): BuySlotResult {
   return { ok: true, cost };
 }
 
+// ---------------------------------------------------------------- reward bag
+
+const bottomMiddle = (s: GameState) => s.board.length - 1 - Math.floor(s.cols / 2);
+
+/**
+ * Give the player a reward piece: on the free cell nearest the bottom middle, or, when the board
+ * is full, at the back of the reward bag. Returns the cell it landed on, or -1 if it was bagged.
+ */
+export function grantPiece(s: GameState, piece: Piece): number {
+  const at = nearestEmpty(s, bottomMiddle(s));
+  if (at < 0) {
+    (s.rewardBag ??= []).push(piece);
+    return -1;
+  }
+  s.board[at].piece = piece;
+  return at;
+}
+
+/** Put the oldest piece in the reward bag on the board (first in, first out). */
+export function takeFromRewardBag(s: GameState, near = bottomMiddle(s)): TakeResult {
+  const piece = s.rewardBag?.[0];
+  if (!piece) return { ok: false, reason: 'invalid' };
+  const at = nearestEmpty(s, near);
+  if (at < 0) return { ok: false, reason: 'full' };
+  s.board[at].piece = piece;
+  s.rewardBag!.shift();
+  return { ok: true, at, piece };
+}
+
 // ---------------------------------------------------------------- daily quests
 
 export const QUESTS_PER_DAY = 3;
@@ -695,14 +726,12 @@ export function restore(s: GameState): RestoreResult {
       }
     });
   }
-  // Reward items go on free cells, nearest the bottom of the board first.
+  // Reward items go on free cells, nearest the bottom of the board first; the rest wait in the reward bag.
   const placed: number[] = [];
   for (const it of ch.reward.items ?? []) {
     for (let k = 0; k < it.count; k++) {
-      const at = nearestEmpty(s, s.board.length - 1 - Math.floor(s.cols / 2));
-      if (at < 0) break;
-      s.board[at].piece = item(it.chain, it.level);
-      placed.push(at);
+      const at = grantPiece(s, item(it.chain, it.level));
+      if (at >= 0) placed.push(at);
     }
   }
   if (ch.reward.starBonus) s.starBonus = (s.starBonus ?? 0) + ch.reward.starBonus;

@@ -3,7 +3,7 @@ import { CHAINS, ChainId, GEN_LEVELS, GENERATORS, GenId, isFood, MAX_ENERGY, SPA
 import {
   GameState, MERGE_COUNT, Customer, Piece, canUpgrade, currentTask, restore, serve, collect, findOrder, genLevel, isWanted, load, movePiece, msToNextEnergy,
   item, newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
-  FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge,
+  FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge, takeFromRewardBag,
   DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
   TutorialStep, advanceTutorial, skipTutorial, tutorialStep, discover, gen, isDiscovered,
 } from './game/state';
@@ -39,6 +39,7 @@ function persist(changed = true) {
   if (changed) state.savedAt = Date.now();
   discover(state);
   updateFridgeCount();
+  updateRewardBag();
   updateQuestBadge();
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
@@ -985,6 +986,7 @@ function doRestore() {
     renderBoard();
     for (const i of r.upgraded) renderCell(i, 'merge');
     for (const i of r.placed) renderCell(i, 'pop');
+    if (state.rewardBag?.length) toast('Board full! Extra rewards are waiting in your reward bag.', true, 2200);
     renderCustomers();
   }
   setTimeout(() => tell(lines), 700);
@@ -1102,6 +1104,33 @@ function updateFridgeCount() {
   el.textContent = `${n}/${max}`;
   el.classList.toggle('full', n >= max);
 }
+
+// Rewards that didn't fit on the board wait here and come out oldest first; the player can't put anything in.
+const bagBtn = $('#btn-bag');
+
+function updateRewardBag() {
+  const bag = state.rewardBag ?? [], bagBtn = $('#btn-bag');
+  bagBtn.classList.toggle('hidden', !bag.length);
+  if (!bag.length) return;
+  $<HTMLImageElement>('#bag-img').src = pieceArt(bag[0]);
+  $('#bag-count').textContent = String(bag.length);
+  bagBtn.setAttribute('aria-label', `Reward bag: ${bag.length} waiting. Tap to take out ${pieceName(bag[0])}`);
+}
+
+bagBtn.addEventListener('click', () => {
+  const r = takeFromRewardBag(state);
+  if (!r.ok) {
+    sfx.error();
+    if (r.reason === 'full') toast('The board is full! Merge or sell something first.');
+    return;
+  }
+  sfx.spawn();
+  renderCell(r.at, 'pop');
+  restartAnim(bagBtn, 'bump');
+  renderCustomers();
+  renderBoard();
+  persist();
+});
 
 /** Drop the dragged piece into the fridge. */
 function doStore(i: number) {
@@ -1292,6 +1321,7 @@ function replaceState(next: GameState) {
   questsReady = claimableQuests(state);
   updateQuestBadge();
   updateFridgeCount();
+  updateRewardBag();
   showTutorial(state.tutorial ? tutorialStep(state) : null);
 }
 
@@ -1617,6 +1647,7 @@ async function boot() {
   questsReady = claimableQuests(state);
   updateQuestBadge();
   updateFridgeCount();
+  updateRewardBag();
 
   setInterval(() => {
     // Energy refilling on its own is not a player change.
