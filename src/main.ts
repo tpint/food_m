@@ -450,6 +450,31 @@ function select(i: number) {
   setInfo(pieceArt(p), title, `${next}.${isWanted(state, p) ? ' A customer ordered this!' : ''}`, v ? { label: `Sell +${v}`, fn: () => doSell(i) } : undefined);
 }
 
+// ------------------------------------------------------------------ panels wait for their art
+
+/** Resolve once every picture in `root` has loaded and decoded (or failed), or after `ms` at most. */
+function imagesReady(root: ParentNode, ms = 2500): Promise<void> {
+  // A spinner appears if the wait is long enough to notice, so a tap never seems ignored.
+  const spin = setTimeout(() => document.body.classList.add('loading-art'), 250);
+  const waits = [...root.querySelectorAll('img')].map((img) =>
+    (img.complete ? Promise.resolve() : new Promise<void>((done) => {
+      img.addEventListener('load', () => done(), { once: true });
+      img.addEventListener('error', () => done(), { once: true });
+    })).then(() => (img.naturalWidth ? img.decode().catch(() => {}) : undefined)));
+  return Promise.race([Promise.all(waits).then(() => {}), new Promise<void>((done) => setTimeout(done, ms))])
+    .then(() => { clearTimeout(spin); document.body.classList.remove('loading-art'); });
+}
+
+/** The panel being opened; opening another one first cancels it. */
+let panelToken = 0;
+
+/** Show a panel (already filled in while hidden) once its pictures are in, so it never opens with blank slots. */
+async function revealWhenReady(panel: HTMLElement) {
+  const token = ++panelToken;
+  await imagesReady(panel);
+  if (token === panelToken) panel.classList.remove('hidden');
+}
+
 // ------------------------------------------------------------------ details panel
 
 /** What the details panel shows: an item's merge chain or a kitchen station. */
@@ -462,16 +487,20 @@ let detailFocus = 1;
 
 const pct = (w: number, odds: number[]) => `${Math.round((w / odds.reduce((t, x) => t + x, 0)) * 100)}%`;
 
-function renderDetails() {
+/** Each render gets a number, so a slow one can't replace a newer one. */
+let detailsRender = 0;
+
+async function renderDetails() {
   if (!detail) return;
   const d = detail;
-  const body = $('#details-body');
+  const run = ++detailsRender;
+  let html: string, sub: string, name: string;
   if (d.kind === 'item') {
     const def = CHAINS[d.chain];
     const max = maxLevel(d.chain);
     const f = detailFocus;
-    $('#details-sub').textContent = 'Merge chain';
-    $('#details-name').textContent = def.name;
+    sub = 'Merge chain';
+    name = def.name;
     const tiles = def.levels.map((name, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}" data-focus="${k + 1}" aria-label="${name}, level ${k + 1}">`
       + `<img src="${itemArt(d.chain, k + 1)}" alt=""><span class="dlv">${k + 1}</span></button>`).join('');
     const next = f < max ? `Merge ${MERGE_COUNT} to make <b>${def.levels[f]}</b>.` : 'The top of the chain!';
@@ -483,7 +512,7 @@ function renderDetails() {
       ? `<div class="dmakers">${makers.map((g) => `<button class="dtile" data-open="gen:${g.id}" aria-label="${g.name}"><img src="${generatorArt(g.id, 1)}" alt=""></button>`).join('')}</div>`
         + `<p class="dnote">${makers.map((g) => g.name).join(', ')} makes levels 1 to ${Math.max(...GEN_LEVELS.map((l) => l.odds.length))} as it levels up. Tap it for the odds.</p>`
       : '<p class="dnote">No station makes these. You earn them as chapter rewards.</p>';
-    body.innerHTML = `<h3>Level ${f} of ${max}</h3><div class="dgrid chain">${tiles}</div>`
+    html = `<h3>Level ${f} of ${max}</h3><div class="dgrid chain">${tiles}</div>`
       + `<p class="dnote"><b>${def.levels[f - 1]}</b>. ${next}${use}</p>`
       + `<h3>Created by</h3>${madeBy}`;
   } else {
@@ -491,8 +520,8 @@ function renderDetails() {
     const chain = CHAINS[def.chain];
     const f = detailFocus;
     const lv = GEN_LEVELS[f - 1];
-    $('#details-sub').textContent = 'Kitchen station';
-    $('#details-name').textContent = def.name;
+    sub = 'Kitchen station';
+    name = def.name;
     const tiles = GEN_LEVELS.map((_, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}" data-focus="${k + 1}" aria-label="${def.name}, level ${k + 1}">`
       + `<img src="${generatorArt(d.gen, k + 1)}" alt=""><span class="dlv">${k + 1}</span></button>`).join('');
     const top = Math.max(...GEN_LEVELS.map((l) => l.odds.length));
@@ -504,19 +533,28 @@ function renderDetails() {
     }).join('');
     const free = lv.freeChance ? ` ${Math.round(lv.freeChance * 100)}% chance cooking is free.` : '';
     const up = lv.upgradeCost ? ` Upgrading to level ${f + 1} costs ${lv.upgradeCost} coins and needs player level ${lv.upgradeReq}.` : ' Max level.';
-    body.innerHTML = `<h3>Level ${f} of ${GEN_LEVELS.length}</h3><div class="dgrid chain">${tiles}</div>`
+    html = `<h3>Level ${f} of ${GEN_LEVELS.length}</h3><div class="dgrid chain">${tiles}</div>`
       + `<p class="dnote">Each cook costs ⚡${SPAWN_COST}.${free}${up}</p>`
       + `<h3>Creates at level ${f}</h3><div class="dgrid">${makes}</div>`;
   }
+  // Build it off-screen and swap it in once its pictures are ready, so the panel never shows empty tiles.
+  const next = document.createElement('div');
+  next.innerHTML = html;
+  await imagesReady(next);
+  if (run !== detailsRender) return;
+  $('#details-sub').textContent = sub;
+  $('#details-name').textContent = name;
+  $('#details-body').replaceChildren(...next.childNodes);
 }
 
-function openDetails(d: Detail) {
+async function openDetails(d: Detail) {
   detail = d;
   detailFocus = d.level;
   sfx.pick();
-  renderDetails();
-  detailsEl.classList.remove('hidden');
+  const wasOpen = !detailsEl.classList.contains('hidden');
+  await renderDetails();
   detailsEl.scrollTop = 0;
+  if (!wasOpen) revealWhenReady(detailsEl);
 }
 
 function openSelectedDetails() {
@@ -858,8 +896,8 @@ function renderDiner(fresh?: string, chapterIdx = viewChapter()) {
 
 function openDiner() {
   sfx.pick();
-  dinerEl.classList.remove('hidden');
   renderDiner();
+  revealWhenReady(dinerEl);
 }
 
 function closeDiner() {
@@ -1061,8 +1099,8 @@ function renderFridge() {
 
 function openFridge() {
   sfx.pick();
-  fridgeEl.classList.remove('hidden');
   renderFridge();
+  revealWhenReady(fridgeEl);
 }
 
 fridgeBtn.addEventListener('click', openFridge);
@@ -1163,8 +1201,8 @@ function renderQuests() {
 function openQuests() {
   sfx.pick();
   if (ensureDaily(state)) persist();
-  questsEl.classList.remove('hidden');
   renderQuests();
+  revealWhenReady(questsEl);
 }
 
 questsEl.addEventListener('click', (e) => {
