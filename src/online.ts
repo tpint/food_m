@@ -1,12 +1,15 @@
 // Online features: leaderboard, cloud save and recovery codes.
 //
-// For now these run against a MOCK backend that lives in this browser's
-// localStorage (with a seeded set of rival chefs on the leaderboard), so the
-// whole game works offline. To go live, implement `Backend` with real
-// database calls (e.g. Supabase RPCs) and swap it in where `backend` is set
-// below; nothing else in the game needs to change.
+// These run against the Supabase project "food_m": the game calls the
+// database functions in supabase/migrations/ through Supabase's REST API with
+// the project's publishable key (safe to ship: the tables are locked down by
+// RLS and only those functions are callable). A MOCK backend that lives in
+// this browser's localStorage is kept for offline development: open the game
+// with ?mock=1 to use it.
 
-const STORE = 'food-player-v1';
+const STORE = 'food-player-v2';
+/** The player record from the mock-backend days: its token and name carry over, but it must register again. */
+const OLD_STORE = 'food-player-v1';
 
 /** 'week' and 'all' rank customers served; 'level' ranks player level. */
 export type Period = 'week' | 'all' | 'level';
@@ -156,7 +159,37 @@ const mockBackend: Backend = {
   },
 };
 
-const backend: Backend = mockBackend;
+// ------------------------------------------------------------------ Supabase backend
+
+const SUPABASE_URL = 'https://mipatiavaeasllqwezdj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_9iXPj0maS01HyQcvPlqI1Q_yHieBAAl';
+
+/** Call a database function; throws with the server's message if it refuses. */
+async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+    body: JSON.stringify(args),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((body as { message?: string } | null)?.message ?? `Server error ${res.status}`);
+  return body as T;
+}
+
+const supabaseBackend: Backend = {
+  register: (token, name) => rpc('register', { p_token: token, p_name: name }),
+  submit: (token, served, level) => rpc('submit_score', { p_token: token, p_served: served, p_level: level }),
+  board: (token, period) => rpc('leaderboard', { p_token: token, p_period: period }),
+  async cloudSave(token, save, saveAt) {
+    await rpc('cloud_save', { p_token: token, p_save: save, p_save_at: saveAt });
+  },
+  cloudLoad: (token) => rpc('cloud_load', { p_token: token }),
+  newCode: (token) => rpc('new_code', { p_token: token }),
+  recover: (code, token) => rpc('recover', { p_code: code, p_token: token }),
+};
+
+const useMock = typeof location !== 'undefined' && new URLSearchParams(location.search).has('mock');
+const backend: Backend = useMock ? mockBackend : supabaseBackend;
 
 // ------------------------------------------------------------------ this device's player
 
@@ -166,6 +199,8 @@ function loadPlayer(): Player {
   try {
     const p = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Player | null;
     if (p?.token) return p;
+    const old = JSON.parse(localStorage.getItem(OLD_STORE) ?? 'null') as Player | null;
+    if (old?.token) return { token: old.token, name: old.name, registered: false };
   } catch { /* storage unavailable */ }
   return newPlayer();
 }

@@ -69,19 +69,24 @@ node scripts/play.mjs http://localhost:5173/ shots   # scripted playtest with sc
   Each also pays coins and gems. The blurred backdrop behind the board is the room you are restoring.
   Chapters live in `src/game/story.ts`; each room is drawn in `src/render/room.ts`, each backdrop in `src/render/scene.ts`.
 - **Leaderboard**: top 50 by customers served, this week (resets Monday 00:00 UTC) or all time, or by player level.
-- **Cloud save & recovery code**: progress "uploads" automatically, and the profile screen (tap the level star) makes
+- **Cloud save & recovery code**: progress uploads automatically, and the profile screen (tap the level star) makes
   a recovery code to restore your progress, name and scores.
 - **Coins / Energy items**: tap one twice (or press Collect) to cash it in. Other items can be sold for coins.
 
 Console helpers: `kitchen.reset()`, `kitchen.energy(100)`, `kitchen.sfx.customerCheer('critic')`.
 
-## Online features are mocked (for now)
+## Online features (Supabase)
 
-`src/online.ts` defines a small `Backend` interface (register, submit score, leaderboard, cloud save/load,
-recovery codes) and currently uses a **mock backend stored in this browser's localStorage**, seeded with
-a few rival chefs so the leaderboard has something to show. Everything works offline, but nothing is shared
-between devices yet. To go live (e.g. with Supabase), implement `Backend` with real database calls and set
-`const backend` to it; the rest of the game does not change.
+The leaderboard, cloud save and recovery codes run on the Supabase project **food_m**. `src/online.ts` calls a
+handful of database functions (`register`, `submit_score`, `leaderboard`, `cloud_save`, `cloud_load`,
+`new_code`, `recover`) through Supabase's REST API with the project's publishable key. The tables have row
+level security on and no direct access from the browser, so those functions are the only way in. A player is
+a random token kept on the device (stored only as a hash on the server), and score reports can only add a
+few customers at a time, so a tampered client can't post a huge score. The schema lives in
+`supabase/migrations/`.
+
+For offline work, open the game with `?mock=1` to use the old mock backend that lives in this browser's
+localStorage, seeded with a few rival chefs.
 
 ## Code layout
 
@@ -96,7 +101,8 @@ between devices yet. To go live (e.g. with Supabase), implement `Backend` with r
 | `src/render/sfx.ts` | Sound effects synthesised with WebAudio (no audio files) |
 | `src/render/scene.ts` | Blurred backdrop behind the board, one scene per chapter |
 | `src/render/room.ts` | The restaurant room scene with a broken and a fixed layer per task |
-| `src/online.ts` | Leaderboard, cloud save and recovery codes (mock backend for now) |
+| `src/online.ts` | Leaderboard, cloud save and recovery codes (Supabase, with a local mock for `?mock=1`) |
+| `supabase/migrations/` | Database schema and functions behind the online features |
 | `src/main.ts` | UI: board, drag and drop, HUD, customer cards, info bar, panels |
 | `build-info.ts` | Version/commit/date baked into each build, and the `version.json` it publishes |
 
