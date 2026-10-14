@@ -324,7 +324,6 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   background: linear-gradient(#5fb6ff, #2f7fe0); box-shadow: 0 1px 3px rgba(20, 40, 100, .5);
 }
 #info-more:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 1px; }
-.version-tag { position: absolute; right: 8px; bottom: 2px; font-size: 9px; font-weight: 600; color: var(--ink-soft); opacity: .7; letter-spacing: .3px; font-variant-numeric: tabular-nums; pointer-events: none; }
 .update-banner {
   position: fixed; left: 50%; top: max(10px, env(safe-area-inset-top)); transform: translateX(-50%); z-index: 70;
   padding: 9px 16px; border-radius: 14px; font: 700 14px var(--font); cursor: pointer; white-space: nowrap;
