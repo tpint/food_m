@@ -107,7 +107,8 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .pill .val.stroked { color: var(--ink); text-shadow: 0 1px 0 #fff; }
 /* Energy countdown: a small grey tag hanging off the bar's bottom-right corner. */
 .pill .timer {
-  position: absolute; right: 4px; bottom: -14px; z-index: 1; padding: 1px 6px; border-radius: 6px;
+  /* Fixed width (fits "+1 in 20s") so the tag doesn't change size as it counts down. */
+  position: absolute; right: 4px; bottom: -14px; z-index: 1; box-sizing: content-box; width: 9ch; padding: 1px 4px; border-radius: 6px; text-align: center;
   font-size: 10px; font-weight: 700; line-height: 14px; white-space: nowrap; font-variant-numeric: tabular-nums;
   color: #9fdcff; background: rgba(60, 66, 80, .92); box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
 }
