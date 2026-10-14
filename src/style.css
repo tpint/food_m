@@ -475,6 +475,40 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 #story-next { align-self: flex-end; }
 .story-reward { display: block; margin-top: 4px; color: var(--ink-soft); font-size: 13px; }
 
+/* ------------------------------------------------------------ tutorial */
+
+/* Only the board takes input while the tutorial runs. */
+body.tutorial #hud, body.tutorial #customers-wrap, body.tutorial #bottom { pointer-events: none; }
+body.tutorial #customers-wrap, body.tutorial #bottom { filter: brightness(.82) saturate(.8); transition: filter .3s; }
+#tutorial {
+  position: fixed; left: 12px; right: 12px; top: max(10px, env(safe-area-inset-top)); z-index: 35;
+  display: flex; justify-content: center; pointer-events: none;
+}
+.tut-card {
+  width: 100%; max-width: 496px; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; pointer-events: auto;
+  border-radius: 18px; background: linear-gradient(var(--parch-hi), var(--parch) 60%, var(--parch-lo));
+  border: 3px solid var(--wood); box-shadow: inset 0 0 0 2px var(--parch-hi), 0 4px 0 var(--wood-lo), 0 10px 24px rgba(0,0,0,.4);
+  animation: story-in .35s cubic-bezier(.2, 1.4, .4, 1);
+}
+.tut-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#tut-title { color: var(--violet); font-size: 16px; }
+#tut-text { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.35; }
+#btn-tut-skip { flex: none; }
+.cell.tut-group { background: #e4f4ff; box-shadow: inset 0 0 0 2.5px #7fd0ff, 0 0 12px #8fd6ff; }
+.cell.tut-from { box-shadow: inset 0 0 0 3px var(--gold), 0 0 14px var(--gold); background: #fff6dc; }
+.cell.tut-to { background: #fff2cc; box-shadow: inset 0 0 0 3px var(--ok); animation: pulse 1.2s ease-in-out infinite; }
+.cell.tut-nudge { animation: bump .35s ease-out; }
+#tut-hand { position: fixed; left: 0; top: 0; z-index: 48; pointer-events: none; animation: tut-drag 2s ease-in-out infinite; }
+#tut-hand img { position: absolute; width: calc(var(--cell) * .8); height: calc(var(--cell) * .8); left: calc(var(--cell) * -.4); top: calc(var(--cell) * -.4); opacity: .75; }
+.tut-finger { position: absolute; left: -6px; top: 2px; font-size: 32px; line-height: 1; filter: drop-shadow(0 3px 3px rgba(0,0,0,.35)); }
+@keyframes tut-drag {
+  0% { transform: translate(var(--x0), var(--y0)); opacity: 0; }
+  12% { transform: translate(var(--x0), var(--y0)); opacity: 1; }
+  70% { transform: translate(var(--x1), var(--y1)); opacity: 1; }
+  88%, 100% { transform: translate(var(--x1), var(--y1)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { #tut-hand { animation-duration: 3.5s; } }
+
 /* ------------------------------------------------------------ leaderboard */
 
 #leaders { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }

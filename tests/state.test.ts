@@ -3,6 +3,7 @@ import {
   canUpgrade, serve, collect, mergeYield, findOrder, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save,
   makeCustomer, validateSave, storeInFridge, takeFromFridge, buyFridgeSlot, fridgeSlots, fridgeSlotCost, FRIDGE_START_SLOTS, FRIDGE_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
+  tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS,
 } from '../src/game/state';
 import { ACTIVE_CUSTOMERS, ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
@@ -478,5 +479,49 @@ describe('inventory fridge', () => {
     expect(buyFridgeSlot(s)).toEqual({ ok: false, reason: 'max' });
     s.fridgeSlots = FRIDGE_START_SLOTS; s.gems = 0;
     expect(buyFridgeSlot(s)).toEqual({ ok: false, reason: 'gems', cost: 10 });
+  });
+});
+
+describe('first-time tutorial', () => {
+  it('walks a new game through a merge of 3, then a merge of 5', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const s = newGame(seeded(seed), 0);
+      expect(s.tutorial).toBe(1);
+      const a = tutorialStep(s)!;
+      expect(a.count).toBe(3);
+      const r1 = movePiece(s, a.from, a.to);
+      expect(r1.type).toBe('merge');
+      if (r1.type === 'merge') expect(r1.results).toHaveLength(1);
+
+      const b = advanceTutorial(s)!;
+      expect(b.count).toBe(5);
+      for (const i of b.setup) expect(s.board[i].piece).toEqual(b.piece);
+      // Resuming the step (e.g. after a reload) doesn't add more items.
+      expect(tutorialStep(s)).toEqual(b);
+      const r2 = movePiece(s, b.from, b.to);
+      expect(r2.type).toBe('merge');
+      if (r2.type === 'merge') expect(r2.results).toHaveLength(2);
+
+      expect(advanceTutorial(s)).toBeNull();
+      expect(s.tutorial).toBeUndefined();
+    }
+    expect(TUTORIAL_STEPS).toBe(2);
+  });
+
+  it('is not shown to existing players or once skipped', () => {
+    const old = newGame(seeded(2), 0);
+    delete old.tutorial;
+    expect(tutorialStep(validateSave(JSON.parse(JSON.stringify(old)))!)).toBeNull();
+    const s = newGame(seeded(2), 0);
+    skipTutorial(s);
+    expect(tutorialStep(s)).toBeNull();
+  });
+
+  it('ends quietly when the board no longer fits the step', () => {
+    const s = newGame(seeded(4), 0);
+    const a = tutorialStep(s)!;
+    s.board[a.to].piece = item('coin', 1);
+    expect(tutorialStep(s)).toBeNull();
+    expect(s.tutorial).toBeUndefined();
   });
 });

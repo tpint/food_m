@@ -19,6 +19,8 @@ async function skipStory() {
     await p.locator('#story-next').click();
     await p.waitForTimeout(150);
   }
+  // Skip the first-time tutorial so the rest of the board can be used.
+  if (await p.locator('#tutorial:not(.hidden)').count()) await p.locator('#btn-tut-skip').click();
 }
 
 await p.goto(url);
