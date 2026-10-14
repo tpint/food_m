@@ -635,6 +635,8 @@ body.loading-art::after {
 .dtile.focus:not(.now) { box-shadow: 0 0 0 3px #5fb6ff; }
 .dtile.make { background: #bfeccb; }
 .dtile.locked img { filter: grayscale(.8) brightness(1.05); opacity: .55; }
+/* Not reached yet: just its shadow until the player first has one. */
+.dtile.unknown img { filter: brightness(0); opacity: .3; }
 .dtile .dodds {
   position: absolute; right: 3px; bottom: 3px; padding: 0 4px; border-radius: 8px;
   font: 700 10px/15px var(--font); color: #fff; background: rgba(31, 110, 51, .8);

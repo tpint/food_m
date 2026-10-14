@@ -66,6 +66,8 @@ export interface GameState {
   savedAt?: number;
   /** First-time tutorial step (1-based); absent once it is done or for older saves. */
   tutorial?: number;
+  /** Pieces the player has had, as discoveryKey()s; the details panel shows the rest as silhouettes. */
+  discovered?: string[];
 }
 
 export type QuestKind = 'serve' | 'merge' | 'cook' | 'mergeHigh';
@@ -161,8 +163,32 @@ export function newGame(rng: Rng = Math.random, now = Date.now()): GameState {
   place(1, 7, item('energy', 1));
 
   while (s.customers.length < ACTIVE_CUSTOMERS) s.customers.push(makeCustomer(s, rng));
+  discover(s);
   return s;
 }
+
+// ---------------------------------------------------------------- discovery
+
+export const discoveryKey = (p: Piece) => (p.kind === 'item' ? `item:${p.chain}:${p.level}` : `gen:${p.gen}:${genLevel(p)}`);
+
+/**
+ * Records every piece on the board and in the fridge as discovered. A station at
+ * some level has been through every level below it, so those count too. Returns
+ * whether anything new was found.
+ */
+export function discover(s: GameState): boolean {
+  const known = new Set(s.discovered ?? []);
+  const before = known.size;
+  for (const p of [...s.board.map((c) => c.piece), ...(s.fridge ?? [])]) {
+    if (!p) continue;
+    if (p.kind === 'item') known.add(discoveryKey(p));
+    else for (let lv = 1; lv <= genLevel(p); lv++) known.add(discoveryKey(gen(p.gen, lv)));
+  }
+  s.discovered = [...known];
+  return known.size > before;
+}
+
+export const isDiscovered = (s: GameState, p: Piece) => !!s.discovered?.includes(discoveryKey(p));
 
 // ---------------------------------------------------------------- tutorial
 
@@ -701,6 +727,7 @@ export function validateSave(data: unknown): GameState | null {
   s.chapter ??= 0;
   s.tasksDone ??= [];
   s.storySeen ??= [];
+  discover(s);
   // Older saves kept fewer customers waiting.
   while (s.customers.length < ACTIVE_CUSTOMERS) s.customers.push(makeCustomer(s));
   return s;

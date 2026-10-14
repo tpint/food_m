@@ -3,7 +3,7 @@ import {
   canUpgrade, serve, collect, mergeYield, findOrder, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save,
   makeCustomer, validateSave, storeInFridge, takeFromFridge, buyFridgeSlot, fridgeSlots, fridgeSlotCost, FRIDGE_START_SLOTS, FRIDGE_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
-  tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS,
+  tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS, discover, isDiscovered,
 } from '../src/game/state';
 import { ACTIVE_CUSTOMERS, ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
@@ -523,5 +523,50 @@ describe('first-time tutorial', () => {
     s.board[a.to].piece = item('coin', 1);
     expect(tutorialStep(s)).toBeNull();
     expect(s.tutorial).toBeUndefined();
+  });
+});
+
+describe('discovery', () => {
+  it('knows the starting pieces of a new game but not higher levels', () => {
+    const s = newGame(seeded(), 0);
+    expect(isDiscovered(s, item('drinks', 1))).toBe(true);
+    expect(isDiscovered(s, gen('oven', 1))).toBe(true);
+    expect(isDiscovered(s, gen('oven', 2))).toBe(false);
+    expect(isDiscovered(s, item('drinks', 7))).toBe(false);
+  });
+
+  it('records merged items and fridge items, and keeps them after they are gone', () => {
+    const s = empty();
+    s.discovered = [];
+    s.board[0].piece = item('drinks', 1);
+    s.board[1].piece = item('drinks', 1);
+    s.board[2].piece = item('drinks', 1);
+    movePiece(s, 2, 1);
+    expect(discover(s)).toBe(true);
+    expect(isDiscovered(s, item('drinks', 2))).toBe(true);
+    s.fridge = [item('bakery', 3)];
+    discover(s);
+    expect(isDiscovered(s, item('bakery', 3))).toBe(true);
+    s.board.forEach((c) => { c.piece = null; });
+    s.fridge = [];
+    expect(discover(s)).toBe(false);
+    expect(isDiscovered(s, item('drinks', 2))).toBe(true);
+  });
+
+  it('counts every level up to a station\'s current one', () => {
+    const s = empty();
+    s.discovered = [];
+    s.board[0].piece = gen('mixer', 3);
+    discover(s);
+    expect([1, 2, 3].map((lv) => isDiscovered(s, gen('mixer', lv)))).toEqual([true, true, true]);
+    expect(isDiscovered(s, gen('mixer', 4))).toBe(false);
+  });
+
+  it('fills in discoveries for older saves from what they hold', () => {
+    const s = empty();
+    s.board[0].piece = item('grill', 4);
+    delete s.discovered;
+    const loaded = validateSave(JSON.parse(JSON.stringify(s)))!;
+    expect(isDiscovered(loaded, item('grill', 4))).toBe(true);
   });
 });

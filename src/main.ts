@@ -5,7 +5,7 @@ import {
   item, newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
   FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge,
   DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
-  TutorialStep, advanceTutorial, skipTutorial, tutorialStep,
+  TutorialStep, advanceTutorial, skipTutorial, tutorialStep, discover, gen, isDiscovered,
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, customerImg, pieceArt } from './render/art';
 import { burst, cookCharge, puff, shower, trail, yum } from './render/fx';
@@ -37,6 +37,7 @@ let saveTimer = 0;
  */
 function persist(changed = true) {
   if (changed) state.savedAt = Date.now();
+  discover(state);
   updateFridgeCount();
   updateQuestBadge();
   clearTimeout(saveTimer);
@@ -501,6 +502,10 @@ async function renderDetails() {
   if (!detail) return;
   const d = detail;
   const run = ++detailsRender;
+  discover(state);
+  // Pieces the player hasn't had yet show as silhouettes.
+  const hiddenItem = (chain: ChainId, level: number) => (isDiscovered(state, item(chain, level)) ? '' : ' unknown');
+  const hiddenGen = (id: GenId, level: number) => (isDiscovered(state, gen(id, level)) ? '' : ' unknown');
   let html: string, sub: string, name: string;
   if (d.kind === 'item') {
     const def = CHAINS[d.chain];
@@ -508,7 +513,7 @@ async function renderDetails() {
     const f = detailFocus;
     sub = 'Merge chain';
     name = def.name;
-    const tiles = def.levels.map((name, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}" data-focus="${k + 1}" aria-label="${name}, level ${k + 1}">`
+    const tiles = def.levels.map((name, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}${hiddenItem(d.chain, k + 1)}" data-focus="${k + 1}" aria-label="${name}, level ${k + 1}">`
       + `<img src="${itemArt(d.chain, k + 1)}" alt=""><span class="dlv">${k + 1}</span></button>`).join('');
     const next = f < max ? `Merge ${MERGE_COUNT} to make <b>${def.levels[f]}</b>.` : 'The top of the chain!';
     const use = def.collect
@@ -516,7 +521,7 @@ async function renderDetails() {
       : sellValue(item(d.chain, f)) ? ` Sells for ${sellValue(item(d.chain, f))} coins.` : '';
     const makers = Object.values(GENERATORS).filter((g) => g.chain === d.chain);
     const madeBy = makers.length
-      ? `<div class="dmakers">${makers.map((g) => `<button class="dtile" data-open="gen:${g.id}" aria-label="${g.name}"><img src="${generatorArt(g.id, 1)}" alt=""></button>`).join('')}</div>`
+      ? `<div class="dmakers">${makers.map((g) => `<button class="dtile${hiddenGen(g.id, 1)}" data-open="gen:${g.id}" aria-label="${g.name}"><img src="${generatorArt(g.id, 1)}" alt=""></button>`).join('')}</div>`
         + `<p class="dnote">${makers.map((g) => g.name).join(', ')} makes levels 1 to ${Math.max(...GEN_LEVELS.map((l) => l.odds.length))} as it levels up. Tap it for the odds.</p>`
       : '<p class="dnote">No station makes these. You earn them as chapter rewards.</p>';
     html = `<h3>Level ${f} of ${max}</h3><div class="dgrid chain">${tiles}</div>`
@@ -529,13 +534,13 @@ async function renderDetails() {
     const lv = GEN_LEVELS[f - 1];
     sub = 'Kitchen station';
     name = def.name;
-    const tiles = GEN_LEVELS.map((_, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}" data-focus="${k + 1}" aria-label="${def.name}, level ${k + 1}">`
+    const tiles = GEN_LEVELS.map((_, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}${hiddenGen(d.gen, k + 1)}" data-focus="${k + 1}" aria-label="${def.name}, level ${k + 1}">`
       + `<img src="${generatorArt(d.gen, k + 1)}" alt=""><span class="dlv">${k + 1}</span></button>`).join('');
     const top = Math.max(...GEN_LEVELS.map((l) => l.odds.length));
     const makes = Array.from({ length: top }, (_, k) => {
       const w = lv.odds[k];
       const firstAt = GEN_LEVELS.findIndex((l) => (l.odds[k] ?? 0) > 0) + 1;
-      return `<button class="dtile make${w ? '' : ' locked'}" data-open="item:${def.chain}:${k + 1}" aria-label="${chain.levels[k]}${w ? `, ${pct(w, lv.odds)}` : `, from station level ${firstAt}`}">`
+      return `<button class="dtile make${w ? '' : ' locked'}${hiddenItem(def.chain, k + 1)}" data-open="item:${def.chain}:${k + 1}" aria-label="${chain.levels[k]}${w ? `, ${pct(w, lv.odds)}` : `, from station level ${firstAt}`}">`
         + `<img src="${itemArt(def.chain, k + 1)}" alt=""><span class="dlv">${k + 1}</span><span class="dodds">${w ? pct(w, lv.odds) : `Lv ${firstAt}`}</span></button>`;
     }).join('');
     const free = lv.freeChance ? ` ${Math.round(lv.freeChance * 100)}% chance cooking is free.` : '';
