@@ -1,5 +1,5 @@
-// Scripted playtest: serve a customer, then open the restaurant, leaderboard,
-// quests and fridge. Saves screenshots to the given dir.
+// Scripted playtest: serve a customer, then go to the hub and open the restaurant,
+// leaderboard and quests, then come back to the kitchen and open the fridge. Saves screenshots to the given dir.
 // Usage: node scripts/play.mjs [url] [dir]   (with `npm run dev` running)
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -47,7 +47,9 @@ await p.screenshot({ path: `${dir}/4-served.png` });
 
 // Restaurant, with a few tasks done.
 await p.evaluate(() => { window.kitchen.state.stars = 20; });
-await p.locator('#btn-menu').click();
+await p.locator('#btn-hub').click();
+await p.waitForTimeout(300);
+await p.screenshot({ path: `${dir}/4b-hub.png` });
 await p.locator('#btn-diner').click();
 for (let i = 0; i < 3; i++) {
   await p.locator('[data-restore]').click();
@@ -57,17 +59,16 @@ for (let i = 0; i < 3; i++) {
 await p.screenshot({ path: `${dir}/5-restaurant.png` });
 await p.locator('#btn-back').click();
 
-await p.locator('#btn-menu').click();
 await p.locator('#btn-leaders').click();
 await p.waitForTimeout(1200);
 await p.screenshot({ path: `${dir}/6-leaderboard.png` });
 await p.locator('#btn-leaders-back').click();
 
-await p.locator('#btn-menu').click();
 await p.locator('#btn-quests').click();
 await p.waitForTimeout(400);
 await p.screenshot({ path: `${dir}/7-quests.png` });
 await p.locator('#btn-quests-back').click();
+await p.locator('#btn-hub').click();
 
 await p.locator('#btn-fridge').click();
 await p.waitForTimeout(400);

@@ -358,9 +358,9 @@ async function doServe(id: number) {
 
   online.submit(state.served, state.level);
 
-  // A star flies to the menu button (the restaurant lives there).
-  fly(iconArt.gstar(), target, center($('#btn-menu')), { ms: 700, delay: 250, color: '#ffd23c', size: 30 })
-    .then(() => { restartAnim($('#btn-menu'), 'bump'); updateDinerBadge(); });
+  // A star flies to the hub button (the restaurant lives there).
+  fly(iconArt.gstar(), target, center(hubBtn), { ms: 700, delay: 250, color: '#ffd23c', size: 30 })
+    .then(() => { restartAnim(hubBtn, 'bump'); updateDinerBadge(); });
 
   // Coins fly to the HUD.
   const hudCoin = center($('#hud-coins img'));
@@ -825,10 +825,12 @@ addEventListener('pointercancel', (e) => {
   drag = null;
 });
 
-$('#btn-sound').addEventListener('click', () => {
-  $('#btn-sound').textContent = sfx.toggle() ? '🔇' : '🔊';
-});
-$('#btn-sound').textContent = sfx.muted ? '🔇' : '🔊';
+function showSound() {
+  $('#btn-sound').textContent = sfx.muted ? '🔇' : '🔊';
+  $('#btn-hub-sound').textContent = sfx.muted ? 'Sound: off' : 'Sound: on';
+}
+for (const id of ['#btn-sound', '#btn-hub-sound']) $(id).addEventListener('click', () => { sfx.toggle(); showSound(); });
+showSound();
 
 // Debug helpers for playtesting from the console.
 Object.assign(window, {
@@ -843,30 +845,46 @@ Object.assign(window, {
   },
 });
 
-// ------------------------------------------------------------------ HUD menu
+// ------------------------------------------------------------------ hub
 
-const menuEl = $('#menu');
-const menuBtn = $('#btn-menu');
+// The top-right button switches between the kitchen and the hub, which holds
+// the restaurant, daily quests, leaderboard and profile. The kitchen keeps
+// running underneath while the hub is open.
+const hubEl = $('#hub');
+const hubBtn = $('#btn-hub');
+const inHub = () => !hubEl.classList.contains('hidden');
 
-function setMenu(open: boolean) {
-  menuEl.classList.toggle('hidden', !open);
-  menuBtn.setAttribute('aria-expanded', String(open));
+function setHub(open: boolean) {
+  hubEl.classList.toggle('hidden', !open);
+  hubBtn.classList.toggle('in-hub', open);
+  hubBtn.setAttribute('aria-pressed', String(open));
+  hubBtn.setAttribute('aria-label', open ? 'Back to the kitchen' : 'Go to the hub: restaurant, quests, leaderboard and profile');
+  if (open) renderHub();
 }
 
-/** The menu button wears a "!" when quests or the diner have something ready. */
+/** The status line under each hub entry. */
+function renderHub() {
+  const ch = CHAPTERS[viewChapter()];
+  const done = ch.tasks.filter((t) => state.tasksDone.includes(t.id)).length;
+  $('#hub-diner-sub').textContent = $('#btn-diner').classList.contains('ready')
+    ? 'Ready to restore!'
+    : `${ch.name} · ${done} / ${ch.tasks.length}`;
+  const d = state.daily;
+  const ready = claimableQuests(state);
+  const finished = d ? d.quests.filter((q) => q.claimed || questDone(q)).length : 0;
+  $('#hub-quests-sub').textContent = `${ready ? `${ready} reward${ready > 1 ? 's' : ''} ready` : `${finished} of ${d?.quests.length ?? 0} done`} · new in ${untilNewQuests()}`;
+  $('#hub-profile-sub').textContent = online.code ? 'Saved to the cloud · recovery code made' : 'Cloud save · make a recovery code';
+}
+
+/** The hub button wears a "!" when quests or the diner have something ready. */
 function updateMenuBadge() {
-  menuBtn.classList.toggle('ready', $('#btn-quests').classList.contains('ready') || $('#btn-diner').classList.contains('ready'));
+  hubBtn.classList.toggle('ready', $('#btn-quests').classList.contains('ready') || $('#btn-diner').classList.contains('ready'));
+  if (inHub()) renderHub();
 }
 
-menuBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
+hubBtn.addEventListener('click', () => {
   sfx.pick();
-  setMenu(menuEl.classList.contains('hidden'));
-});
-// Picking an entry or tapping anywhere else closes the menu.
-menuEl.addEventListener('click', () => setMenu(false));
-document.addEventListener('pointerdown', (e) => {
-  if (!menuEl.classList.contains('hidden') && !(e.target as Element).closest('.hud-menu')) setMenu(false);
+  setHub(!inHub());
 });
 
 // ------------------------------------------------------------------ diner
@@ -1191,7 +1209,7 @@ function updateQuestBadge() {
   $('#btn-quests').classList.toggle('ready', n > 0);
   updateMenuBadge();
   if (questsReady >= 0 && n > questsReady && questsEl.classList.contains('hidden')) {
-    restartAnim($('#btn-menu'), 'bump');
+    restartAnim(hubBtn, 'bump');
     toast('📝 Quest complete! Claim your reward.');
   }
   questsReady = n;
@@ -1324,6 +1342,7 @@ async function makeCode() {
 }
 
 $('#hud-level').addEventListener('click', openProfile);
+$('#btn-profile').addEventListener('click', openProfile);
 $('#btn-profile-from-board').addEventListener('click', () => { leadersEl.classList.add('hidden'); openProfile(); });
 $('#btn-profile-back').addEventListener('click', () => profileEl.classList.add('hidden'));
 $('#btn-save-now').addEventListener('click', () => {
@@ -1605,6 +1624,7 @@ async function boot() {
     // New quests at midnight.
     if (ensureDaily(state)) { questsReady = 0; persist(); }
     if (!questsEl.classList.contains('hidden')) $('#quests-sub').textContent = `New quests in ${untilNewQuests()}`;
+    if (inHub()) renderHub();
   }, 1000);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;

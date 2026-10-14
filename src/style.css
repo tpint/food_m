@@ -116,7 +116,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 .pill.bump { animation: bump .35s ease; }
 @media (max-width: 400px) {
   #hud { gap: 4px; }
-  #hud #btn-menu { width: 36px; height: 36px; }
+  #hud #btn-hub { width: 38px; height: 38px; }
   .pill { padding-right: 6px; font-size: 14px; }
   .pill img { width: 30px; height: 30px; margin-left: -8px; }
 }
@@ -379,34 +379,51 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 }
 .menu-btn.bump { animation: bump .35s ease; }
 
-/* One menu button gathers daily quests, the leaderboard and the diner to save HUD space.
-   It shows three stripes; the "!" appears when any of them has something ready. */
-.hud-menu { position: relative; flex: none; }
-#btn-menu { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; }
-#btn-menu .burger { display: flex; flex-direction: column; gap: 4px; width: 20px; }
-#btn-menu .burger i { display: block; height: 3.5px; border-radius: 2px; background: #fff; box-shadow: 0 1px 0 var(--violet-lo); }
-#btn-menu[aria-expanded='true'] { box-shadow: 0 0 0 3px var(--gold), 0 2px 0 rgba(0,0,0,.35); }
-.menu {
-  position: absolute; right: 0; top: calc(100% + 8px); z-index: 25; min-width: 210px; padding: 6px;
-  display: flex; flex-direction: column; gap: 4px; border-radius: 16px;
-  background: linear-gradient(#ffffff, #eef4ff); border: 3px solid var(--chip-edge);
-  box-shadow: 0 4px 0 var(--frame), 0 10px 22px rgba(30, 60, 140, .35);
-  animation: menu-in .18s ease-out; transform-origin: top right;
+/* The top-right button switches between the kitchen and the hub. Its icon shows
+   where a tap takes you: the restaurant (to the hub) or a chef's hat (back to cooking).
+   The "!" appears in the kitchen when quests or the diner have something ready. */
+#hud { position: relative; z-index: 6; }
+#btn-hub { display: grid; place-items: center; width: 42px; height: 42px; padding: 2px; }
+#btn-hub img { grid-area: 1 / 1; width: 34px; height: 34px; }
+#btn-hub .to-kitchen, #btn-hub.in-hub .to-hub { display: none; }
+#btn-hub.in-hub .to-kitchen { display: block; }
+#btn-hub.in-hub { border-color: var(--wood-hi); background: linear-gradient(var(--frame-hi), var(--frame)); }
+#btn-hub.in-hub.ready::after { display: none; }
+
+/* The hub covers the customers, board and info bar (which keep running underneath);
+   the HUD stays on top. */
+#hub {
+  position: absolute; inset: 0; z-index: 5; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: calc(max(8px, env(safe-area-inset-top)) + 56px) 10px max(16px, env(safe-area-inset-bottom));
+  background: linear-gradient(var(--violet), var(--violet-hi) 40%, var(--chip-b));
+  animation: hub-in .22s ease-out;
 }
-.menu::before { content: ''; position: absolute; right: 14px; top: -9px; border: 7px solid transparent; border-bottom-color: var(--chip-edge); border-top: 0; }
-@keyframes menu-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
-.menu-item {
-  position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; border: 0; border-radius: 12px; cursor: pointer;
-  background: transparent; font: 700 15px var(--font); color: var(--ink); text-align: left;
+@keyframes hub-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+.hub-title { margin: 0; padding: 0 4px; font-size: 28px; font-weight: 700; }
+.hub-list { display: flex; flex-direction: column; gap: 10px; }
+.hub-row {
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; cursor: pointer;
+  border-radius: 20px; border: 3px solid var(--wood); background: linear-gradient(var(--parch-hi), var(--parch));
+  box-shadow: 0 4px 0 var(--wood-lo); font: inherit; color: var(--ink); text-align: left;
 }
-.menu-item:hover, .menu-item:focus-visible { background: #e3ecfd; outline: none; }
-.menu-item img { width: 36px; height: 36px; flex: none; }
-.menu-item span:not(.star-badge) { flex: 1; white-space: nowrap; }
-.menu-item .star-badge { position: static; }
-.menu-item.ready::after {
-  content: '!'; width: 18px; height: 18px; border-radius: 50%; flex: none;
-  display: grid; place-items: center; font: 700 12px var(--font); color: #fff;
+.hub-row:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--wood-lo); }
+.hub-row:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 2px; }
+.hub-row img { width: 60px; height: 60px; flex: none; }
+.hub-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hub-text b { font-size: 19px; }
+.hub-text small { font-size: 13px; color: var(--ink-soft); }
+.hub-row .star-badge { position: static; flex: none; }
+.hub-more { font-size: 26px; font-weight: 700; color: var(--ink-soft); }
+.hub-row.ready::after {
+  content: '!'; width: 22px; height: 22px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font: 700 13px var(--font); color: #fff;
   background: var(--danger); border: 2px solid #fff; animation: bump 1s ease-in-out infinite;
+}
+.hub-foot { display: flex; gap: 10px; margin-top: auto; }
+.hub-small {
+  flex: 1; height: 48px; border-radius: 16px; border: 3px solid var(--chip-edge); background: #fff; cursor: pointer;
+  font: 600 15px var(--font); color: var(--ink);
 }
 
 #diner {

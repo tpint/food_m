@@ -19,17 +19,23 @@
       <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val stroked">100</span><small class="timer"></small></div>
       <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
       <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
-      <div class="hud-menu">
-        <button class="menu-btn" id="btn-menu" aria-label="Menu: daily quests, leaderboard and restaurant" aria-expanded="false" aria-controls="menu">
-          <span class="burger" aria-hidden="true"><i></i><i></i><i></i></span>
-        </button>
-        <div id="menu" class="menu hidden" role="menu">
-          <button class="menu-item" id="btn-quests" role="menuitem"><img data-icon="pad" alt="" /><span>Daily quests</span></button>
-          <button class="menu-item" id="btn-leaders" role="menuitem"><img data-icon="trophy" alt="" /><span>Leaderboard</span></button>
-          <button class="menu-item" id="btn-diner" role="menuitem"><img data-icon="diner" alt="" /><span>Restaurant</span><span class="star-badge stroked" id="star-badge">0</span></button>
-        </div>
-      </div>
+      <button class="menu-btn" id="btn-hub" aria-label="Go to the hub: restaurant, quests, leaderboard and profile" aria-pressed="false" aria-controls="hub">
+        <img class="to-hub" data-icon="diner" alt="" /><img class="to-kitchen" data-icon="toque" alt="" />
+      </button>
     </header>
+
+    <section id="hub" class="hidden" aria-label="Hub">
+      <h1 class="hub-title stroked">Hub</h1>
+      <div class="hub-list">
+        <button class="hub-row" id="btn-diner"><img data-icon="diner" alt="" /><span class="hub-text"><b>Restaurant</b><small id="hub-diner-sub"></small></span><span class="star-badge stroked" id="star-badge">0</span></button>
+        <button class="hub-row" id="btn-quests"><img data-icon="pad" alt="" /><span class="hub-text"><b>Daily quests</b><small id="hub-quests-sub"></small></span></button>
+        <button class="hub-row" id="btn-leaders"><img data-icon="trophy" alt="" /><span class="hub-text"><b>Leaderboard</b><small>See how you rank against other chefs</small></span><span class="hub-more" aria-hidden="true">›</span></button>
+        <button class="hub-row" id="btn-profile"><img data-icon="chef" alt="" /><span class="hub-text"><b>Profile</b><small id="hub-profile-sub"></small></span><span class="hub-more" aria-hidden="true">›</span></button>
+      </div>
+      <div class="hub-foot">
+        <button class="hub-small" id="btn-hub-sound">Sound: on</button>
+      </div>
+    </section>
 
     <div id="xpbar"><div id="xpfill"></div><span id="xptext" class="stroked"></span></div>
 
@@ -57,7 +63,7 @@
   <section id="diner" class="hidden" aria-label="Restaurant">
     <div class="sheet-inner">
       <header class="sheet-head">
-        <button class="round" id="btn-back" aria-label="Back to the board">←</button>
+        <button class="round" id="btn-back" aria-label="Back">←</button>
         <div class="sheet-title">
           <small id="diner-chapter">Chapter 1</small>
           <b id="diner-name" class="stroked">The Dusty Dining Room</b>
@@ -74,7 +80,7 @@
   <section id="leaders" class="hidden" aria-label="Leaderboard">
     <div class="sheet-inner">
       <header class="sheet-head">
-        <button class="round" id="btn-leaders-back" aria-label="Back to the board">←</button>
+        <button class="round" id="btn-leaders-back" aria-label="Back">←</button>
         <div class="sheet-title">
           <small id="leaders-sub">Customers served</small>
           <b class="stroked">Leaderboard</b>
@@ -135,7 +141,7 @@
   <section id="quests" class="hidden" aria-label="Daily quests">
     <div class="sheet-inner">
       <header class="sheet-head">
-        <button class="round" id="btn-quests-back" aria-label="Back to the board">←</button>
+        <button class="round" id="btn-quests-back" aria-label="Back">←</button>
         <div class="sheet-title">
           <small id="quests-sub">New quests in 12h</small>
           <b class="stroked">Daily quests</b>
@@ -149,7 +155,7 @@
   <section id="profile" class="hidden" aria-label="Profile">
     <div class="sheet-inner">
       <header class="sheet-head">
-        <button class="round" id="btn-profile-back" aria-label="Back to the board">←</button>
+        <button class="round" id="btn-profile-back" aria-label="Back">←</button>
         <div class="sheet-title">
           <small>Your chef profile</small>
           <b class="stroked" id="profile-name">Chef</b>
