@@ -1138,6 +1138,20 @@ export const iconArt = {
     s.add(shape('M66 88L88 50L94 54L72 92L64 94Z', s.rad(P.coin), P.coin.ink, 'stroke-width="2.4"'));
     s.add('<path d="M64 94L66 88L72 92Z" fill="#3a2a1a"/>');
   }),
+  /** The lucky wheel. */
+  wheel: () => toUrl('icon-wheel', (s) => {
+    s.shadow(34);
+    s.add(shape('M38 60L62 60L70 94L30 94Z', s.rad(P.wood), P.wood.ink));
+    s.add(circ(50, 46, 40, '#fff', '#8a2a2a', 'stroke-width="3"'));
+    const cols = ['#ff6fb8', '#ffd23c', '#6fb8ff', '#7ee08e'];
+    for (let k = 0; k < 8; k++) {
+      const a0 = (k * Math.PI) / 4 - Math.PI / 2, a1 = a0 + Math.PI / 4;
+      const p = (a: number) => `${(50 + 36 * Math.cos(a)).toFixed(1)} ${(46 + 36 * Math.sin(a)).toFixed(1)}`;
+      s.add(`<path d="M50 46L${p(a0)}A36 36 0 0 1 ${p(a1)}Z" fill="${cols[k % 4]}" stroke="#fff" stroke-width="1.5"/>`);
+    }
+    s.add(circ(50, 46, 7, s.rad(P.coin), P.coin.ink, 'stroke-width="2"'));
+    s.add(shape('M43 2L57 2L50 16Z', '#e8403a', '#5a0a0a', 'stroke-width="2"'));
+  }),
   /** The fridge where spare pieces are kept. */
   fridge: () => toUrl('icon-fridge', (s) => {
     s.shadow(34);

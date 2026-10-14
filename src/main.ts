@@ -3,8 +3,8 @@ import { CHAINS, ChainId, GEN_LEVELS, GENERATORS, GenId, isFood, MAX_ENERGY, SPA
 import {
   GameState, MERGE_COUNT, Customer, Piece, canUpgrade, currentTask, restore, serve, collect, findOrder, genLevel, isWanted, load, movePiece, msToNextEnergy,
   item, newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
-  FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge,
-  DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
+  FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge, takeFromRewardBag,
+  SPINS_PER_DAY, WHEEL, spinWheel, spinsLeft, DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, ensureDaily, msToNextDay, questDone,
   TutorialStep, advanceTutorial, skipTutorial, tutorialStep, discover, gen, isDiscovered,
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, customerImg, pieceArt } from './render/art';
@@ -39,6 +39,7 @@ function persist(changed = true) {
   if (changed) state.savedAt = Date.now();
   discover(state);
   updateFridgeCount();
+  updateRewardBag();
   updateQuestBadge();
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
@@ -873,6 +874,9 @@ function renderHub() {
   const ready = claimableQuests(state);
   const finished = d ? d.quests.filter((q) => q.claimed || questDone(q)).length : 0;
   $('#hub-quests-sub').textContent = `${ready ? `${ready} reward${ready > 1 ? 's' : ''} ready` : `${finished} of ${d?.quests.length ?? 0} done`} · new in ${untilNewQuests()}`;
+  const spins = spinsLeft(state);
+  $('#btn-wheel').classList.toggle('ready', spins > 0);
+  $('#hub-wheel-sub').textContent = spins ? `${spins} free spin${spins > 1 ? 's' : ''} left today` : `New spins in ${untilNewQuests()}`;
   $('#hub-profile-sub').textContent = online.code ? 'Saved to the cloud · recovery code made' : 'Cloud save · make a recovery code';
 }
 
@@ -985,6 +989,7 @@ function doRestore() {
     renderBoard();
     for (const i of r.upgraded) renderCell(i, 'merge');
     for (const i of r.placed) renderCell(i, 'pop');
+    if (state.rewardBag?.length) toast('Board full! Extra rewards are waiting in your reward bag.', true, 2200);
     renderCustomers();
   }
   setTimeout(() => tell(lines), 700);
@@ -1102,6 +1107,33 @@ function updateFridgeCount() {
   el.textContent = `${n}/${max}`;
   el.classList.toggle('full', n >= max);
 }
+
+// Rewards that didn't fit on the board wait here and come out oldest first; the player can't put anything in.
+const bagBtn = $('#btn-bag');
+
+function updateRewardBag() {
+  const bag = state.rewardBag ?? [], bagBtn = $('#btn-bag');
+  bagBtn.classList.toggle('hidden', !bag.length);
+  if (!bag.length) return;
+  $<HTMLImageElement>('#bag-img').src = pieceArt(bag[0]);
+  $('#bag-count').textContent = String(bag.length);
+  bagBtn.setAttribute('aria-label', `Reward bag: ${bag.length} waiting. Tap to take out ${pieceName(bag[0])}`);
+}
+
+bagBtn.addEventListener('click', () => {
+  const r = takeFromRewardBag(state);
+  if (!r.ok) {
+    sfx.error();
+    if (r.reason === 'full') toast('The board is full! Merge or sell something first.');
+    return;
+  }
+  sfx.spawn();
+  renderCell(r.at, 'pop');
+  restartAnim(bagBtn, 'bump');
+  renderCustomers();
+  renderBoard();
+  persist();
+});
 
 /** Drop the dragged piece into the fridge. */
 function doStore(i: number) {
@@ -1292,6 +1324,7 @@ function replaceState(next: GameState) {
   questsReady = claimableQuests(state);
   updateQuestBadge();
   updateFridgeCount();
+  updateRewardBag();
   showTutorial(state.tutorial ? tutorialStep(state) : null);
 }
 
@@ -1585,9 +1618,72 @@ $('#btn-tut-skip').addEventListener('click', () => {
 
 // ------------------------------------------------------------------ boot
 
+// ------------------------------------------------------------------ lucky wheel
+
+const wheelEl = $('#wheel');
+const wheelDisc = $('#wheel-disc');
+const SLICE = 360 / WHEEL.length;
+const WHEEL_COLORS = ['#ff6fb8', '#ffb43c', '#6fb8ff', '#7ee08e'];
+/** The disc's total rotation so far (degrees), so each spin keeps turning the same way. */
+let wheelTurn = 0;
+let spinning = false;
+
+function buildWheel() {
+  wheelDisc.style.background = `conic-gradient(${WHEEL.map((_, k) => `${WHEEL_COLORS[k % WHEEL_COLORS.length]} ${k * SLICE}deg ${(k + 1) * SLICE}deg`).join(', ')})`;
+  wheelDisc.innerHTML = WHEEL.map((w, k) => `<span class="wheel-label stroked" style="transform: rotate(${(k + 0.5) * SLICE}deg)">`
+    + `<img src="${w.gems ? iconArt.gem() : iconArt.energy()}" alt="${w.gems ? 'gems' : 'energy'}">${w.gems || w.energy}</span>`).join('');
+}
+
+function renderWheel() {
+  const n = spinsLeft(state);
+  $('#wheel-sub').textContent = n ? `${n} of ${SPINS_PER_DAY} spins left today` : `No spins left · new spins in ${untilNewQuests()}`;
+  $<HTMLButtonElement>('#btn-spin').disabled = spinning || n <= 0;
+}
+
+function openWheel() {
+  sfx.pick();
+  if (!wheelDisc.childElementCount) buildWheel();
+  renderWheel();
+  revealWhenReady(wheelEl);
+}
+
+$('#btn-spin').addEventListener('click', () => {
+  if (spinning) return;
+  const r = spinWheel(state);
+  if (!r) { sfx.error(); renderWheel(); return; }
+  spinning = true;
+  persist();
+  sfx.pick();
+  // Turn at least five full times, ending with the winning slice under the pointer.
+  const stop = 360 - (r.slice + 0.5) * SLICE;
+  wheelTurn += 360 * 5 + ((stop - wheelTurn) % 360 + 360) % 360;
+  wheelDisc.style.transform = `rotate(${wheelTurn}deg)`;
+  renderWheel();
+  const done = () => {
+    if (!spinning) return;
+    spinning = false;
+    sfx.levelUp();
+    const at = center(wheelDisc);
+    shower(at.x, at.y, ['#ffd147', '#ff6fb8', '#fff']);
+    toast(r.prize.gems ? `+${r.prize.gems} gems!` : `+${r.prize.energy} energy!`, true, 1600);
+    renderWheel();
+    renderHud();
+    if (inHub()) renderHub();
+  };
+  // Without a transition (e.g. reduced motion) there is no transitionend.
+  if (getComputedStyle(wheelDisc).transitionDuration === '0s') done();
+  else {
+    // Closing the panel mid-spin cancels the transition; the prize is already paid either way.
+    wheelDisc.addEventListener('transitionend', done, { once: true });
+    wheelDisc.addEventListener('transitioncancel', done, { once: true });
+  }
+});
+$('#btn-wheel').addEventListener('click', openWheel);
+$('#btn-wheel-back').addEventListener('click', () => wheelEl.classList.add('hidden'));
+
 // Tapping empty space on a full-screen panel (the dimmed backdrop, the gaps between
 // cards, the header) works like its back button. Taps on cards and controls don't.
-for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back']]) {
+for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back'], ['#wheel', '#btn-wheel-back']]) {
   $(panel).addEventListener('click', (e) => {
     const t = e.target as Element;
     if (t === e.currentTarget || t.matches('.sheet-inner, .sheet-head, .sheet-title, .sheet-title > *, .fridge-hint')) $(back).click();
@@ -1617,6 +1713,7 @@ async function boot() {
   questsReady = claimableQuests(state);
   updateQuestBadge();
   updateFridgeCount();
+  updateRewardBag();
 
   setInterval(() => {
     // Energy refilling on its own is not a player change.

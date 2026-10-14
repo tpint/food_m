@@ -3,7 +3,7 @@ import {
   canUpgrade, serve, collect, mergeYield, findOrder, gen, genLevel, item, movePiece, nearestEmpty, newGame, spawnFrom, tickEnergy,
   upgradeGen, GameState, currentTask, restore, load, save,
   makeCustomer, validateSave, storeInFridge, takeFromFridge, buyFridgeSlot, fridgeSlots, fridgeSlotCost, FRIDGE_START_SLOTS, FRIDGE_MAX_SLOTS, ensureDaily, makeQuest, claimQuest, claimDailyBonus, claimableQuests, dayKey, msToNextDay, DAILY_BONUS,
-  tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS, discover, isDiscovered,
+  grantPiece, takeFromRewardBag, spinWheel, spinsLeft, SPINS_PER_DAY, WHEEL, tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS, discover, isDiscovered,
 } from '../src/game/state';
 import { ACTIVE_CUSTOMERS, ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
@@ -479,6 +479,69 @@ describe('inventory fridge', () => {
     expect(buyFridgeSlot(s)).toEqual({ ok: false, reason: 'max' });
     s.fridgeSlots = FRIDGE_START_SLOTS; s.gems = 0;
     expect(buyFridgeSlot(s)).toEqual({ ok: false, reason: 'gems', cost: 10 });
+  });
+});
+
+describe('reward bag', () => {
+  it('puts rewards on the board, and only into the bag when the board is full', () => {
+    const s = empty();
+    expect(grantPiece(s, item('coin', 2))).toBeGreaterThanOrEqual(0);
+    expect(s.rewardBag ?? []).toEqual([]);
+    s.board.forEach((c) => { c.piece = item('grill', 1); });
+    expect(grantPiece(s, item('coin', 3))).toBe(-1);
+    expect(grantPiece(s, item('energy', 2))).toBe(-1);
+    expect(s.rewardBag).toEqual([item('coin', 3), item('energy', 2)]);
+  });
+
+  it('hands rewards back first in, first out', () => {
+    const s = empty();
+    s.rewardBag = [item('coin', 3), item('energy', 2)];
+    expect(takeFromRewardBag(s, 10)).toEqual({ ok: true, at: 10, piece: item('coin', 3) });
+    expect(s.rewardBag).toEqual([item('energy', 2)]);
+    s.board.forEach((c) => { c.piece = item('grill', 1); });
+    expect(takeFromRewardBag(s)).toEqual({ ok: false, reason: 'full' });
+    expect(s.rewardBag).toHaveLength(1);
+    s.rewardBag = [];
+    expect(takeFromRewardBag(s)).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  it('bags chapter reward items that do not fit on a full board', () => {
+    const s = empty();
+    s.board.forEach((c) => { c.piece = item('grill', 1); });
+    s.stars = 999;
+    let last;
+    for (let i = 0; i < CHAPTERS[0].tasks.length; i++) last = restore(s);
+    expect(last!.ok && last!.placed).toEqual([]);
+    expect(s.rewardBag).toEqual([item('coin', 3), item('energy', 2)]);
+  });
+});
+
+describe('lucky wheel', () => {
+  const noon = new Date(2026, 9, 14, 12).getTime();
+
+  it('gives five spins a day, each paying out energy or gems', () => {
+    const s = empty();
+    const energy = s.energy, gems = s.gems;
+    let got = 0;
+    for (let k = 0; k < SPINS_PER_DAY; k++) {
+      expect(spinsLeft(s, noon)).toBe(SPINS_PER_DAY - k);
+      const r = spinWheel(s, seeded(k + 1), noon)!;
+      expect(r.prize).toBe(WHEEL[r.slice]);
+      got += r.prize.energy + r.prize.gems;
+    }
+    expect(s.energy - energy + s.gems - gems).toBe(got);
+    expect(spinsLeft(s, noon)).toBe(0);
+    expect(spinWheel(s, seeded(), noon)).toBeNull();
+    expect(spinsLeft(s, noon + 24 * 3600_000)).toBe(SPINS_PER_DAY);
+    expect(spinWheel(s, seeded(), noon + 24 * 3600_000)).not.toBeNull();
+    expect(s.spins!.used).toBe(1);
+  });
+
+  it('lands on slices by weight', () => {
+    const s = empty();
+    expect(spinWheel(s, () => 0, noon)!.slice).toBe(0);
+    expect(spinWheel(s, () => 0.9999, noon)!.slice).toBe(WHEEL.length - 1);
+    expect(WHEEL.every((w) => (w.energy > 0) !== (w.gems > 0))).toBe(true);
   });
 });
 

@@ -557,7 +557,12 @@ body.tutorial #customers-wrap, body.tutorial #bottom { filter: brightness(.82) s
 #rename-input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 10px; border: 2px solid var(--wood); font: 600 15px var(--font); color: var(--ink); background: #fffaf0; }
 #rename-input:focus-visible { outline: 3px solid var(--violet-hi); }
 #rename-form .btn { padding: 6px 10px; }
-.me-card .round { background: linear-gradient(#a08060, #6a4a2a); border-color: var(--wood-lo); }
+#btn-rename {
+  width: 38px; height: 38px; font-size: 20px; font-weight: 700; line-height: 1; color: #fff;
+  background: linear-gradient(var(--violet-hi), var(--violet)); border: 2px solid var(--violet-lo);
+  box-shadow: 0 3px 0 var(--violet-lo); text-shadow: 0 1px 1px rgba(0, 0, 0, .45);
+}
+#btn-rename:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--violet-lo); }
 
 .board-msg { margin: 0; padding: 14px; border-radius: 14px; text-align: center; color: #f0e6ff; background: rgba(20, 50, 120, .35); font-size: 14px; line-height: 1.4; }
 .board-msg button { margin-top: 8px; }
@@ -596,6 +601,14 @@ body.tutorial #customers-wrap, body.tutorial #bottom { filter: brightness(.82) s
   display: grid; place-items: center; font-size: 11px;
   background: linear-gradient(var(--violet-hi), var(--violet)); border: 1.5px solid var(--violet-lo); box-shadow: 0 0 0 1.5px #fff;
 }
+#btn-bag {
+  position: relative; flex: none; width: 56px; padding: 6px; border-radius: 16px; cursor: pointer;
+  border: 3px dashed var(--gold-lo); background: linear-gradient(#fff6d8, #ffe39a);
+  box-shadow: 0 4px 0 var(--gold-lo), 0 8px 14px rgba(30, 60, 140, .3);
+}
+#btn-bag img { width: 100%; height: 100%; object-fit: contain; }
+#btn-bag.bump { animation: bump .35s ease; }
+#btn-bag .fridge-count { min-width: 20px; background: linear-gradient(var(--gold-hi), var(--gold)); border-color: var(--gold-lo); color: var(--ink); }
 .fridge-count.full { background: linear-gradient(#ff8a7a, var(--danger)); border-color: #8a1e14; }
 
 #fridge { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
@@ -805,3 +818,29 @@ body.loading-art::after {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ------------------------------------------------------------ lucky wheel */
+
+#wheel { position: fixed; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: rgba(150, 60, 50, .5); backdrop-filter: blur(3px); animation: diner-in .3s ease-out; }
+.wheel-box { position: relative; width: min(84vw, 340px); aspect-ratio: 1; margin: 18px auto 4px; }
+.wheel-pointer {
+  position: absolute; z-index: 1; left: 50%; top: -14px; width: 32px; height: 36px; transform: translateX(-50%);
+  background: var(--frame); clip-path: polygon(0 0, 100% 0, 50% 100%); filter: drop-shadow(0 2px 0 var(--frame-lo));
+}
+.wheel-disc {
+  position: absolute; inset: 0; border-radius: 50%; border: 6px solid var(--gold-lo);
+  box-shadow: 0 0 0 4px #fff, 0 8px 0 var(--frame-lo), 0 12px 24px rgba(30, 60, 140, .35);
+  transition: transform 3.6s cubic-bezier(.12, .7, .1, 1);
+}
+.wheel-disc::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 18%; height: 18%; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--gold-hi), var(--gold) 60%, var(--gold-lo)); border: 3px solid #8a5a10;
+}
+.wheel-label {
+  position: absolute; left: 50%; top: 0; height: 50%; width: 56px; margin-left: -28px; transform-origin: 50% 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding-top: 12%;
+  font-size: 17px; color: #fff;
+}
+.wheel-label img { width: 30px; height: 30px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+.wheel-spin { display: block; margin: 0 auto; padding: 10px 40px; font-size: 22px; }
+.wheel-spin:disabled { filter: grayscale(.8); opacity: .7; cursor: default; }
