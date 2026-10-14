@@ -19,7 +19,7 @@
       <div class="pill" id="hud-energy"><img data-icon="energy" alt="" /><span class="val stroked">100</span><small class="timer"></small></div>
       <div class="pill" id="hud-coins"><img data-icon="coin" alt="" /><span class="val stroked">0</span></div>
       <div class="pill" id="hud-gems"><img data-icon="gem" alt="" /><span class="val stroked">0</span></div>
-      <button class="menu-btn" id="btn-hub" aria-label="Go to the hub: restaurant, quests, leaderboard and profile" aria-pressed="false" aria-controls="hub">
+      <button class="menu-btn" id="btn-hub" aria-label="Go to the hub: restaurant, quests, leaderboard, profile and settings" aria-pressed="false" aria-controls="hub">
         <img class="to-hub" data-icon="diner" alt="" /><img class="to-kitchen" data-icon="toque" alt="" />
       </button>
     </header>
@@ -33,6 +33,7 @@
         <button class="hub-row" id="btn-wheel"><img data-icon="wheel" alt="" /><span class="hub-text"><b>Lucky wheel</b><small id="hub-wheel-sub"></small></span></button>
         <button class="hub-row" id="btn-leaders"><img data-icon="trophy" alt="" /><span class="hub-text"><b>Leaderboard</b><small>See how you rank against other chefs</small></span><span class="hub-more" aria-hidden="true">›</span></button>
         <button class="hub-row" id="btn-profile"><img data-icon="chef" alt="" /><span class="hub-text"><b>Profile</b><small id="hub-profile-sub"></small></span><span class="hub-more" aria-hidden="true">›</span></button>
+        <button class="hub-row" id="btn-settings"><img data-icon="gear" alt="" /><span class="hub-text"><b>Settings</b><small id="hub-settings-sub"></small></span><span class="hub-more" aria-hidden="true">›</span></button>
       </div>
       <div class="hub-foot">
         <button class="hub-small" id="btn-hub-sound">Sound: on</button>
@@ -102,7 +103,7 @@
         </div>
         <div class="me-score"><span class="stroked" id="me-score">0</span><small id="me-unit">customers</small></div>
       </div>
-      <button class="link-btn" id="btn-profile-from-board">Change your name or keep your progress safe: profile →</button>
+      <button class="link-btn" id="btn-settings-from-board">Change your name or keep your progress safe: settings →</button>
       <p class="board-msg hidden" id="board-msg"></p>
       <ol id="board-list"></ol>
     </div>
@@ -194,6 +195,41 @@
         <div class="sheet-title">
           <small>Your chef profile</small>
           <b class="stroked" id="profile-name">Chef</b>
+        </div>
+        <button class="round" id="btn-settings-from-profile" aria-label="Settings"><img data-icon="gear" alt="" /></button>
+      </header>
+
+      <div class="panel stat-hero">
+        <div class="stat-big"><b id="stat-level">1</b><small>Level</small></div>
+        <div class="stat-big"><b id="stat-served">0</b><small>Customers served</small></div>
+        <div class="stat-big"><b id="stat-chapter">1</b><small>Chapter</small></div>
+      </div>
+
+      <div class="panel">
+        <h2>Favourite customer</h2>
+        <div class="stat-feature" id="stat-fav"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Best dish</h2>
+        <div class="stat-feature" id="stat-dish"></div>
+      </div>
+
+      <div class="panel">
+        <h2>In the kitchen</h2>
+        <dl class="stat-list" id="stat-list"></dl>
+        <p class="stat-since" id="stat-since"></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="settings" class="hidden" aria-label="Settings">
+    <div class="sheet-inner">
+      <header class="sheet-head">
+        <button class="round" id="btn-settings-back" aria-label="Back">←</button>
+        <div class="sheet-title">
+          <small>Name, saves and account</small>
+          <b class="stroked">Settings</b>
         </div>
       </header>
 

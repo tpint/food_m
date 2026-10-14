@@ -1,12 +1,12 @@
 import './style.css';
-import { CHAINS, ChainId, GEN_LEVELS, GENERATORS, GenId, isFood, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
+import { CHAINS, CRITIC, CUSTOMERS, ChainId, GEN_LEVELS, GENERATORS, GenId, isFood, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel } from './game/config';
 import {
   GameState, MERGE_COUNT, Customer, Piece, canUpgrade, currentTask, restore, serve, collect, findOrder, genLevel, isWanted, load, movePiece, msToNextEnergy,
   item, newGame, save, sell, sellValue, spawnFrom, tickEnergy, upgradeGen, validateSave,
   FRIDGE_MAX_SLOTS, fridgeSlotCost, fridgeSlots, buyFridgeSlot, storeInFridge, takeFromFridge, takeFromRewardBag,
   CHECKIN_REWARDS, FREE_MAKEUPS, checkIn, checkInReward, checkInStreak, checkedIn, checkedInToday, makeUpCost, makeUpDay, missedDays, dayKey,
   SPINS_PER_DAY, WHEEL, spinWheel, spinsLeft, DAILY_BONUS, Quest, claimDailyBonus, claimQuest, claimableQuests, WEEKLY_CHESTS, claimWeeklyChest, msToNextWeek, weekly, ensureDaily, msToNextDay, questDone,
-  TutorialStep, advanceTutorial, skipTutorial, tutorialStep, discover, gen, isDiscovered,
+  TutorialStep, advanceTutorial, skipTutorial, tutorialStep, discover, gen, isDiscovered, stats, favouriteCustomer,
 } from './game/state';
 import { generatorArt, iconArt, itemArt, loadArtOverrides, customerImg, pieceArt } from './render/art';
 import { burst, cookCharge, puff, shower, trail, yum } from './render/fx';
@@ -850,7 +850,7 @@ Object.assign(window, {
 // ------------------------------------------------------------------ hub
 
 // The top-right button switches between the kitchen and the hub, which holds
-// the restaurant, daily quests, leaderboard and profile. The kitchen keeps
+// the restaurant, daily quests, leaderboard, profile and settings. The kitchen keeps
 // running underneath while the hub is open.
 const hubEl = $('#hub');
 const hubBtn = $('#btn-hub');
@@ -860,7 +860,7 @@ function setHub(open: boolean) {
   hubEl.classList.toggle('hidden', !open);
   hubBtn.classList.toggle('in-hub', open);
   hubBtn.setAttribute('aria-pressed', String(open));
-  hubBtn.setAttribute('aria-label', open ? 'Back to the kitchen' : 'Go to the hub: restaurant, quests, leaderboard and profile');
+  hubBtn.setAttribute('aria-label', open ? 'Back to the kitchen' : 'Go to the hub: restaurant, quests, leaderboard, profile and settings');
   if (open) renderHub();
 }
 
@@ -882,7 +882,8 @@ function renderHub() {
   const spins = spinsLeft(state);
   $('#btn-wheel').classList.toggle('ready', spins > 0);
   $('#hub-wheel-sub').textContent = spins ? `${spins} free spin${spins > 1 ? 's' : ''} left today` : `New spins in ${untilNewQuests()}`;
-  $('#hub-profile-sub').textContent = online.code ? 'Saved to the cloud · recovery code made' : 'Cloud save · make a recovery code';
+  $('#hub-profile-sub').textContent = `${online.name} · level ${state.level}`;
+  $('#hub-settings-sub').textContent = online.code ? 'Saved to the cloud · recovery code made' : 'Cloud save · make a recovery code';
 }
 
 /** The hub button wears a "!" when quests or the diner have something ready. */
@@ -1305,9 +1306,9 @@ questsEl.addEventListener('click', (e) => {
 $('#btn-quests').addEventListener('click', openQuests);
 $('#btn-quests-back').addEventListener('click', () => questsEl.classList.add('hidden'));
 
-// ------------------------------------------------------------------ profile & cloud save
+// ------------------------------------------------------------------ settings & cloud save
 
-const profileEl = $('#profile');
+const settingsEl = $('#settings');
 
 /** Swap in a different save (cloud or recovered) and redraw everything. */
 function replaceState(next: GameState) {
@@ -1346,10 +1347,9 @@ function renderCloudStatus() {
     ? "Couldn't reach the cloud. Your progress is safe on this device and will upload when you're back online."
     : c.savedAt ? `Saved to the cloud ${ago(c.savedAt)}.` : 'Your progress uploads to the cloud automatically as you play.';
 }
-online.onCloudChange = () => { if (!profileEl.classList.contains('hidden')) renderCloudStatus(); };
+online.onCloudChange = () => { if (!settingsEl.classList.contains('hidden')) renderCloudStatus(); };
 
-function renderProfile() {
-  $('#profile-name').textContent = online.name;
+function renderSettings() {
   $<HTMLInputElement>('#rename-input').value = online.name;
   renderCloudStatus();
   const code = online.code;
@@ -1361,17 +1361,17 @@ function renderProfile() {
   $('#reset-confirm').classList.add('hidden');
 }
 
-function openProfile() {
+function openSettings() {
   sfx.pick();
-  profileEl.classList.remove('hidden');
-  renderProfile();
+  settingsEl.classList.remove('hidden');
+  renderSettings();
 }
 
 async function makeCode() {
   try {
     const code = await online.newCode();
     sfx.levelUp();
-    renderProfile();
+    renderSettings();
     toast(`Your recovery code: ${code}`, false, 2200);
   } catch {
     sfx.error();
@@ -1379,10 +1379,9 @@ async function makeCode() {
   }
 }
 
-$('#hud-level').addEventListener('click', openProfile);
-$('#btn-profile').addEventListener('click', openProfile);
-$('#btn-profile-from-board').addEventListener('click', () => { leadersEl.classList.add('hidden'); openProfile(); });
-$('#btn-profile-back').addEventListener('click', () => profileEl.classList.add('hidden'));
+$('#btn-settings').addEventListener('click', openSettings);
+$('#btn-settings-from-board').addEventListener('click', () => { leadersEl.classList.add('hidden'); openSettings(); });
+$('#btn-settings-back').addEventListener('click', () => settingsEl.classList.add('hidden'));
 $('#rename-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = $<HTMLInputElement>('#rename-input');
@@ -1392,7 +1391,6 @@ $('#rename-form').addEventListener('submit', async (e) => {
     await online.rename(input.value);
     sfx.pick();
     input.value = online.name;
-    $('#profile-name').textContent = online.name;
     toast(`You are now ${online.name}`);
   } catch (err) {
     sfx.error();
@@ -1445,7 +1443,7 @@ $('#btn-restore-yes').addEventListener('click', async () => {
     const next = validateSave(res.save);
     if (next) replaceState(next);
     $<HTMLInputElement>('#restore-input').value = '';
-    renderProfile();
+    renderSettings();
     sfx.levelUp();
     toast(next ? `Welcome back, ${online.name}!` : `Linked to ${online.name}. No cloud save was found yet.`, true, 2200);
   } catch (err) {
@@ -1470,8 +1468,8 @@ $('#btn-reset-yes').addEventListener('click', () => {
   const ch = CHAPTERS[0];
   state.storySeen.push(`${ch.id}-intro`);
   persist();
-  renderProfile();
-  profileEl.classList.add('hidden');
+  renderSettings();
+  settingsEl.classList.add('hidden');
   sfx.levelUp();
   toast(`A fresh start! Welcome, ${online.name}.`, true, 2200);
   setTimeout(() => tell(introLines(ch.intro)), 600);
@@ -1820,9 +1818,65 @@ function afterCheckIn() {
 $('#btn-checkin').addEventListener('click', openCheckIn);
 $('#btn-checkin-back').addEventListener('click', () => checkinEl.classList.add('hidden'));
 
+// ------------------------------------------------------------------ chef profile
+
+const profileEl = $('#profile');
+const fmt = (n: number) => n.toLocaleString();
+
+/** The chef's lifetime stats. */
+function renderProfile() {
+  const st = stats(state);
+  $('#profile-name').textContent = online.name;
+  $('#stat-level').textContent = fmt(state.level);
+  $('#stat-served').textContent = fmt(state.served);
+  $('#stat-chapter').textContent = fmt(Math.min(state.chapter + 1, CHAPTERS.length));
+
+  const fav = favouriteCustomer(state);
+  const name = fav && (fav.kind === CRITIC.kind ? CRITIC : CUSTOMERS.find((c) => c.kind === fav.kind))?.name;
+  $('#stat-fav').innerHTML = fav && name
+    ? `<img src="${customerImg(fav.kind)}" alt=""><span><b>${name}</b><small>Served ${fmt(fav.count)} time${fav.count === 1 ? '' : 's'}</small></span>`
+    : '<span><small>Serve a customer to see who comes back the most.</small></span>';
+
+  const dish = st.bestDish;
+  $('#stat-dish').innerHTML = dish
+    ? `<img src="${itemArt(dish.chain, dish.level)}" alt=""><span><b>${CHAINS[dish.chain].levels[dish.level - 1]}</b>`
+      + `<small>${CHAINS[dish.chain].name}, level ${dish.level} of ${maxLevel(dish.chain)}</small></span>`
+    : '<span><small>Cook or merge some food to see your best dish.</small></span>';
+
+  const served = Object.values(st.servedBy).reduce((t, n) => t + n, 0);
+  const rows: [string, string][] = [
+    ['Merges', fmt(st.merges)],
+    ['Items made by merging', fmt(st.made)],
+    ['Times cooked', fmt(st.cooks)],
+    ['Free cooks (no energy)', st.cooks ? `${fmt(st.freeCooks)} (${Math.round((st.freeCooks / st.cooks) * 100)}%)` : '0'],
+    ['Coins from customers', fmt(st.tips)],
+    ['Critics served', fmt(st.servedBy.critic ?? 0)],
+    ['Different customers served', `${Object.keys(st.servedBy).length} of ${CUSTOMERS.length + 1}`],
+    ['Items sold', fmt(st.sold)],
+    ['Items discovered', fmt(state.discovered?.length ?? 0)],
+    ['Restaurant stars', fmt(state.stars)],
+    ['Check-in streak', `${checkInStreak(state)} day${checkInStreak(state) === 1 ? '' : 's'}`],
+  ];
+  $('#stat-list').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd class="stroked">${v}</dd></div>`).join('');
+  $('#stat-since').textContent = served < state.served
+    ? `Kitchen stats are counted since ${new Date(st.since).toLocaleDateString()}.`
+    : '';
+}
+
+function openProfile() {
+  sfx.pick();
+  profileEl.classList.remove('hidden');
+  renderProfile();
+}
+
+$('#hud-level').addEventListener('click', openProfile);
+$('#btn-profile').addEventListener('click', openProfile);
+$('#btn-profile-back').addEventListener('click', () => profileEl.classList.add('hidden'));
+$('#btn-settings-from-profile').addEventListener('click', () => { profileEl.classList.add('hidden'); openSettings(); });
+
 // Tapping empty space on a full-screen panel (the dimmed backdrop, the gaps between
 // cards, the header) works like its back button. Taps on cards and controls don't.
-for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back'], ['#wheel', '#btn-wheel-back'], ['#checkin', '#btn-checkin-back']]) {
+for (const [panel, back] of [['#diner', '#btn-back'], ['#leaders', '#btn-leaders-back'], ['#quests', '#btn-quests-back'], ['#profile', '#btn-profile-back'], ['#settings', '#btn-settings-back'], ['#fridge', '#btn-fridge-back'], ['#details', '#btn-details-back'], ['#wheel', '#btn-wheel-back'], ['#checkin', '#btn-checkin-back']]) {
   $(panel).addEventListener('click', (e) => {
     const t = e.target as Element;
     if (t === e.currentTarget || t.matches('.sheet-inner, .sheet-head, .sheet-title, .sheet-title > *, .fridge-hint')) $(back).click();
