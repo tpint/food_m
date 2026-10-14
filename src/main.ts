@@ -239,10 +239,15 @@ function customerCard(m: Customer): HTMLElement {
       <span class="reward"><img src="${iconArt.gstar()}" alt="stars"><span class="star-n">${(m.stars ?? 1) + (state.starBonus ?? 0)}</span></span>
       ${m.gems ? `<span class="reward"><img src="${iconArt.gem()}" alt="gems">${m.gems}</span>` : ''}
     </div>
-    <div class="tray"><div class="needs">${m.order.map((n) => `<div class="need" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
+    <div class="tray"><div class="needs">${m.order.map((n) => `<div class="need" role="button" aria-label="${CHAINS[n.chain].levels[n.level - 1]}" data-chain="${n.chain}" data-level="${n.level}"><img src="${itemArt(n.chain, n.level)}" alt=""><span class="check"></span></div>`).join('')}</div></div>
     <button class="serve" aria-label="Serve ${m.name}" title="Serve">${SERVE_ICON}</button>`;
   el.querySelector('.serve')!.addEventListener('click', (e) => { e.stopPropagation(); doServe(m.id); });
   el.querySelector('.portrait')!.addEventListener('click', () => showCustomerInfo(m));
+  // Tapping an ordered item opens its merge chain, so you can see how to make it.
+  el.querySelectorAll<HTMLElement>('.need').forEach((n) => n.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openDetails({ kind: 'item', chain: n.dataset.chain as ChainId, level: Number(n.dataset.level) });
+  }));
   setTimeout(() => el.classList.remove('enter'), 600);
   return el;
 }
