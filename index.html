@@ -98,16 +98,10 @@
         <div class="me-main">
           <small>You</small>
           <b id="me-name">Chef</b>
-          <form id="rename-form" class="hidden">
-            <label for="rename-input" class="sr">Display name</label>
-            <input id="rename-input" maxlength="16" autocomplete="nickname" />
-            <button class="btn stroked" type="submit">Save</button>
-          </form>
         </div>
         <div class="me-score"><span class="stroked" id="me-score">0</span><small id="me-unit">customers</small></div>
-        <button class="round" id="btn-rename" aria-label="Change your name">✎</button>
       </div>
-      <button class="link-btn" id="btn-profile-from-board">Keep your progress safe: profile &amp; recovery code →</button>
+      <button class="link-btn" id="btn-profile-from-board">Change your name or keep your progress safe: profile →</button>
       <p class="board-msg hidden" id="board-msg"></p>
       <ol id="board-list"></ol>
     </div>
@@ -181,6 +175,16 @@
           <b class="stroked" id="profile-name">Chef</b>
         </div>
       </header>
+
+      <div class="panel">
+        <h2>Chef name</h2>
+        <p>This is the name other chefs see on the leaderboard.</p>
+        <form id="rename-form" class="restore-form">
+          <label for="rename-input" class="sr">Chef name</label>
+          <input id="rename-input" maxlength="16" autocomplete="nickname" />
+          <button class="btn stroked" type="submit">Save</button>
+        </form>
+      </div>
 
       <div class="panel">
         <h2>Cloud save</h2>
