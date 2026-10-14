@@ -447,7 +447,7 @@ function select(i: number) {
 
   const def = CHAINS[p.chain];
   const max = maxLevel(p.chain);
-  const next = p.level < max ? `Merge ${MERGE_COUNT} → ${def.levels[p.level]}` : 'Max level!';
+  const next = p.level < max ? `Merge ${MERGE_COUNT} → ${itemName(p.chain, p.level + 1)}` : 'Max level!';
   const title = `${name} · Lv ${p.level}`;
   if (def.collect) {
     const amt = def.collect.amounts[p.level - 1];
@@ -486,6 +486,9 @@ async function revealWhenReady(panel: HTMLElement) {
 // ------------------------------------------------------------------ details panel
 
 /** What the details panel shows: an item's merge chain or a kitchen station. */
+/** An item's name, or ??? until the player has had one. */
+const itemName = (chain: ChainId, level: number) => (isDiscovered(state, item(chain, level)) ? CHAINS[chain].levels[level - 1] : '???');
+
 type Detail = { kind: 'item'; chain: ChainId; level: number } | { kind: 'gen'; gen: GenId; level: number };
 
 const detailsEl = $('#details');
@@ -513,9 +516,9 @@ async function renderDetails() {
     const f = detailFocus;
     sub = 'Merge chain';
     name = def.name;
-    const tiles = def.levels.map((name, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}${hiddenItem(d.chain, k + 1)}" data-focus="${k + 1}" aria-label="${name}, level ${k + 1}">`
+    const tiles = def.levels.map((_, k) => `<button class="dtile${k + 1 === d.level ? ' now' : ''}${k + 1 === f ? ' focus' : ''}${hiddenItem(d.chain, k + 1)}" data-focus="${k + 1}" aria-label="${itemName(d.chain, k + 1)}, level ${k + 1}">`
       + `<img src="${itemArt(d.chain, k + 1)}" alt=""><span class="dlv">${k + 1}</span></button>`).join('');
-    const next = f < max ? `Merge ${MERGE_COUNT} to make <b>${def.levels[f]}</b>.` : 'The top of the chain!';
+    const next = f < max ? `Merge ${MERGE_COUNT} to make <b>${itemName(d.chain, f + 1)}</b>.` : 'The top of the chain!';
     const use = def.collect
       ? ` Tap it on the board to collect ${def.collect.amounts[f - 1]} ${def.collect.resource}.`
       : sellValue(item(d.chain, f)) ? ` Sells for ${sellValue(item(d.chain, f))} coins.` : '';
@@ -525,11 +528,10 @@ async function renderDetails() {
         + `<p class="dnote">${makers.map((g) => g.name).join(', ')} makes levels 1 to ${Math.max(...GEN_LEVELS.map((l) => l.odds.length))} as it levels up. Tap it for the odds.</p>`
       : '<p class="dnote">No station makes these. You earn them as chapter rewards.</p>';
     html = `<h3>Level ${f} of ${max}</h3><div class="dgrid chain">${tiles}</div>`
-      + `<p class="dnote"><b>${def.levels[f - 1]}</b>. ${next}${use}</p>`
+      + `<p class="dnote"><b>${itemName(d.chain, f)}</b>. ${next}${use}</p>`
       + `<h3>Created by</h3>${madeBy}`;
   } else {
     const def = GENERATORS[d.gen];
-    const chain = CHAINS[def.chain];
     const f = detailFocus;
     const lv = GEN_LEVELS[f - 1];
     sub = 'Kitchen station';
@@ -540,7 +542,7 @@ async function renderDetails() {
     const makes = Array.from({ length: top }, (_, k) => {
       const w = lv.odds[k];
       const firstAt = GEN_LEVELS.findIndex((l) => (l.odds[k] ?? 0) > 0) + 1;
-      return `<button class="dtile make${w ? '' : ' locked'}${hiddenItem(def.chain, k + 1)}" data-open="item:${def.chain}:${k + 1}" aria-label="${chain.levels[k]}${w ? `, ${pct(w, lv.odds)}` : `, from station level ${firstAt}`}">`
+      return `<button class="dtile make${w ? '' : ' locked'}${hiddenItem(def.chain, k + 1)}" data-open="item:${def.chain}:${k + 1}" aria-label="${itemName(def.chain, k + 1)}${w ? `, ${pct(w, lv.odds)}` : `, from station level ${firstAt}`}">`
         + `<img src="${itemArt(def.chain, k + 1)}" alt=""><span class="dlv">${k + 1}</span><span class="dodds">${w ? pct(w, lv.odds) : `Lv ${firstAt}`}</span></button>`;
     }).join('');
     const free = lv.freeChance ? ` ${Math.round(lv.freeChance * 100)}% chance cooking is free.` : '';
