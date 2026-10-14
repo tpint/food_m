@@ -1357,7 +1357,6 @@ async function syncFromCloud() {
 
 const VERSION_LABEL = `v${__APP_VERSION__} · ${__APP_BUILD__}`;
 
-$('#version-tag').textContent = VERSION_LABEL;
 $('#about-version').textContent = `Sunny Spoon ${VERSION_LABEL}`;
 $('#about-built').textContent = `Released ${new Date(__APP_DATE__).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`;
 
