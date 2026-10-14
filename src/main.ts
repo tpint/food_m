@@ -1052,8 +1052,6 @@ async function loadBoard() {
 function openLeaders() {
   sfx.pick();
   leadersEl.classList.remove('hidden');
-  $('#rename-form').classList.add('hidden');
-  $('#me-name').classList.remove('hidden');
   loadBoard();
 }
 
@@ -1065,32 +1063,6 @@ leadersEl.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) => t.addEventL
   sfx.pick();
   loadBoard();
 }));
-$('#btn-rename').addEventListener('click', () => {
-  const form = $('#rename-form');
-  const open = form.classList.toggle('hidden') === false;
-  $('#me-name').classList.toggle('hidden', open);
-  if (open) {
-    const input = $<HTMLInputElement>('#rename-input');
-    input.value = online.name;
-    input.focus();
-    input.select();
-  }
-});
-$('#rename-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const input = $<HTMLInputElement>('#rename-input');
-  try {
-    await online.rename(input.value);
-    $('#rename-form').classList.add('hidden');
-    $('#me-name').classList.remove('hidden');
-    toast(`You are now ${online.name}`);
-    loadBoard();
-  } catch (err) {
-    sfx.error();
-    toast(err instanceof Error && err.message.startsWith('Names') ? err.message : "Couldn't save your name. Check your connection.");
-  }
-});
-
 // ------------------------------------------------------------------ fridge
 
 const fridgeBtn = $('#btn-fridge');
@@ -1346,6 +1318,7 @@ online.onCloudChange = () => { if (!profileEl.classList.contains('hidden')) rend
 
 function renderProfile() {
   $('#profile-name').textContent = online.name;
+  $<HTMLInputElement>('#rename-input').value = online.name;
   renderCloudStatus();
   const code = online.code;
   $('#code-box').classList.toggle('hidden', !code);
@@ -1378,6 +1351,22 @@ $('#hud-level').addEventListener('click', openProfile);
 $('#btn-profile').addEventListener('click', openProfile);
 $('#btn-profile-from-board').addEventListener('click', () => { leadersEl.classList.add('hidden'); openProfile(); });
 $('#btn-profile-back').addEventListener('click', () => profileEl.classList.add('hidden'));
+$('#rename-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = $<HTMLInputElement>('#rename-input');
+  input.blur();
+  if (input.value.trim().replace(/\s+/g, ' ') === online.name) return;
+  try {
+    await online.rename(input.value);
+    sfx.pick();
+    input.value = online.name;
+    $('#profile-name').textContent = online.name;
+    toast(`You are now ${online.name}`);
+  } catch (err) {
+    sfx.error();
+    toast(err instanceof Error && err.message.startsWith('Names') ? err.message : "Couldn't save your name. Check your connection.");
+  }
+});
 $('#btn-save-now').addEventListener('click', () => {
   state.savedAt = Date.now();
   save(state);
