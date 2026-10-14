@@ -4,7 +4,7 @@
 import { CHAPTERS, ChapterDef, TaskDef } from './story';
 import {
   ACTIVE_CUSTOMERS, BOARD_COLS, BOARD_ROWS, CHAINS, CRITIC, CRITIC_EVERY, CUSTOMERS, ChainId, CustomerKind,
-  ENERGY_REGEN_MS, FOOD_CHAINS, GEN_LEVELS, GENERATORS, GenId, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel,
+  ENERGY_REGEN_MS, FOOD_CHAINS, FoodId, isFood, GEN_LEVELS, GENERATORS, GenId, MAX_ENERGY, SPAWN_COST, maxLevel, xpForLevel,
 } from './config';
 
 export type Piece =
@@ -76,6 +76,28 @@ export interface GameState {
   tutorial?: number;
   /** Pieces the player has had, as discoveryKey()s; the details panel shows the rest as silhouettes. */
   discovered?: string[];
+  /** Lifetime counters for the chef profile; absent until the first one is counted. */
+  stats?: Stats;
+}
+
+/** What the chef profile shows. Counted from `since`, so older saves start at zero. */
+export interface Stats {
+  /** When counting started (ms). */
+  since: number;
+  /** Merges done, and the items they made (five of a kind make two). */
+  merges: number;
+  made: number;
+  /** Station taps that cooked something, and how many of those cost no energy. */
+  cooks: number;
+  freeCooks: number;
+  /** Customers served, by kind (the critic included). */
+  servedBy: Partial<Record<CustomerKind, number>>;
+  /** Coins customers paid. */
+  tips: number;
+  /** Items sold for coins. */
+  sold: number;
+  /** The highest level food made by merging or cooking. */
+  bestDish?: { chain: FoodId; level: number };
 }
 
 export type QuestKind = 'serve' | 'merge' | 'cook' | 'mergeHigh';
@@ -143,6 +165,28 @@ export const pos = (s: GameState, i: number) => ({ x: i % s.cols, y: Math.floor(
 export function samePiece(a: Piece | null, b: Piece | null): boolean {
   if (!a || !b || a.kind !== 'item' || b.kind !== 'item') return false;
   return a.chain === b.chain && a.level === b.level;
+}
+
+// ---------------------------------------------------------------- stats
+
+/** The profile counters, started now if this save has none yet. */
+export function stats(s: GameState, now = Date.now()): Stats {
+  return (s.stats ??= { since: now, merges: 0, made: 0, cooks: 0, freeCooks: 0, servedBy: {}, tips: 0, sold: 0 });
+}
+
+function noteDish(s: GameState, p: Piece) {
+  if (p.kind !== 'item' || !isFood(p.chain)) return;
+  const st = stats(s);
+  if (!st.bestDish || p.level > st.bestDish.level) st.bestDish = { chain: p.chain, level: p.level };
+}
+
+/** The customer kind served most, or null before the first one. Ties go to whoever came first. */
+export function favouriteCustomer(s: GameState): { kind: CustomerKind; count: number } | null {
+  let best: { kind: CustomerKind; count: number } | null = null;
+  for (const [kind, count] of Object.entries(s.stats?.servedBy ?? {}) as [CustomerKind, number][]) {
+    if (count > (best?.count ?? 0)) best = { kind, count };
+  }
+  return best;
 }
 
 // ---------------------------------------------------------------- new game
@@ -340,6 +384,10 @@ function mergeAt(s: GameState, from: number, to: number, consumed: number[], mad
   for (const i of consumed) s.board[i] = { piece: null };
   const results = consumed.slice(0, made);
   for (const i of results) s.board[i].piece = { ...result };
+  const st = stats(s);
+  st.merges++;
+  st.made += made;
+  noteDish(s, result);
   questProgress(s, 'merge');
   questProgress(s, 'mergeHigh', made, result.level);
   return { type: 'merge', from, to, result, results, consumed };
@@ -417,6 +465,10 @@ export function spawnFrom(s: GameState, genIdx: number, rng: Rng = Math.random):
   }
   const piece = item(def.chain, level);
   s.board[at].piece = piece;
+  const st = stats(s);
+  st.cooks++;
+  if (free) st.freeCooks++;
+  noteDish(s, piece);
   questProgress(s, 'cook');
   return { ok: true, at, piece, free };
 }
@@ -469,6 +521,7 @@ export function sell(s: GameState, i: number): number {
   if (!v) return 0;
   s.coins += v;
   c.piece = null;
+  stats(s).sold++;
   return v;
 }
 
@@ -542,6 +595,9 @@ export function serve(s: GameState, customerId: number, rng: Rng = Math.random):
   s.gems += m.gems;
   s.stars += (m.stars ?? 1) + (s.starBonus ?? 0);
   s.served++;
+  const st = stats(s);
+  st.servedBy[m.kind] = (st.servedBy[m.kind] ?? 0) + 1;
+  st.tips += m.coins;
   questProgress(s, 'serve');
   const levelUp = addXp(s, m.xp);
   s.customers.splice(mi, 1, makeCustomer(s, rng));

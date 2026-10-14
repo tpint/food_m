@@ -1173,6 +1173,20 @@ export const iconArt = {
     s.add(shape('M36 72L48 72L48 82L36 82Z', s.rad(LEMON), LEMON.ink, 'stroke-width="2"'));
     s.sparkle(84, 14, 4, '#fff');
   }),
+  /** A cog, for settings. */
+  gear: () => toUrl('icon-gear', (s) => {
+    s.shadow(34);
+    // Eight teeth around a wheel, as one outline.
+    const pt = (r: number, a: number) => `${(50 + r * Math.sin(a)).toFixed(1)} ${(48 - r * Math.cos(a)).toFixed(1)}`;
+    let d = '';
+    for (let k = 0; k < 8; k++) {
+      const a = (k * Math.PI) / 4;
+      d += `${k ? 'L' : 'M'}${pt(30, a - 0.3)}L${pt(42, a - 0.17)}L${pt(42, a + 0.17)}L${pt(30, a + 0.3)}`;
+    }
+    s.add(shape(`${d}Z`, s.rad(P.stone), P.stone.ink));
+    s.add(circ(50, 48, 13, s.rad({ hi: '#fff6c4', mid: '#ffc93c', lo: '#c88a10', ink: '#6a4a10' }), '#6a4a10'));
+    s.add(hl('M30 30Q38 22 50 20', 3, 0.6));
+  }),
   star: () => toUrl('icon-star', (s) => {
     s.add(shape('M50 4L62 34L95 36L69 57L78 90L50 72L22 90L31 57L5 36L38 34Z', s.rad({ hi: '#c9ecff', mid: '#5aaaf0', lo: '#2a6ac8', ink: '#163e80' }), '#163e80'));
   }),

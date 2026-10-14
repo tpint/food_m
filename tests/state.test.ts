@@ -6,6 +6,7 @@ import {
   CHECKIN_REWARDS, FREE_MAKEUPS, checkIn, checkInStreak, checkedInToday, makeUpCost, makeUpDay, missedDays,
   WEEKLY_CHESTS, claimWeeklyChest, weekKey, msToNextWeek, weekly, weeklyChestsReady,
   grantPiece, takeFromRewardBag, spinWheel, spinsLeft, SPINS_PER_DAY, WHEEL, tutorialStep, advanceTutorial, skipTutorial, TUTORIAL_STEPS, discover, isDiscovered,
+  stats, favouriteCustomer, sell,
 } from '../src/game/state';
 import { ACTIVE_CUSTOMERS, ENERGY_REGEN_MS, GEN_LEVELS, MAX_ENERGY, CUSTOMERS } from '../src/game/config';
 import { CHAPTERS } from '../src/game/story';
@@ -731,5 +732,63 @@ describe('discovery', () => {
     delete s.discovered;
     const loaded = validateSave(JSON.parse(JSON.stringify(s)))!;
     expect(isDiscovered(loaded, item('grill', 4))).toBe(true);
+  });
+});
+
+describe('chef profile stats', () => {
+  it('starts counting on older saves without stats', () => {
+    const s = empty();
+    delete s.stats;
+    expect(stats(s, 123)).toMatchObject({ since: 123, merges: 0, cooks: 0, servedBy: {} });
+    expect(favouriteCustomer(s)).toBeNull();
+  });
+
+  it('counts merges, the items they make and the best dish', () => {
+    const s = empty();
+    for (const i of [0, 1, 2, 3]) s.board[i].piece = item('drinks', 2);
+    s.board[20].piece = item('drinks', 2);
+    movePiece(s, 20, 4);
+    expect(stats(s)).toMatchObject({ merges: 1, made: 2, bestDish: { chain: 'drinks', level: 3 } });
+  });
+
+  it('counts cooks and free cooks, and only food can be the best dish', () => {
+    const s = empty();
+    s.board[0].piece = gen('bbq', 2);
+    spawnFrom(s, 0, () => 0); // rolls level 1 and a free cook
+    spawnFrom(s, 0, () => 0.99); // rolls the top level, not free
+    expect(stats(s)).toMatchObject({ cooks: 2, freeCooks: 1, bestDish: { chain: 'grill', level: 3 } });
+    s.board[10].piece = item('coin', 4);
+    s.board[11].piece = item('coin', 4);
+    s.board[12].piece = item('coin', 3);
+    s.board[13].piece = item('coin', 3);
+    s.board[30].piece = item('coin', 3);
+    movePiece(s, 30, 14);
+    expect(stats(s).bestDish).toEqual({ chain: 'grill', level: 3 });
+  });
+
+  it('counts customers by kind and the coins they paid', () => {
+    const s = empty();
+    const served: string[] = [];
+    let coins = 0;
+    for (let k = 0; k < 4; k++) {
+      const m = s.customers[0];
+      m.order.forEach((n, i) => (s.board[10 + i].piece = item(n.chain, n.level)));
+      serve(s, m.id, seeded(k + 2));
+      served.push(m.kind);
+      coins += m.coins;
+    }
+    const st = stats(s);
+    expect(Object.values(st.servedBy).reduce((t, n) => t + n, 0)).toBe(4);
+    expect(st.tips).toBe(coins);
+    const fav = favouriteCustomer(s)!;
+    expect(fav.count).toBe(Math.max(...Object.values(st.servedBy)));
+    expect(st.servedBy[fav.kind]).toBe(fav.count);
+  });
+
+  it('counts items sold', () => {
+    const s = empty();
+    s.board[0].piece = item('bakery', 2);
+    sell(s, 0);
+    expect(stats(s).sold).toBe(1);
   });
 });
