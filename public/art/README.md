@@ -42,18 +42,19 @@ ONLY=gen-bbq,cus-critic node scripts/art/render-art.mjs   # only keys starting w
 
 ### Station art from a single picture
 
-The Bread Oven and the Drink Fountain have their own painted picture for every level, an
-evolution line (the oven from a mixing bowl `gen-oven` to a golden bakery oven `gen-oven-10`,
-the fountain from a water pitcher `gen-fountain` to a golden drink fountain `gen-fountain-10`),
-so don't rebuild them with the script below.
+The Bread Oven, Drink Fountain and Dessert Mixer have their own painted picture for every
+level, an evolution line (the oven from a mixing bowl `gen-oven` to a golden bakery oven
+`gen-oven-10`, the fountain from a water pitcher `gen-fountain` to a golden drink fountain
+`gen-fountain-10`, the mixer from a candy jar `gen-mixer` to a golden dessert cart
+`gen-mixer-10`), so don't rebuild them with the script below.
 
-The other two stations use one painted picture each
+The BBQ Grill still uses one painted picture
 (`scripts/art/station-src/<id>.png`, transparent background). All 10 levels are built
 from it by adding the game's own level decorations around it:
 
 ```bash
 npm run dev    # in another terminal
-node scripts/art/compose-stations.mjs http://localhost:5173/ mixer bbq
+node scripts/art/compose-stations.mjs http://localhost:5173/ bbq
 ```
 
 ### Restaurant rooms
