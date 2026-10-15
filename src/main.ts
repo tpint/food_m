@@ -235,6 +235,7 @@ function customerCard(m: Customer): HTMLElement {
   const el = document.createElement('div');
   el.className = `customer enter${m.critic ? ' critic' : ''}`;
   el.dataset.id = String(m.id);
+  el.dataset.kind = m.kind;
   el.innerHTML = `
     <div class="portrait" aria-label="${m.name}"><img src="${customerImg(m.kind)}" alt="${m.name}"></div>
     <div class="tags">

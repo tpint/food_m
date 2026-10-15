@@ -144,7 +144,8 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 /* ------------------------------------------------------------ customers */
 
-#customers-wrap { position: relative; flex: none; }
+/* Above the board, so the tails of sunk customers paint over its frame rather than under it. */
+#customers-wrap { position: relative; z-index: 1; flex: none; }
 
 /* Three customers fit across; swipe the row sideways for the rest. */
 /* The scroller would clip ears poking above the row, so it gets headroom of a sixth of a
@@ -155,6 +156,8 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
      tray used to need below it. */
   --portrait-h: calc(max(72px, var(--cell) * 1.75) + var(--cell) * .38 + 7px + var(--mon-extra));
   padding-top: calc(var(--portrait-h) / 6); margin-top: calc(var(--portrait-h) / -6);
+  /* Likewise below, for the scarf tails and drawstrings of customers sunk lower (see --sink). */
+  padding-bottom: calc(var(--portrait-h) * 36 / 384); margin-bottom: calc(var(--portrait-h) * -36 / 384);
   display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 12px) / 3); gap: 6px; flex: none;
   overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x mandatory;
   scrollbar-width: none; touch-action: pan-x;
@@ -194,10 +197,19 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
    64px of spare room left, right and above for ears and tails (512x448). The square fills
    the portrait's height; ears and tails spill over the neighbours and the XP bar untrimmed. */
 .customer .portrait img {
-  position: absolute; z-index: 1; bottom: 0; left: -100%; right: -100%; margin: 0 auto;
+  position: absolute; z-index: 1; left: -100%; right: -100%; margin: 0 auto;
   height: calc(100% * 448 / 384); width: auto; max-width: none;
   animation: bob 2.4s ease-in-out infinite; transform-origin: 50% 100%;
+  bottom: calc(var(--portrait-h) * var(--sink, 0) / -384);
 }
+/* Some customers end their shoulders well above the picture's bottom edge, with only a scarf
+   tail or drawstrings reaching it, so they seemed to hover. Sink them (in 384ths of the
+   square) until their shoulders sit as low as everyone else's; what hangs below spills into
+   the row's bottom headroom, never cropped. Keep the largest within that headroom. */
+.customer[data-kind="fox"] { --sink: 36; }
+.customer[data-kind="pig"] { --sink: 26; }
+.customer[data-kind="bunny"] { --sink: 22; }
+.customer[data-kind="dog"] { --sink: 10; }
 
 /* Detail badges stacked down the customer's left edge, one reward each, to keep clear of the face. */
 .customer .tags {
